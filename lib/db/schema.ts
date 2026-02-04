@@ -1,4 +1,5 @@
 import { pgTable, text, integer, boolean, timestamp, uuid, varchar, jsonb, pgEnum } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
 
 
 export const levelEnum = pgEnum("level", ["elementary", "middle_school", "junior_high", "high_school", "higher_education"]);
@@ -88,3 +89,59 @@ export const myLearners = pgTable("my_learners", {
   createdAt,
   updatedAt,
 });
+
+// Relations
+export const userRelations = relations(user, ({ many }) => ({
+  teacherLearners: many(myLearners, { relationName: "teacher" }),
+  learnerEntries: many(myLearners, { relationName: "learner" }),
+}));
+
+export const gradeRelations = relations(grade, ({ many }) => ({
+  subjects: many(subject),
+  myLearners: many(myLearners),
+}));
+
+export const subjectRelations = relations(subject, ({ one, many }) => ({
+  grade: one(grade, {
+    fields: [subject.gradeId],
+    references: [grade.id],
+  }),
+  topics: many(topic),
+  resources: many(resource),
+}));
+
+export const topicRelations = relations(topic, ({ one, many }) => ({
+  subject: one(subject, {
+    fields: [topic.subjectId],
+    references: [subject.id],
+  }),
+  resources: many(resource),
+}));
+
+export const resourceRelations = relations(resource, ({ one }) => ({
+  subject: one(subject, {
+    fields: [resource.subjectId],
+    references: [subject.id],
+  }),
+  topic: one(topic, {
+    fields: [resource.topicId],
+    references: [topic.id],
+  }),
+}));
+
+export const myLearnersRelations = relations(myLearners, ({ one }) => ({
+  teacher: one(user, {
+    fields: [myLearners.teacherId],
+    references: [user.id],
+    relationName: "teacher",
+  }),
+  learner: one(user, {
+    fields: [myLearners.learnerId],
+    references: [user.id],
+    relationName: "learner",
+  }),
+  grade: one(grade, {
+    fields: [myLearners.gradeId],
+    references: [grade.id],
+  }),
+}));

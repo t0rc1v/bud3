@@ -14,7 +14,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { UploadButton } from "@/lib/uploadthing";
 import type { SubjectWithTopics, TopicWithResources, ResourceType } from "@/lib/types";
+import { CheckCircle2 } from "lucide-react";
 
 interface CreateResourceFormProps {
   subjects: SubjectWithTopics[];
@@ -23,9 +25,25 @@ interface CreateResourceFormProps {
 
 const RESOURCE_TYPES: ResourceType[] = ["notes", "video", "audio", "image"];
 
+const ENDPOINTS = {
+  notes: "notesUploader",
+  video: "videoUploader",
+  audio: "audioUploader",
+  image: "imageUploader",
+} as const;
+
+const ALLOWED_CONTENT = {
+  notes: "PDF and text files (max 16MB)",
+  video: "Video files (max 128MB)",
+  audio: "Audio files (max 64MB)",
+  image: "Image files (max 16MB)",
+} as const;
+
 export function CreateResourceForm({ subjects, topics }: CreateResourceFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<{ name: string; url: string } | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -60,8 +78,32 @@ export function CreateResourceForm({ subjects, topics }: CreateResourceFormProps
         thumbnailUrl: "",
         uploadthingKey: "",
       });
+      setUploadedFile(null);
+      setThumbnailFile(null);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleTypeChange = (value: ResourceType) => {
+    setFormData({ ...formData, type: value, url: "", uploadthingKey: "", thumbnailUrl: "" });
+    setUploadedFile(null);
+    setThumbnailFile(null);
+  };
+
+  const handleFileUpload = (res: Array<{ name: string; url: string; key: string }>) => {
+    if (res && res[0]) {
+      const file = res[0];
+      setFormData({ ...formData, url: file.url, uploadthingKey: file.key });
+      setUploadedFile({ name: file.name, url: file.url });
+    }
+  };
+
+  const handleThumbnailUpload = (res: Array<{ name: string; url: string; key: string }>) => {
+    if (res && res[0]) {
+      const file = res[0];
+      setFormData({ ...formData, thumbnailUrl: file.url });
+      setThumbnailFile({ name: file.name, url: file.url });
     }
   };
 
@@ -92,7 +134,7 @@ export function CreateResourceForm({ subjects, topics }: CreateResourceFormProps
         <Label htmlFor="type">Resource Type</Label>
         <Select
           value={formData.type}
-          onValueChange={(value) => setFormData({ ...formData, type: value as ResourceType })}
+          onValueChange={(value) => handleTypeChange(value as ResourceType)}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select a resource type" />
@@ -146,38 +188,92 @@ export function CreateResourceForm({ subjects, topics }: CreateResourceFormProps
         </Select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="url">URL</Label>
-        <Input
-          id="url"
-          type="url"
-          value={formData.url}
-          onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-          placeholder="https://..."
-          required
-        />
+        <Label>Upload File</Label>
+        <p className="text-sm text-muted-foreground">{ALLOWED_CONTENT[formData.type]}</p>
+        {uploadedFile ? (
+          <div className="flex items-center gap-2 p-3 rounded-md border border-green-500/20 bg-green-50 dark:bg-green-900/10">
+            <CheckCircle2 className="w-5 h-5 text-green-600" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{uploadedFile.name}</p>
+              <p className="text-xs text-muted-foreground">Uploaded successfully</p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setFormData({ ...formData, url: "", uploadthingKey: "" });
+                setUploadedFile(null);
+              }}
+            >
+              Remove
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <UploadButton
+              endpoint={ENDPOINTS[formData.type]}
+              onClientUploadComplete={handleFileUpload}
+              onUploadError={(error: Error) => {
+                console.error("Upload error:", error);
+                alert(`Upload failed: ${error.message}`);
+              }}
+              appearance={{
+                button:
+                  "ut-ready:bg-primary ut-ready:text-primary-foreground ut-ready:hover:bg-primary/90 ut-uploading:bg-primary/50 ut-uploading:cursor-not-allowed ut-button:bg-secondary ut-button:text-secondary-foreground ut-button:hover:bg-secondary/80",
+                allowedContent: "text-sm text-muted-foreground",
+              }}
+            />
+          </div>
+        )}
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="thumbnailUrl">Thumbnail URL (Optional)</Label>
-        <Input
-          id="thumbnailUrl"
-          type="url"
-          value={formData.thumbnailUrl}
-          onChange={(e) => setFormData({ ...formData, thumbnailUrl: e.target.value })}
-          placeholder="https://..."
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="uploadthingKey">UploadThing Key</Label>
-        <Input
-          id="uploadthingKey"
-          type="text"
-          value={formData.uploadthingKey}
-          onChange={(e) => setFormData({ ...formData, uploadthingKey: e.target.value })}
-          placeholder="Enter UploadThing key..."
-          required
-        />
-      </div>
-      <Button type="submit" className="w-full" disabled={isLoading || subjects.length === 0}>
+
+      {(formData.type === "video" || formData.type === "image") && (
+        <div className="space-y-2">
+          <Label>Thumbnail (Optional)</Label>
+          <p className="text-sm text-muted-foreground">Upload a thumbnail image (max 16MB)</p>
+          {thumbnailFile ? (
+            <div className="flex items-center gap-2 p-3 rounded-md border border-green-500/20 bg-green-50 dark:bg-green-900/10">
+              <CheckCircle2 className="w-5 h-5 text-green-600" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{thumbnailFile.name}</p>
+                <p className="text-xs text-muted-foreground">Uploaded successfully</p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setFormData({ ...formData, thumbnailUrl: "" });
+                  setThumbnailFile(null);
+                }}
+              >
+                Remove
+              </Button>
+            </div>
+          ) : (
+            <UploadButton
+              endpoint="imageUploader"
+              onClientUploadComplete={handleThumbnailUpload}
+              onUploadError={(error: Error) => {
+                console.error("Thumbnail upload error:", error);
+                alert(`Thumbnail upload failed: ${error.message}`);
+              }}
+              appearance={{
+                button:
+                  "ut-ready:bg-primary ut-ready:text-primary-foreground ut-ready:hover:bg-primary/90 ut-uploading:bg-primary/50 ut-uploading:cursor-not-allowed ut-button:bg-secondary ut-button:text-secondary-foreground ut-button:hover:bg-secondary/80",
+                allowedContent: "text-sm text-muted-foreground",
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={isLoading || subjects.length === 0 || !formData.url}
+      >
         {isLoading ? "Creating..." : "Create Resource"}
       </Button>
     </form>

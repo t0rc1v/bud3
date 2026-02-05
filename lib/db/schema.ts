@@ -17,7 +17,7 @@ const updatedAt = timestamp("updated_at", { withTimezone: true })
 
 export const user = pgTable("user", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: varchar("user_id", { length: 255 }).notNull(),
+  userId: varchar("user_id", { length: 255 }).notNull().unique(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   role: userRoleEnum("role").default("learner").notNull(),
   onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
@@ -251,4 +251,94 @@ export const userRoleRelations = relations(userRoles, ({ one }) => ({
     references: [user.id],
     relationName: "roleAssigner",
   }),
+}));
+
+// AI Chat tables
+export const chat = pgTable("chat", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: varchar('user_id', { length: 255 })
+    .notNull()
+    .references(() => user.userId, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+});
+
+export const chatMessage = pgTable("chat_message", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  chatId: uuid('chat_id')
+    .notNull()
+    .references(() => chat.id, { onDelete: 'cascade' }),
+  role: varchar('role', { length: 20 }).notNull(), // 'user', 'assistant', 'tool'
+  content: text('content').notNull(),
+  metadata: jsonb('metadata'), // for tool calls, attachments, etc.
+  createdAt,
+  updatedAt,
+});
+
+export const chatResource = pgTable("chat_resource", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  chatId: uuid('chat_id')
+    .notNull()
+    .references(() => chat.id, { onDelete: 'cascade' }),
+  resourceId: uuid('resource_id')
+    .notNull()
+    .references(() => resource.id, { onDelete: 'cascade' }),
+  addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const aiMemory = pgTable("ai_memory", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: varchar('user_id', { length: 255 })
+    .notNull()
+    .references(() => user.userId, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  category: varchar('category', { length: 100 }),
+  content: jsonb('content').notNull(), // structured data
+  description: text('description'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+});
+
+// Chat relations
+export const chatRelations = relations(chat, ({ one, many }) => ({
+  user: one(user, {
+    fields: [chat.userId],
+    references: [user.userId],
+  }),
+  messages: many(chatMessage),
+  resources: many(chatResource),
+}));
+
+export const chatMessageRelations = relations(chatMessage, ({ one }) => ({
+  chat: one(chat, {
+    fields: [chatMessage.chatId],
+    references: [chat.id],
+  }),
+}));
+
+export const chatResourceRelations = relations(chatResource, ({ one }) => ({
+  chat: one(chat, {
+    fields: [chatResource.chatId],
+    references: [chat.id],
+  }),
+  resource: one(resource, {
+    fields: [chatResource.resourceId],
+    references: [resource.id],
+  }),
+}));
+
+export const aiMemoryRelations = relations(aiMemory, ({ one }) => ({
+  user: one(user, {
+    fields: [aiMemory.userId],
+    references: [user.userId],
+  }),
+}));
+
+// Update user relations to include chat and memory
+export const userRelationsExtended = relations(user, ({ many }) => ({
+  chats: many(chat),
+  aiMemories: many(aiMemory),
 }));

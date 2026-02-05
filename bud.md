@@ -1,3 +1,8 @@
+## instructions
+- use pnpm 
+- use command: pnpm dlx shadcn@latest add to add shadcn components
+- ensure to get up to date info from docs before implementing any package
+
 ## roles
 - admin, teacher, student
 
@@ -43,8 +48,12 @@
 - Memory tool can save structured data. for example, a teacher can upload a file with subject results which they would like to save for future reference of their learners
 - reasearch tool which can be used to research for materials to use within a topic from the web or youtube
 - when a resource is added to chat from the database, the AI will be provided with the url which is saved in the database and read the contents of the resource provided by accessing the url. for example a pdf or image url
-- tools for calling db functions. for example a teacher can message AI to create a notification for their learners
+- create tool calls for these server actions: 
+    - teacher adding learner(s)
+    - 
 - TOOLCALLS
+
+
 
 ---
 

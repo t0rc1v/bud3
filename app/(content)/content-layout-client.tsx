@@ -8,6 +8,16 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { PanelLeft, PanelRight, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { AIChat } from "@/components/ai/ai-chat";
+import { AddResourceToChat } from "@/components/ai/add-resource-to-chat";
+
+interface Resource {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  type: "notes" | "video" | "audio" | "image";
+}
 
 interface ContentLayoutClientProps {
   children: ReactNode;
@@ -19,8 +29,17 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
   const isMobile = useIsMobile();
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(!isMobile);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(!isMobile);
+  const [attachedResources, setAttachedResources] = useState<Resource[]>([]);
 
   const title = userRole === "teacher" ? "Teacher" : "Learner";
+
+  const handleAddResource = (resource: Resource) => {
+    setAttachedResources((prev) => [...prev, resource]);
+  };
+
+  const handleRemoveResource = (resourceId: string) => {
+    setAttachedResources((prev) => prev.filter((r) => r.id !== resourceId));
+  };
 
   // Mobile layout with sheets
   if (isMobile) {
@@ -58,15 +77,13 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-80 p-0">
-              <div className="flex h-full flex-col">
-                <div className="border-b p-4">
-                  <h2 className="font-semibold">AI Assistant</h2>
-                  <p className="text-xs text-muted-foreground">Coming soon...</p>
-                </div>
-                <div className="flex-1 flex items-center justify-center">
-                  <p className="text-sm text-muted-foreground">AI chat will be available here</p>
-                </div>
-              </div>
+              {userId && (
+                <AIChat 
+                  userId={userId} 
+                  attachedResources={attachedResources}
+                  onRemoveResource={handleRemoveResource}
+                />
+              )}
             </SheetContent>
           </Sheet>
         </header>
@@ -142,16 +159,13 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
           rightSidebarOpen ? "w-80" : "w-0 overflow-hidden"
         )}
       >
-        <div className="flex h-16 items-center justify-between border-b px-4">
-          <h2 className={cn("font-semibold transition-opacity", rightSidebarOpen ? "opacity-100" : "opacity-0")}>
-            AI Assistant
-          </h2>
-        </div>
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-sm text-muted-foreground px-4 text-center">
-            AI chat will be available here
-          </p>
-        </div>
+        {userId && (
+          <AIChat 
+            userId={userId} 
+            attachedResources={attachedResources}
+            onRemoveResource={handleRemoveResource}
+          />
+        )}
       </div>
     </div>
   );

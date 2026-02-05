@@ -222,14 +222,15 @@ export function EditResourceForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="topicId">Topic (Optional)</Label>
+        <Label htmlFor="topicId">Topic</Label>
         <Select
           value={formData.topicId}
           onValueChange={(value) => setFormData({ ...formData, topicId: value })}
           disabled={filteredTopics.length === 0}
+          required
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select a topic" />
+            <SelectValue placeholder={filteredTopics.length === 0 ? "No topics available" : "Select a topic"} />
           </SelectTrigger>
           <SelectContent>
             {filteredTopics.map((topic) => (
@@ -239,6 +240,11 @@ export function EditResourceForm({
             ))}
           </SelectContent>
         </Select>
+        {filteredTopics.length === 0 && (
+          <p className="text-xs text-destructive">
+            This subject has no topics. Please select a different subject.
+          </p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -384,7 +390,7 @@ export function EditResourceForm({
         <Button
           type="submit"
           className="flex-1"
-          disabled={isLoading || !formData.url}
+          disabled={isLoading || !formData.url || !formData.topicId}
         >
           {isLoading ? "Updating..." : "Update Resource"}
         </Button>

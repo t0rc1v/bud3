@@ -77,16 +77,19 @@ export interface UpdateTopicInput extends Partial<CreateTopicInput> {
 
 export interface CreateResourceInput {
   subjectId: string;
-  topicId?: string;
+  topicId: string;
   title: string;
   description: string;
   type: ResourceType;
   url: string;
   thumbnailUrl?: string;
-  uploadthingKey: string;
+  uploadthingKey?: string;
   metadata?: Record<string, unknown>;
 }
 
-export interface UpdateResourceInput extends Partial<Omit<CreateResourceInput, "uploadthingKey">> {
+export interface UpdateResourceInput extends Partial<Omit<CreateResourceInput, "topicId" | "uploadthingKey"> & {
+  topicId?: string;
+  uploadthingKey?: string | null;
+}> {
   id: string;
 }

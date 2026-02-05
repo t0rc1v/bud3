@@ -16,7 +16,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { UploadButton } from "@/lib/uploadthing";
 import type { SubjectWithTopics, TopicWithResources, ResourceType } from "@/lib/types";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ExternalLink } from "lucide-react";
 
 interface CreateResourceFormProps {
   subjects: SubjectWithTopics[];
@@ -108,7 +108,7 @@ export function CreateResourceForm({ subjects, topics }: CreateResourceFormProps
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 max-h-[80vh] overflow-auto">
       <div className="space-y-2">
         <Label htmlFor="title">Title</Label>
         <Input
@@ -169,14 +169,15 @@ export function CreateResourceForm({ subjects, topics }: CreateResourceFormProps
         </Select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="topicId">Topic (Optional)</Label>
+        <Label htmlFor="topicId">Topic</Label>
         <Select
           value={formData.topicId}
           onValueChange={(value) => setFormData({ ...formData, topicId: value })}
           disabled={filteredTopics.length === 0}
+          required
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select a topic" />
+            <SelectValue placeholder={filteredTopics.length === 0 ? "No topics available for this subject" : "Select a topic"} />
           </SelectTrigger>
           <SelectContent>
             {filteredTopics.map((topic) => (
@@ -186,6 +187,11 @@ export function CreateResourceForm({ subjects, topics }: CreateResourceFormProps
             ))}
           </SelectContent>
         </Select>
+        {filteredTopics.length === 0 && (
+          <p className="text-xs text-destructive">
+            This subject has no topics. Please add a topic first or select a different subject.
+          </p>
+        )}
       </div>
       <div className="space-y-2">
         <Label>Upload File</Label>
@@ -227,6 +233,48 @@ export function CreateResourceForm({ subjects, topics }: CreateResourceFormProps
           </div>
         )}
       </div>
+
+      {/* YouTube URL Input for Video Type */}
+      {formData.type === "video" && (
+        <div className="space-y-2 border-t pt-4">
+          <Label htmlFor="youtubeUrl">YouTube URL (Optional)</Label>
+          <p className="text-sm text-muted-foreground">
+            Enter a YouTube video URL instead of uploading a file
+          </p>
+          <div className="flex gap-2">
+            <Input
+              id="youtubeUrl"
+              type="url"
+              placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..."
+              value={formData.url}
+              onChange={(e) => {
+                const url = e.target.value;
+                setFormData({ ...formData, url, uploadthingKey: "" });
+                if (url) {
+                  setUploadedFile(null);
+                }
+              }}
+              disabled={uploadedFile !== null}
+            />
+            {formData.url && !uploadedFile && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setFormData({ ...formData, url: "", uploadthingKey: "" })}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          {formData.url && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <ExternalLink className="h-4 w-4" />
+              <span>YouTube video will be embedded</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {(formData.type === "video" || formData.type === "image") && (
         <div className="space-y-2">
@@ -272,7 +320,7 @@ export function CreateResourceForm({ subjects, topics }: CreateResourceFormProps
       <Button
         type="submit"
         className="w-full"
-        disabled={isLoading || subjects.length === 0 || !formData.url}
+        disabled={isLoading || subjects.length === 0 || !formData.url || !formData.topicId}
       >
         {isLoading ? "Creating..." : "Create Resource"}
       </Button>

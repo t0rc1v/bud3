@@ -257,14 +257,14 @@ export async function getResourceById(id: string): Promise<ResourceWithRelations
 export async function createResource(input: CreateResourceInput): Promise<void> {
   await db.insert(resource).values({
     subjectId: input.subjectId,
-    topicId: input.topicId ?? null,
+    topicId: input.topicId,
     title: input.title,
     description: input.description,
     type: input.type,
     url: input.url,
-    thumbnailUrl: input.thumbnailUrl ?? null,
-    uploadthingKey: input.uploadthingKey,
-    metadata: input.metadata ?? null,
+    thumbnailUrl: input.thumbnailUrl || null,
+    uploadthingKey: input.uploadthingKey || null,
+    metadata: input.metadata || null,
     isActive: true,
     createdAt: new Date(),
   });
@@ -290,7 +290,7 @@ export async function updateResource(input: UpdateResourceInput): Promise<void> 
     // If URL contains uploadthing domain, we might want to store the key
     // For now, we'll keep the existing key or clear it for external URLs
     if (!data.url.includes("utfs.io") && !data.url.includes("uploadthing.com")) {
-      updateData.uploadthingKey = "";
+      updateData.uploadthingKey = null;
     }
   }
   

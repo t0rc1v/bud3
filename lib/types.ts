@@ -93,3 +93,26 @@ export interface UpdateResourceInput extends Partial<Omit<CreateResourceInput, "
 }> {
   id: string;
 }
+
+// Permission-related types
+export type Role = InferSelectModel<typeof schema.role>;
+export type RolePermission = InferSelectModel<typeof schema.rolePermission>;
+export type UserPermission = InferSelectModel<typeof schema.userPermission>;
+export type UserRoleAssignment = InferSelectModel<typeof schema.userRoles>;
+
+export interface RoleWithPermissions extends Role {
+  permissions: RolePermission[];
+}
+
+export interface UserWithPermissions extends User {
+  directPermissions: UserPermission[];
+  assignedRoles: (UserRoleAssignment & { role: RoleWithPermissions })[];
+}
+
+export interface PermissionAssignment {
+  permission: string;
+  source: "direct" | "role";
+  roleName?: string;
+  grantedAt: Date;
+  grantedBy?: string;
+}

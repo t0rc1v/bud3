@@ -1,1 +1,0 @@
-ALTER TABLE "resource" ALTER COLUMN "uploadthing_key" DROP NOT NULL;

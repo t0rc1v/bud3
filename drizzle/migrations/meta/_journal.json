@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1770222053320,
-      "tag": "0000_flawless_sersi",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1770266307960,
-      "tag": "0001_lazy_doctor_faustus",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1770267996807,
-      "tag": "0002_uneven_randall",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1770273271009,
-      "tag": "0003_woozy_gargoyle",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1770274393182,
-      "tag": "0004_flippant_maginty",
+      "when": 1770288090891,
+      "tag": "0000_mighty_nekra",
       "breakpoints": true
     }
   ]

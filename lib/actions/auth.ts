@@ -118,9 +118,5 @@ export async function createAdminUser(
   return newAdmin;
 }
 
-export async function getAllAdmins(): Promise<User[]> {
-  return await db.query.user.findMany({
-    where: eq(user.role, "admin"),
-    orderBy: (user, { desc }) => [desc(user.createdAt)],
-  });
-}
+// Note: getAllAdmins has been moved to admin-permissions.ts with full permission support
+// Import from @/lib/actions/admin-permissions instead

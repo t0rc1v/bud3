@@ -4,7 +4,7 @@ import { relations } from 'drizzle-orm';
 
 export const levelEnum = pgEnum("level", ["elementary", "middle_school", "junior_high", "high_school", "higher_education"]);
 export const resourceTypeEnum = pgEnum('resource_type', ["notes", "video", "audio", "image"]);
-export const userRoleEnum = pgEnum('user_role', ["learner", "teacher", "admin", "super_admin"]);
+export const userRoleEnum = pgEnum('user_role_enum', ["learner", "teacher", "admin", "super_admin"]);
 
 const createdAt = timestamp("created_at", { withTimezone: true })
 	.notNull()
@@ -92,10 +92,71 @@ export const myLearners = pgTable("my_learners", {
   updatedAt,
 });
 
+// Roles table for role-based permissions (managed by super-admin)
+export const role = pgTable("role", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  description: text('description'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+});
+
+// Role permissions table - links roles to permissions
+export const rolePermission = pgTable("role_permission", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  roleId: uuid('role_id')
+    .notNull()
+    .references(() => role.id, { onDelete: 'cascade' }),
+  permission: varchar('permission', { length: 100 }).notNull(),
+  createdAt,
+}, (table) => ({
+  uniqueRolePermission: { columns: [table.roleId, table.permission] },
+}));
+
+// User permissions table - for user-based permissions (admins can have different permissions)
+export const userPermission = pgTable("user_permission", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  permission: varchar('permission', { length: 100 }).notNull(),
+  grantedBy: uuid('granted_by')
+    .references(() => user.id, { onDelete: 'set null' }),
+  grantedAt: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+}, (table) => ({
+  uniqueUserPermission: { columns: [table.userId, table.permission] },
+}));
+
+// User roles table - links users to roles (optional role assignment)
+export const userRoles = pgTable("user_roles", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  roleId: uuid('role_id')
+    .notNull()
+    .references(() => role.id, { onDelete: 'cascade' }),
+  assignedBy: uuid('assigned_by')
+    .references(() => user.id, { onDelete: 'set null' }),
+  assignedAt: timestamp('assigned_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt,
+}, (table) => ({
+  uniqueUserRole: { columns: [table.userId, table.roleId] },
+}));
+
 // Relations
 export const userRelations = relations(user, ({ many }) => ({
   teacherLearners: many(myLearners, { relationName: "teacher" }),
   learnerEntries: many(myLearners, { relationName: "learner" }),
+  permissions: many(userPermission),
+  roles: many(userRoles),
+  grantedPermissions: many(userPermission, { relationName: "permissionGranter" }),
+  assignedRoles: many(userRoles, { relationName: "roleAssigner" }),
 }));
 
 export const gradeRelations = relations(grade, ({ many }) => ({
@@ -145,5 +206,49 @@ export const myLearnersRelations = relations(myLearners, ({ one }) => ({
   grade: one(grade, {
     fields: [myLearners.gradeId],
     references: [grade.id],
+  }),
+}));
+
+// Role relations
+export const roleRelations = relations(role, ({ many }) => ({
+  permissions: many(rolePermission),
+  userRoles: many(userRoles),
+}));
+
+// Role permission relations
+export const rolePermissionRelations = relations(rolePermission, ({ one }) => ({
+  role: one(role, {
+    fields: [rolePermission.roleId],
+    references: [role.id],
+  }),
+}));
+
+// User permission relations
+export const userPermissionRelations = relations(userPermission, ({ one }) => ({
+  user: one(user, {
+    fields: [userPermission.userId],
+    references: [user.id],
+  }),
+  grantedByUser: one(user, {
+    fields: [userPermission.grantedBy],
+    references: [user.id],
+    relationName: "permissionGranter",
+  }),
+}));
+
+// User role relations
+export const userRoleRelations = relations(userRoles, ({ one }) => ({
+  user: one(user, {
+    fields: [userRoles.userId],
+    references: [user.id],
+  }),
+  role: one(role, {
+    fields: [userRoles.roleId],
+    references: [role.id],
+  }),
+  assignedByUser: one(user, {
+    fields: [userRoles.assignedBy],
+    references: [user.id],
+    relationName: "roleAssigner",
   }),
 }));

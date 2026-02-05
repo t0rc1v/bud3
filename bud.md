@@ -18,7 +18,7 @@
 3. view subject topics
 4. view topic resources
 5. add `my_learners`: require email
-6. upload material to topic - notes/yt/audio?/image
+6. create topic and upload material to topic - notes/yt/audio?/image
 - provide description of uploaded material for AI 
 - if resource is added to chat, the following is provided to the AI:
     - resource schema: title, description, url, type(will determine rendering)

@@ -1,14 +1,10 @@
-import { type ReactNode } from "react";
-import { ContentLayoutClient } from "@/app/(content)/content-layout-client";
+import { getGradesFullHierarchy } from "@/lib/actions/teacher";
+import { UnifiedLearnerPageClient } from "@/components/learner/unified-learner-page-client";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getUserByClerkId } from "@/lib/actions/auth";
 
-export default async function LearnerLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export default async function LearnerPage() {
   const { userId } = await auth();
 
   if (!userId) {
@@ -21,9 +17,7 @@ export default async function LearnerLayout({
     redirect("/");
   }
 
-  return (
-    <ContentLayoutClient userId={userId} userRole="learner">
-      {children}
-    </ContentLayoutClient>
-  );
+  const grades = await getGradesFullHierarchy();
+
+  return <UnifiedLearnerPageClient initialGrades={grades} />;
 }

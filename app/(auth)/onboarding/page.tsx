@@ -29,9 +29,9 @@ export default function OnboardingPage() {
 
       // Redirect based on role
       if (selectedRole === "teacher") {
-        router.push("/teacher/dashboard");
+        router.push("/teacher");
       } else if (selectedRole === "learner") {
-        router.push("/learner/dashboard");
+        router.push("/learner");
       } else if (selectedRole === "admin") {
         router.push("/admin");
       }

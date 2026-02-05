@@ -31,6 +31,34 @@ export async function POST(req: Request) {
     resources?: { title: string; description: string; url: string; type: string }[];
   } = await req.json();
 
+  // Save the user's message to the database if chatId is provided
+  if (chatId && messages.length > 0) {
+    try {
+      const { saveChatMessage } = await import('@/lib/actions/ai');
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === 'user') {
+        // Extract text content from message parts
+        let contentStr = '';
+        if (lastMessage.parts && Array.isArray(lastMessage.parts)) {
+          contentStr = lastMessage.parts
+            .filter((part: { type: string; text?: string }) => part.type === 'text')
+            .map((part: { type: string; text?: string }) => part.text || '')
+            .join('');
+        }
+        
+        if (contentStr.trim()) {
+          await saveChatMessage({
+            chatId,
+            role: 'user',
+            content: contentStr,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save user message:', error);
+    }
+  }
+
   // Get user's memory items for context
   let memoryItems: MemoryItem[] = [];
   try {

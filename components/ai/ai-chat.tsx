@@ -29,7 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { createChat, deleteChat, getUserChats, type Chat } from "@/lib/actions/ai";
+import { createChat, deleteChat, getUserChats, getChatMessages, type Chat } from "@/lib/actions/ai";
 
 interface Resource {
   id: string;
@@ -83,12 +83,24 @@ export function AIChat({
     id: chatId || "default",
   });
 
-  // Load user's chats on mount
+  // Load user's chats and messages on mount
   useEffect(() => {
     async function loadChats() {
       try {
         const userChats = await getUserChats(userId);
         setChats(userChats);
+        
+        // If there's an initialChatId, load its messages
+        if (initialChatId) {
+          const chatMessages = await getChatMessages(initialChatId);
+          const formattedMessages = chatMessages.map((msg) => ({
+            id: msg.id,
+            role: msg.role as "user" | "assistant",
+            parts: [{ type: "text" as const, text: msg.content }],
+            createdAt: msg.createdAt,
+          }));
+          setMessages(formattedMessages);
+        }
       } catch (error) {
         console.error("Failed to load chats:", error);
       } finally {
@@ -96,7 +108,7 @@ export function AIChat({
       }
     }
     loadChats();
-  }, [userId]);
+  }, [userId, initialChatId, setMessages]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -156,9 +168,22 @@ export function AIChat({
     }
   };
 
-  const handleSelectChat = (id: string) => {
+  const handleSelectChat = async (id: string) => {
     setChatId(id);
-    // Load messages for this chat would go here
+    try {
+      const chatMessages = await getChatMessages(id);
+      // Convert database messages to useChat format
+      const formattedMessages = chatMessages.map((msg) => ({
+        id: msg.id,
+        role: msg.role as "user" | "assistant",
+        parts: [{ type: "text" as const, text: msg.content }],
+        createdAt: msg.createdAt,
+      }));
+      setMessages(formattedMessages);
+    } catch (error) {
+      console.error("Failed to load chat messages:", error);
+      setMessages([]);
+    }
   };
 
   return (

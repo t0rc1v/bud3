@@ -24,12 +24,13 @@ export const ourFileRouter = {
     })
     .onUploadComplete(async ({ metadata, file }) => {
       console.log("Notes upload complete for userId:", metadata.userId);
-      console.log("File URL:", file.ufsUrl);
+      console.log("File URL:", file.url);
       return {
         uploadedBy: metadata.userId,
         type: metadata.type,
-        fileUrl: file.ufsUrl,
-        fileKey: file.key,
+        url: file.url,
+        ufsUrl: file.ufsUrl,
+        key: file.key,
       };
     }),
 
@@ -43,12 +44,13 @@ export const ourFileRouter = {
     })
     .onUploadComplete(async ({ metadata, file }) => {
       console.log("Video upload complete for userId:", metadata.userId);
-      console.log("File URL:", file.ufsUrl);
+      console.log("File URL:", file.url);
       return {
         uploadedBy: metadata.userId,
         type: metadata.type,
-        fileUrl: file.ufsUrl,
-        fileKey: file.key,
+        url: file.url,
+        ufsUrl: file.ufsUrl,
+        key: file.key,
       };
     }),
 
@@ -62,12 +64,13 @@ export const ourFileRouter = {
     })
     .onUploadComplete(async ({ metadata, file }) => {
       console.log("Audio upload complete for userId:", metadata.userId);
-      console.log("File URL:", file.ufsUrl);
+      console.log("File URL:", file.url);
       return {
         uploadedBy: metadata.userId,
         type: metadata.type,
-        fileUrl: file.ufsUrl,
-        fileKey: file.key,
+        url: file.url,
+        ufsUrl: file.ufsUrl,
+        key: file.key,
       };
     }),
 
@@ -81,12 +84,13 @@ export const ourFileRouter = {
     })
     .onUploadComplete(async ({ metadata, file }) => {
       console.log("Image upload complete for userId:", metadata.userId);
-      console.log("File URL:", file.ufsUrl);
+      console.log("File URL:", file.url);
       return {
         uploadedBy: metadata.userId,
         type: metadata.type,
-        fileUrl: file.ufsUrl,
-        fileKey: file.key,
+        url: file.url,
+        ufsUrl: file.ufsUrl,
+        key: file.key,
       };
     }),
 } satisfies FileRouter;

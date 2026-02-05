@@ -277,17 +277,6 @@ export const chatMessage = pgTable("chat_message", {
   updatedAt,
 });
 
-export const chatResource = pgTable("chat_resource", {
-  id: uuid('id').defaultRandom().primaryKey(),
-  chatId: uuid('chat_id')
-    .notNull()
-    .references(() => chat.id, { onDelete: 'cascade' }),
-  resourceId: uuid('resource_id')
-    .notNull()
-    .references(() => resource.id, { onDelete: 'cascade' }),
-  addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
-});
-
 export const aiMemory = pgTable("ai_memory", {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: varchar('user_id', { length: 255 })
@@ -309,24 +298,12 @@ export const chatRelations = relations(chat, ({ one, many }) => ({
     references: [user.userId],
   }),
   messages: many(chatMessage),
-  resources: many(chatResource),
 }));
 
 export const chatMessageRelations = relations(chatMessage, ({ one }) => ({
   chat: one(chat, {
     fields: [chatMessage.chatId],
     references: [chat.id],
-  }),
-}));
-
-export const chatResourceRelations = relations(chatResource, ({ one }) => ({
-  chat: one(chat, {
-    fields: [chatResource.chatId],
-    references: [chat.id],
-  }),
-  resource: one(resource, {
-    fields: [chatResource.resourceId],
-    references: [resource.id],
   }),
 }));
 

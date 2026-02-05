@@ -9,15 +9,6 @@ import { PanelLeft, PanelRight, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { AIChat } from "@/components/ai/ai-chat";
-import { AddResourceToChat } from "@/components/ai/add-resource-to-chat";
-
-interface Resource {
-  id: string;
-  title: string;
-  description: string;
-  url: string;
-  type: "notes" | "video" | "audio" | "image";
-}
 
 interface ContentLayoutClientProps {
   children: ReactNode;
@@ -29,17 +20,8 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
   const isMobile = useIsMobile();
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(!isMobile);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(!isMobile);
-  const [attachedResources, setAttachedResources] = useState<Resource[]>([]);
 
   const title = userRole === "teacher" ? "Teacher" : "Learner";
-
-  const handleAddResource = (resource: Resource) => {
-    setAttachedResources((prev) => [...prev, resource]);
-  };
-
-  const handleRemoveResource = (resourceId: string) => {
-    setAttachedResources((prev) => prev.filter((r) => r.id !== resourceId));
-  };
 
   // Mobile layout with sheets
   if (isMobile) {
@@ -78,11 +60,7 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
             </SheetTrigger>
             <SheetContent side="right" className="w-80 p-0">
               {userId && (
-                <AIChat 
-                  userId={userId} 
-                  attachedResources={attachedResources}
-                  onRemoveResource={handleRemoveResource}
-                />
+                <AIChat userId={userId} />
               )}
             </SheetContent>
           </Sheet>
@@ -160,11 +138,7 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
         )}
       >
         {userId && (
-          <AIChat 
-            userId={userId} 
-            attachedResources={attachedResources}
-            onRemoveResource={handleRemoveResource}
-          />
+          <AIChat userId={userId} />
         )}
       </div>
     </div>

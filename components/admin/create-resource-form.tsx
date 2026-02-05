@@ -91,19 +91,21 @@ export function CreateResourceForm({ subjects, topics }: CreateResourceFormProps
     setThumbnailFile(null);
   };
 
-  const handleFileUpload = (res: Array<{ name: string; url: string; key: string }>) => {
+  const handleFileUpload = (res: Array<{ name: string; url: string; ufsUrl: string; key: string }>) => {
     if (res && res[0]) {
       const file = res[0];
-      setFormData({ ...formData, url: file.url, uploadthingKey: file.key });
-      setUploadedFile({ name: file.name, url: file.url });
+      // Use ufsUrl (permanent URL) for storage
+      setFormData({ ...formData, url: file.ufsUrl, uploadthingKey: file.key });
+      setUploadedFile({ name: file.name, url: file.ufsUrl });
     }
   };
 
-  const handleThumbnailUpload = (res: Array<{ name: string; url: string; key: string }>) => {
+  const handleThumbnailUpload = (res: Array<{ name: string; url: string; ufsUrl: string; key: string }>) => {
     if (res && res[0]) {
       const file = res[0];
-      setFormData({ ...formData, thumbnailUrl: file.url });
-      setThumbnailFile({ name: file.name, url: file.url });
+      // Use ufsUrl (permanent URL) for storage
+      setFormData({ ...formData, thumbnailUrl: file.ufsUrl });
+      setThumbnailFile({ name: file.name, url: file.ufsUrl });
     }
   };
 

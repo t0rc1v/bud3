@@ -33,7 +33,7 @@ const TYPE_COLORS = {
   image: "bg-green-100 text-green-800",
 };
 
-interface Resource {
+export interface Resource {
   id: string;
   title: string;
   description: string;
@@ -81,7 +81,8 @@ export function AddResourceToChat({
   const isAttached = (resourceId: string) =>
     attachedResources.some((r) => r.id === resourceId);
 
-  const handleToggleResource = (resource: ResourceWithRelations) => {
+  const handleToggleResource = async (resource: ResourceWithRelations) => {
+    // Simply toggle in local state - no database operations
     if (isAttached(resource.id)) {
       onRemoveResource(resource.id);
     } else {
@@ -107,7 +108,7 @@ export function AddResourceToChat({
         <DialogHeader>
           <DialogTitle>Add Resources to Chat</DialogTitle>
           <DialogDescription>
-            Select resources to provide context for your conversation
+            Select resources to provide context for your conversation. Only notes (PDFs) and images can be directly analyzed by the AI.
           </DialogDescription>
         </DialogHeader>
 
@@ -138,14 +139,14 @@ export function AddResourceToChat({
                   <div
                     key={resource.id}
                     className={cn(
-                      "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                      "flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-pointer",
                       attached
                         ? "border-primary bg-primary/5"
                         : "hover:bg-muted"
                     )}
                     onClick={() => handleToggleResource(resource)}
                   >
-                    <Checkbox checked={attached} className="mt-1" />
+                    <Checkbox checked={attached} className="mt-1 pointer-events-none" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <Icon className="h-4 w-4 text-muted-foreground" />

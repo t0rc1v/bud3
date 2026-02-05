@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -21,6 +21,7 @@ import {
   Headphones,
   Image as ImageIcon,
   ExternalLink,
+  Paperclip,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -30,21 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { createChat, deleteChat, getUserChats, getChatMessages, type Chat } from "@/lib/actions/ai";
-
-interface Resource {
-  id: string;
-  title: string;
-  description: string;
-  url: string;
-  type: "notes" | "video" | "audio" | "image";
-}
-
-interface AIChatProps {
-  userId: string;
-  initialChatId?: string;
-  attachedResources?: Resource[];
-  onRemoveResource?: (resourceId: string) => void;
-}
+import { AddResourceToChat, type Resource } from "./add-resource-to-chat";
 
 const TYPE_ICONS = {
   notes: FileText,
@@ -54,22 +41,26 @@ const TYPE_ICONS = {
 };
 
 const TYPE_COLORS = {
-  notes: "bg-blue-100 text-blue-800",
-  video: "bg-red-100 text-red-800",
-  audio: "bg-purple-100 text-purple-800",
-  image: "bg-green-100 text-green-800",
+  notes: "bg-blue-100 text-blue-800 hover:bg-blue-200",
+  video: "bg-red-100 text-red-800 hover:bg-red-200",
+  audio: "bg-purple-100 text-purple-800 hover:bg-purple-200",
+  image: "bg-green-100 text-green-800 hover:bg-green-200",
 };
+
+interface AIChatProps {
+  userId: string;
+  initialChatId?: string;
+}
 
 export function AIChat({
   userId,
   initialChatId,
-  attachedResources = [],
-  onRemoveResource,
 }: AIChatProps) {
   const [chatId, setChatId] = useState<string | undefined>(initialChatId);
   const [input, setInput] = useState("");
   const [chats, setChats] = useState<Chat[]>([]);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
+  const [attachedResources, setAttachedResources] = useState<Resource[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { messages, sendMessage, status, stop, setMessages } = useChat({
@@ -77,7 +68,6 @@ export function AIChat({
       api: "/api/chat",
       body: () => ({
         chatId,
-        resources: attachedResources,
       }),
     }),
     id: chatId || "default",
@@ -93,12 +83,33 @@ export function AIChat({
         // If there's an initialChatId, load its messages
         if (initialChatId) {
           const chatMessages = await getChatMessages(initialChatId);
-          const formattedMessages = chatMessages.map((msg) => ({
-            id: msg.id,
-            role: msg.role as "user" | "assistant",
-            parts: [{ type: "text" as const, text: msg.content }],
-            createdAt: msg.createdAt,
-          }));
+          
+          const formattedMessages = chatMessages.map((msg) => {
+            const parts: Array<
+              | { type: "text"; text: string }
+              | { type: "file"; filename: string; url: string; mediaType: string }
+            > = [{ type: "text", text: msg.content }];
+            
+            // Add file parts from metadata if present
+            if (msg.metadata?.attachedResources && Array.isArray(msg.metadata.attachedResources)) {
+              msg.metadata.attachedResources.forEach((resource: {id: string; title: string; url: string; type: string}) => {
+                parts.push({
+                  type: "file",
+                  filename: resource.title,
+                  url: resource.url,
+                  mediaType: resource.type === 'image' ? 'image/*' : 
+                            resource.type === 'notes' ? 'application/pdf' : 'application/octet-stream'
+                });
+              });
+            }
+            
+            return {
+              id: msg.id,
+              role: msg.role as "user" | "assistant",
+              parts,
+              createdAt: msg.createdAt,
+            };
+          });
           setMessages(formattedMessages);
         }
       } catch (error) {
@@ -138,7 +149,34 @@ export function AIChat({
     const userMessage = input;
     setInput("");
     
-    sendMessage({ text: userMessage });
+    // Convert attached resources to FileUIPart format for AI SDK
+    const fileParts = attachedResources.map((resource) => ({
+      type: "file" as const,
+      url: resource.url,
+      mediaType: getMediaType(resource.type),
+      filename: resource.title,
+    }));
+    
+    sendMessage({ 
+      text: userMessage,
+      files: fileParts,
+    });
+  };
+
+  // Helper function to map resource types to MIME types
+  const getMediaType = (type: string): string => {
+    switch (type) {
+      case "notes":
+        return "application/pdf"; // Assuming notes are PDFs
+      case "image":
+        return "image/*";
+      case "video":
+        return "video/*";
+      case "audio":
+        return "audio/*";
+      default:
+        return "application/octet-stream";
+    }
   };
 
   const handleNewChat = async () => {
@@ -150,6 +188,7 @@ export function AIChat({
       setChatId(newChat.id);
       setChats((prev) => [newChat, ...prev]);
       setMessages([]);
+      setAttachedResources([]);
     } catch (error) {
       console.error("Failed to create chat:", error);
     }
@@ -162,6 +201,7 @@ export function AIChat({
       if (chatId === id) {
         setChatId(undefined);
         setMessages([]);
+        setAttachedResources([]);
       }
     } catch (error) {
       console.error("Failed to delete chat:", error);
@@ -170,21 +210,58 @@ export function AIChat({
 
   const handleSelectChat = async (id: string) => {
     setChatId(id);
+    // Clear attached resources when switching chats
+    setAttachedResources([]);
     try {
       const chatMessages = await getChatMessages(id);
-      // Convert database messages to useChat format
-      const formattedMessages = chatMessages.map((msg) => ({
-        id: msg.id,
-        role: msg.role as "user" | "assistant",
-        parts: [{ type: "text" as const, text: msg.content }],
-        createdAt: msg.createdAt,
-      }));
+      
+      // Convert database messages to useChat format with file parts from metadata
+      const formattedMessages = chatMessages.map((msg) => {
+        const parts: Array<
+          | { type: "text"; text: string }
+          | { type: "file"; filename: string; url: string; mediaType: string }
+        > = [{ type: "text", text: msg.content }];
+        
+        // Add file parts from metadata if present
+        if (msg.metadata?.attachedResources && Array.isArray(msg.metadata.attachedResources)) {
+          msg.metadata.attachedResources.forEach((resource: {id: string; title: string; url: string; type: string}) => {
+            parts.push({
+              type: "file",
+              filename: resource.title,
+              url: resource.url,
+              mediaType: resource.type === 'image' ? 'image/*' : 
+                        resource.type === 'notes' ? 'application/pdf' : 'application/octet-stream'
+            });
+          });
+        }
+        
+        return {
+          id: msg.id,
+          role: msg.role as "user" | "assistant",
+          parts,
+          createdAt: msg.createdAt,
+        };
+      });
       setMessages(formattedMessages);
     } catch (error) {
-      console.error("Failed to load chat messages:", error);
+      console.error("Failed to load chat:", error);
       setMessages([]);
     }
   };
+
+  const handleAddResource = useCallback((resource: Resource) => {
+    setAttachedResources((prev) => {
+      // Prevent duplicates
+      if (prev.some((r) => r.id === resource.id)) {
+        return prev;
+      }
+      return [...prev, resource];
+    });
+  }, []);
+
+  const handleRemoveResource = useCallback((resourceId: string) => {
+    setAttachedResources((prev) => prev.filter((r) => r.id !== resourceId));
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
@@ -194,18 +271,24 @@ export function AIChat({
           <Bot className="h-5 w-5 text-primary" />
           <span className="font-semibold">AI Assistant</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <AddResourceToChat
+            attachedResources={attachedResources}
+            onAddResource={handleAddResource}
+            onRemoveResource={handleRemoveResource}
+          />
           <Button
             variant="ghost"
             size="sm"
             onClick={handleNewChat}
             className="h-8 w-8 p-0"
+            title="New Chat"
           >
             <Plus className="h-4 w-4" />
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Chat History">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -243,8 +326,13 @@ export function AIChat({
 
       {/* Attached Resources */}
       {attachedResources.length > 0 && (
-        <div className="border-b px-4 py-2">
-          <p className="text-xs text-muted-foreground mb-2">Attached resources:</p>
+        <div className="border-b px-4 py-3 bg-muted/30">
+          <div className="flex items-center gap-2 mb-2">
+            <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground">
+              Context Resources ({attachedResources.length})
+            </span>
+          </div>
           <div className="flex flex-wrap gap-2">
             {attachedResources.map((resource) => {
               const Icon = TYPE_ICONS[resource.type];
@@ -253,17 +341,21 @@ export function AIChat({
                   key={resource.id}
                   variant="secondary"
                   className={cn(
-                    "flex items-center gap-1 pr-1",
+                    "flex items-center gap-1.5 pl-2 pr-1 py-1 transition-colors",
                     TYPE_COLORS[resource.type]
                   )}
+                  title={resource.description}
                 >
-                  <Icon className="h-3 w-3" />
-                  <span className="max-w-[120px] truncate">{resource.title}</span>
+                  <Icon className="h-3 w-3 shrink-0" />
+                  <span className="max-w-[100px] truncate text-xs font-medium">
+                    {resource.title}
+                  </span>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-4 w-4 p-0 ml-1"
-                    onClick={() => onRemoveResource?.(resource.id)}
+                    className="h-5 w-5 p-0 ml-1 hover:bg-black/10 rounded-full"
+                    onClick={() => handleRemoveResource(resource.id)}
+                    title="Remove resource"
                   >
                     <X className="h-3 w-3" />
                   </Button>
@@ -286,6 +378,11 @@ export function AIChat({
               <p className="text-xs text-muted-foreground mt-1">
                 Ask questions about your educational content
               </p>
+              {attachedResources.length > 0 && (
+                <p className="text-xs text-primary mt-2">
+                  {attachedResources.length} resource{attachedResources.length !== 1 ? "s" : ""} attached as context
+                </p>
+              )}
             </div>
           ) : (
             messages.map((message) => (
@@ -314,6 +411,49 @@ export function AIChat({
                       return (
                         <div key={i} className="whitespace-pre-wrap text-sm">
                           {part.text}
+                        </div>
+                      );
+                    }
+                    if (part.type === "file") {
+                      // Render attached files (images, PDFs, etc.)
+                      if (part.mediaType?.startsWith("image/")) {
+                        return (
+                          <div key={i} className="mt-2">
+                            <img 
+                              src={part.url} 
+                              alt={part.filename || "Attached image"}
+                              className="max-w-full rounded-lg max-h-[300px] object-contain"
+                            />
+                          </div>
+                        );
+                      }
+                      if (part.mediaType === "application/pdf") {
+                        return (
+                          <div key={i} className="mt-2">
+                            <a 
+                              href={part.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 p-2 bg-background/50 rounded text-xs hover:bg-background/70 transition-colors"
+                            >
+                              <FileText className="h-4 w-4" />
+                              <span className="truncate">{part.filename || "PDF Document"}</span>
+                            </a>
+                          </div>
+                        );
+                      }
+                      // Generic file attachment
+                      return (
+                        <div key={i} className="mt-2">
+                          <a 
+                            href={part.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 p-2 bg-background/50 rounded text-xs hover:bg-background/70 transition-colors"
+                          >
+                            <Paperclip className="h-4 w-4" />
+                            <span className="truncate">{part.filename || "Attached file"}</span>
+                          </a>
                         </div>
                       );
                     }
@@ -417,3 +557,5 @@ export function AIChat({
     </div>
   );
 }
+
+export type { Resource };

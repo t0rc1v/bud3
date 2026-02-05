@@ -25,10 +25,9 @@ export async function POST(req: Request) {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const { messages, chatId, resources }: { 
+  const { messages, chatId }: { 
     messages: UIMessage[]; 
     chatId?: string;
-    resources?: { title: string; description: string; url: string; type: string }[];
   } = await req.json();
 
   // Save the user's message to the database if chatId is provided
@@ -39,11 +38,24 @@ export async function POST(req: Request) {
       if (lastMessage.role === 'user') {
         // Extract text content from message parts
         let contentStr = '';
+        const attachedResources: Array<{id: string; title: string; url: string; type: string}> = [];
+        
         if (lastMessage.parts && Array.isArray(lastMessage.parts)) {
-          contentStr = lastMessage.parts
-            .filter((part: { type: string; text?: string }) => part.type === 'text')
-            .map((part: { type: string; text?: string }) => part.text || '')
-            .join('');
+          lastMessage.parts.forEach((part: { type: string; text?: string; filename?: string; url?: string; mediaType?: string }) => {
+            if (part.type === 'text') {
+              contentStr += part.text || '';
+            } else if (part.type === 'file') {
+              // Extract resource info from file part
+              // The URL contains the resource ID or we can extract it from filename
+              attachedResources.push({
+                id: part.filename || 'unknown',
+                title: part.filename || 'Attached file',
+                url: part.url || '',
+                type: part.mediaType?.startsWith('image/') ? 'image' : 
+                      part.mediaType === 'application/pdf' ? 'notes' : 'file'
+              });
+            }
+          });
         }
         
         if (contentStr.trim()) {
@@ -51,6 +63,7 @@ export async function POST(req: Request) {
             chatId,
             role: 'user',
             content: contentStr,
+            metadata: attachedResources.length > 0 ? { attachedResources } : undefined,
           });
         }
       }
@@ -76,25 +89,18 @@ You have access to the following tools:
 1. web_search - Search the web for information
 2. youtube_search - Search YouTube for educational videos
 3. save_memory - Save important information to memory for future reference
+4. web_browse - Browse any URL to extract its content (web pages, PDFs, documents)
 
 When responding:
 - Be concise and educational
 - Use the available tools when needed to provide accurate information
-- You can reference resources that users share with you`;
+- When the user asks about a URL, use the web_browse tool to read it`;
 
   // Add memory context if available
   if (memoryItems && memoryItems.length > 0) {
     systemPrompt += `\n\nYou have access to the following saved memory:\n`;
     memoryItems.forEach((item: MemoryItem) => {
       systemPrompt += `- ${item.title}: ${JSON.stringify(item.content)}\n`;
-    });
-  }
-
-  // Add resource context if provided
-  if (resources && resources.length > 0) {
-    systemPrompt += `\n\nThe user has shared the following resources with you:\n`;
-    resources.forEach((resource) => {
-      systemPrompt += `- ${resource.title} (${resource.type}): ${resource.description}\n  URL: ${resource.url}\n`;
     });
   }
 
@@ -170,6 +176,38 @@ When responding:
             return { success: true, message: 'Learner added successfully' };
           } catch (error) {
             return { success: false, error: String(error) };
+          }
+        },
+      }),
+      web_browse: tool({
+        description: 'Browse a URL to extract its content. Use this to read web pages, PDFs, or other documents. This tool works with any URL including PDF files hosted on the web.',
+        inputSchema: z.object({
+          url: z.string().describe('The URL to browse and extract content from'),
+          maxCharacters: z.number().optional().describe('Maximum characters to return (default: 10000)'),
+        }),
+        execute: async ({ url, maxCharacters = 10000 }) => {
+          try {
+            const { browseUrl } = await import('@/lib/ai/web-browse');
+            const result = await browseUrl(url, { maxCharacters });
+            
+            if (result.status === "error") {
+              return { 
+                success: false, 
+                error: result.error || "Failed to browse URL" 
+              };
+            }
+            
+            return {
+              success: true,
+              title: result.title,
+              url: result.url,
+              content: result.content,
+            };
+          } catch (error) {
+            return { 
+              success: false, 
+              error: `Failed to browse URL: ${error instanceof Error ? error.message : String(error)}` 
+            };
           }
         },
       }),

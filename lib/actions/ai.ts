@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { chat, chatMessage, aiMemory, chatResource } from "@/lib/db/schema";
+import { chat, chatMessage, aiMemory } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
@@ -36,12 +36,7 @@ export interface AIMemoryItem {
   updatedAt: Date;
 }
 
-export interface ChatResource {
-  id: string;
-  chatId: string;
-  resourceId: string;
-  addedAt: Date;
-}
+
 
 export async function createChat({
   userId,
@@ -230,53 +225,4 @@ export async function deleteMemoryItem(id: string): Promise<void> {
   await db.update(aiMemory).set({ isActive: false }).where(eq(aiMemory.id, id));
 }
 
-export async function addResourceToChat({
-  chatId,
-  resourceId,
-}: {
-  chatId: string;
-  resourceId: string;
-}): Promise<ChatResource> {
-  const result = await db
-    .insert(chatResource)
-    .values({
-      chatId,
-      resourceId,
-    })
-    .returning();
 
-  return result[0];
-}
-
-export async function removeResourceFromChat({
-  chatId,
-  resourceId,
-}: {
-  chatId: string;
-  resourceId: string;
-}): Promise<void> {
-  await db
-    .delete(chatResource)
-    .where(
-      and(
-        eq(chatResource.chatId, chatId),
-        eq(chatResource.resourceId, resourceId)
-      )
-    );
-}
-
-export async function getChatResources(chatId: string) {
-  const resources = await db
-    .select({
-      id: chatResource.id,
-      addedAt: chatResource.addedAt,
-      resourceId: chatResource.resourceId,
-      title: aiMemory.title,
-      description: aiMemory.description,
-    })
-    .from(chatResource)
-    .innerJoin(aiMemory, eq(chatResource.resourceId, aiMemory.id))
-    .where(eq(chatResource.chatId, chatId));
-
-  return resources;
-}

@@ -19,7 +19,10 @@ import {
   ExternalLink,
   ChevronDownSquare,
   ChevronRightSquare,
+  Eye,
 } from "lucide-react";
+import { ResourceViewer, ResourceViewerSkeleton } from "./resource-viewer";
+import { getResourceById } from "@/lib/actions/admin";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -57,6 +60,7 @@ import type {
   SubjectWithTopics,
   TopicWithResources,
   Resource,
+  ResourceWithRelations,
   Grade,
 } from "@/lib/types";
 
@@ -84,6 +88,9 @@ export function UnifiedAdminPageClient({
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
   const [selectedGrade, setSelectedGrade] =
     useState<GradeWithFullHierarchy | null>(null);
+  const [selectedResource, setSelectedResource] = useState<ResourceWithRelations | null>(null);
+  const [isLoadingResource, setIsLoadingResource] = useState(false);
+  const [openResourceInEditMode, setOpenResourceInEditMode] = useState(false);
 
   // Stats
   const stats = useMemo(() => {
@@ -233,6 +240,28 @@ export function UnifiedAdminPageClient({
     }
   };
 
+  const handleViewResource = async (resource: Resource, editMode = false) => {
+    setIsLoadingResource(true);
+    setOpenResourceInEditMode(editMode);
+    try {
+      const fullResource = await getResourceById(resource.id);
+      if (fullResource) {
+        setSelectedResource(fullResource);
+      }
+    } finally {
+      setIsLoadingResource(false);
+    }
+  };
+
+  const handleEditResource = async (resource: Resource) => {
+    await handleViewResource(resource, true);
+  };
+
+  const handleBackFromViewer = () => {
+    setSelectedResource(null);
+    setOpenResourceInEditMode(false);
+  };
+
   // Get all subjects and topics for forms
   const allSubjects = useMemo(
     () => grades.flatMap((g) => g.subjects),
@@ -365,9 +394,27 @@ export function UnifiedAdminPageClient({
         </div>
       )}
 
-      {/* Content Tree */}
-      <div className="space-y-4">
-        {filteredGrades.length === 0 ? (
+      {/* Resource Viewer */}
+      {isLoadingResource ? (
+        <ResourceViewerSkeleton />
+      ) : selectedResource ? (
+        <ResourceViewer
+          resource={selectedResource}
+          onBack={handleBackFromViewer}
+          subjects={allSubjects.map((s) => ({
+            ...s,
+            grade: grades.find((g) => g.subjects.some((sub) => sub.id === s.id)) || {
+              id: "",
+              title: "Unknown",
+            },
+          }))}
+          topics={allTopics}
+          initialEditMode={openResourceInEditMode}
+        />
+      ) : (
+        /* Content Tree */
+        <div className="space-y-4">
+          {filteredGrades.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
@@ -410,6 +457,8 @@ export function UnifiedAdminPageClient({
               onDeleteSubject={handleDeleteSubject}
               onDeleteTopic={handleDeleteTopic}
               onDeleteResource={handleDeleteResource}
+              onViewResource={handleViewResource}
+              onEditResource={handleEditResource}
               onAddBreadcrumb={(item) =>
                 setBreadcrumbs([...breadcrumbs, item])
               }
@@ -420,6 +469,7 @@ export function UnifiedAdminPageClient({
           ))
         )}
       </div>
+      )}
     </div>
   );
 }
@@ -437,6 +487,8 @@ interface GradeCardProps {
   onDeleteSubject: (subjectId: string) => void;
   onDeleteTopic: (topicId: string) => void;
   onDeleteResource: (resourceId: string) => void;
+  onViewResource: (resource: Resource) => void;
+  onEditResource: (resource: Resource) => void;
   onAddBreadcrumb: (item: BreadcrumbItem) => void;
   grades: GradeWithFullHierarchy[];
   allSubjects: SubjectWithTopics[];
@@ -455,6 +507,8 @@ function GradeCard({
   onDeleteSubject,
   onDeleteTopic,
   onDeleteResource,
+  onViewResource,
+  onEditResource,
   onAddBreadcrumb,
   grades,
   allSubjects,
@@ -561,6 +615,8 @@ function GradeCard({
                     onDelete={() => onDeleteSubject(subject.id)}
                     onDeleteTopic={onDeleteTopic}
                     onDeleteResource={onDeleteResource}
+                    onViewResource={onViewResource}
+                    onEditResource={onEditResource}
                     grade={grade}
                     allSubjects={allSubjects}
                     allTopics={allTopics}
@@ -585,6 +641,8 @@ interface SubjectItemProps {
   onDelete: () => void;
   onDeleteTopic: (topicId: string) => void;
   onDeleteResource: (resourceId: string) => void;
+  onViewResource: (resource: Resource) => void;
+  onEditResource: (resource: Resource) => void;
   grade: GradeWithFullHierarchy;
   allSubjects: SubjectWithTopics[];
   allTopics: TopicWithResources[];
@@ -599,6 +657,8 @@ function SubjectItem({
   onDelete,
   onDeleteTopic,
   onDeleteResource,
+  onViewResource,
+  onEditResource,
   grade,
   allSubjects,
   allTopics,
@@ -695,6 +755,8 @@ function SubjectItem({
                 onToggle={() => onToggleTopic(topic.id)}
                 onDelete={() => onDeleteTopic(topic.id)}
                 onDeleteResource={onDeleteResource}
+                onViewResource={onViewResource}
+                onEditResource={onEditResource}
                 grade={grade}
                 subject={subject}
                 allTopics={allTopics}
@@ -714,6 +776,8 @@ interface TopicItemProps {
   onToggle: () => void;
   onDelete: () => void;
   onDeleteResource: (resourceId: string) => void;
+  onViewResource: (resource: Resource) => void;
+  onEditResource: (resource: Resource) => void;
   grade: GradeWithFullHierarchy;
   subject: SubjectWithTopics;
   allTopics: TopicWithResources[];
@@ -725,6 +789,8 @@ function TopicItem({
   onToggle,
   onDelete,
   onDeleteResource,
+  onViewResource,
+  onEditResource,
   grade,
   subject,
   allTopics,
@@ -823,6 +889,8 @@ function TopicItem({
                 key={resource.id}
                 resource={resource}
                 onDelete={() => onDeleteResource(resource.id)}
+                onView={() => onViewResource(resource)}
+                onEdit={() => onEditResource(resource)}
               />
             ))}
           </div>
@@ -836,9 +904,11 @@ function TopicItem({
 interface ResourceItemProps {
   resource: Resource;
   onDelete: () => void;
+  onView: (resource: Resource) => void;
+  onEdit: (resource: Resource) => void;
 }
 
-function ResourceItem({ resource, onDelete }: ResourceItemProps) {
+function ResourceItem({ resource, onDelete, onView, onEdit }: ResourceItemProps) {
   return (
     <div className="flex items-center justify-between p-2 rounded bg-muted/30 hover:bg-muted/50 transition-colors text-sm">
       <div className="flex items-center gap-3">
@@ -849,6 +919,14 @@ function ResourceItem({ resource, onDelete }: ResourceItemProps) {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0"
+          onClick={() => onView(resource)}
+        >
+          <Eye className="h-3 w-3" />
+        </Button>
         <Button
           variant="ghost"
           size="sm"
@@ -864,7 +942,11 @@ function ResourceItem({ resource, onDelete }: ResourceItemProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onView(resource)}>
+              <Eye className="h-4 w-4 mr-2" />
+              View Resource
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onEdit(resource)}>
               <Edit className="h-4 w-4 mr-2" />
               Edit Resource
             </DropdownMenuItem>

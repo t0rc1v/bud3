@@ -273,16 +273,36 @@ export async function createResource(input: CreateResourceInput): Promise<void> 
 
 export async function updateResource(input: UpdateResourceInput): Promise<void> {
   const { id, ...data } = input;
+  
+  // Build the update object dynamically
+  const updateData: Record<string, unknown> = {};
+  
+  if (data.title !== undefined) updateData.title = data.title;
+  if (data.description !== undefined) updateData.description = data.description;
+  if (data.type !== undefined) updateData.type = data.type;
+  if (data.subjectId !== undefined) updateData.subjectId = data.subjectId;
+  if (data.topicId !== undefined) updateData.topicId = data.topicId ?? null;
+  if (data.url !== undefined) updateData.url = data.url;
+  if (data.thumbnailUrl !== undefined) updateData.thumbnailUrl = data.thumbnailUrl ?? null;
+  if (data.metadata !== undefined) updateData.metadata = data.metadata ?? null;
+  // Handle uploadthingKey - only update if new URL is from uploadthing
+  if (data.url !== undefined) {
+    // If URL contains uploadthing domain, we might want to store the key
+    // For now, we'll keep the existing key or clear it for external URLs
+    if (!data.url.includes("utfs.io") && !data.url.includes("uploadthing.com")) {
+      updateData.uploadthingKey = "";
+    }
+  }
+  
+  // Always update the updatedAt timestamp
+  updateData.updatedAt = new Date();
+  
   await db
     .update(resource)
-    .set({
-      ...data,
-      topicId: data.topicId ?? null,
-      thumbnailUrl: data.thumbnailUrl ?? null,
-      metadata: data.metadata ?? null,
-    })
+    .set(updateData)
     .where(eq(resource.id, id));
   revalidatePath("/admin/resources");
+  revalidatePath("/admin/unified");
 }
 
 export async function deleteResource(id: string): Promise<void> {

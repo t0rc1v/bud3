@@ -70,6 +70,7 @@ export const resource = pgTable("resource", {
   metadata: jsonb('metadata'),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt,
+  updatedAt,
 });
 
 export const myLearners = pgTable("my_learners", {

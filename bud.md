@@ -44,6 +44,7 @@
 - reasearch tool which can be used to research for materials to use within a topic from the web or youtube
 - when a resource is added to chat from the database, the AI will be provided with the url which is saved in the database and read the contents of the resource provided by accessing the url. for example a pdf or image url
 - tools for calling db functions. for example a teacher can message AI to create a notification for their learners
+- TOOLCALLS
 
 ---
 

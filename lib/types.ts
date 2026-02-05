@@ -39,7 +39,7 @@ export interface ResourceWithRelations extends Resource {
 }
 
 export type ResourceType = "notes" | "video" | "audio" | "image";
-export type UserRole = "learner" | "teacher" | "admin";
+export type UserRole = "learner" | "teacher" | "admin" | "super_admin";
 export type Level = "elementary" | "middle_school" | "junior_high" | "high_school" | "higher_education";
 
 export interface CreateGradeInput {

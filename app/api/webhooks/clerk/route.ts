@@ -1,7 +1,8 @@
 import { Webhook } from 'svix'
 import { headers } from 'next/headers'
 import { WebhookEvent } from '@clerk/nextjs/server'
-import { getOrCreateUser, deleteUser } from '@/lib/actions/auth'
+import { getOrCreateUser, deleteUser, updateUserRole, getUserByClerkId } from '@/lib/actions/auth'
+import type { UserRole } from '@/lib/types'
 
 export async function POST(req: Request) {
   // You can find this in the Clerk Dashboard -> Webhooks -> choose the webhook
@@ -48,7 +49,6 @@ export async function POST(req: Request) {
   }
 
   // Do something with the payload
-  // For this guide, you simply log the payload to the console
   const { id } = evt.data
   const eventType = evt.type
 
@@ -57,7 +57,12 @@ export async function POST(req: Request) {
 
   // Handle user creation
   if (eventType === 'user.created') {
-    const { id, email_addresses, primary_email_address_id } = evt.data
+    const { id, email_addresses, primary_email_address_id, public_metadata } = evt.data as unknown as {
+      id: string;
+      email_addresses: any[];
+      primary_email_address_id: string;
+      public_metadata?: { role?: string };
+    }
     
     // Get the primary email address
     const primaryEmail = email_addresses?.find(
@@ -69,12 +74,46 @@ export async function POST(req: Request) {
       return new Response('No email address found', { status: 400 })
     }
 
+    // Check for role in metadata (for manually created admins/super admins)
+    const metadataRole = public_metadata?.role as UserRole | undefined
+    const role: UserRole = metadataRole || 'learner'
+
     try {
-      const { user, isNew } = await getOrCreateUser(id, primaryEmail)
-      console.log(`User ${isNew ? 'created' : 'already exists'}:`, user.id)
+      const { user, isNew } = await getOrCreateUser(id, primaryEmail, role)
+      console.log(`User ${isNew ? 'created' : 'already exists'} with role ${user.role}:`, user.id)
     } catch (error) {
       console.error('Error creating user:', error)
       return new Response('Error creating user', { status: 500 })
+    }
+  }
+
+  // Handle user updates (for role changes via metadata)
+  if (eventType === 'user.updated') {
+    const { id, public_metadata } = evt.data as unknown as {
+      id: string;
+      public_metadata?: { role?: string };
+    }
+    
+    // Check if role is specified in metadata
+    const metadataRole = public_metadata?.role as UserRole | undefined
+    
+    if (metadataRole) {
+      try {
+        // Check if user exists in database
+        const existingUser = await getUserByClerkId(id)
+        
+        if (existingUser) {
+          // Update user role
+          const updatedUser = await updateUserRole(id, metadataRole)
+          console.log(`User ${id} role updated to ${updatedUser.role} via metadata`)
+        } else {
+          // User doesn't exist in DB yet, they will be created when webhook receives user.created
+          console.log(`User ${id} not found in database, role update will apply on next sync`)
+        }
+      } catch (error) {
+        console.error('Error updating user role from metadata:', error)
+        // Don't return error response here - we don't want to break the webhook
+      }
     }
   }
 

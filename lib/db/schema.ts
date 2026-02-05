@@ -4,7 +4,7 @@ import { relations } from 'drizzle-orm';
 
 export const levelEnum = pgEnum("level", ["elementary", "middle_school", "junior_high", "high_school", "higher_education"]);
 export const resourceTypeEnum = pgEnum('resource_type', ["notes", "video", "audio", "image"]);
-export const userRoleEnum = pgEnum('user_role', ["learner", "teacher", "admin"]);
+export const userRoleEnum = pgEnum('user_role', ["learner", "teacher", "admin", "super_admin"]);
 
 const createdAt = timestamp("created_at", { withTimezone: true })
 	.notNull()
@@ -20,6 +20,7 @@ export const user = pgTable("user", {
   userId: varchar("user_id", { length: 255 }).notNull(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   role: userRoleEnum("role").default("learner").notNull(),
+  onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
   createdAt,
   updatedAt,
 });

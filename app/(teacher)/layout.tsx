@@ -2,7 +2,7 @@ import { type ReactNode } from "react";
 import { ContentLayoutClient } from "@/app/(content)/content-layout-client";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { getUserByClerkId } from "@/lib/actions/auth";
+import { getUserByClerkId, hasUserCompletedOnboarding } from "@/lib/actions/auth";
 
 export default async function TeacherLayout({
   children,
@@ -16,6 +16,12 @@ export default async function TeacherLayout({
   }
 
   const user = await getUserByClerkId(userId);
+  const hasCompletedOnboarding = await hasUserCompletedOnboarding(userId);
+
+  // If user hasn't completed onboarding, redirect them there
+  if (!hasCompletedOnboarding) {
+    redirect("/onboarding");
+  }
 
   if (!user || user.role !== "teacher") {
     redirect("/");

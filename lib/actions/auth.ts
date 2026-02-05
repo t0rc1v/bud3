@@ -64,6 +64,7 @@ export async function updateUserRole(
     .update(user)
     .set({
       role,
+      onboardingCompleted: true,
       updatedAt: new Date(),
     })
     .where(eq(user.userId, clerkId))
@@ -81,11 +82,45 @@ export async function hasUserCompletedOnboarding(clerkId: string): Promise<boole
   const dbUser = await getUserByClerkId(clerkId);
   // If user doesn't exist in DB, they haven't completed onboarding
   if (!dbUser) return false;
-  // If role is still default learner and user was just created, they might need onboarding
-  // But for now, existence in DB means they've been processed
-  return true;
+  // Check the onboardingCompleted flag
+  return dbUser.onboardingCompleted;
 }
 
 export async function deleteUser(clerkId: string): Promise<void> {
   await db.delete(user).where(eq(user.userId, clerkId));
+}
+
+export async function checkSuperAdminExists(): Promise<boolean> {
+  const result = await db.query.user.findFirst({
+    where: eq(user.role, "super_admin"),
+  });
+  return result !== null;
+}
+
+export async function createAdminUser(
+  clerkId: string,
+  email: string
+): Promise<User> {
+  const [newAdmin] = await db
+    .insert(user)
+    .values({
+      userId: clerkId,
+      email,
+      role: "admin",
+      onboardingCompleted: true,
+    })
+    .returning();
+
+  if (!newAdmin) {
+    throw new Error("Failed to create admin user");
+  }
+
+  return newAdmin;
+}
+
+export async function getAllAdmins(): Promise<User[]> {
+  return await db.query.user.findMany({
+    where: eq(user.role, "admin"),
+    orderBy: (user, { desc }) => [desc(user.createdAt)],
+  });
 }

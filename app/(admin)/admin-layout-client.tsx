@@ -5,19 +5,24 @@ import { AdminFileTree } from "@/components/admin/admin-file-tree";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { PanelLeft, PanelRight, MessageSquare } from "lucide-react";
+import { PanelLeft, PanelRight, MessageSquare, Shield, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 interface AdminLayoutClientProps {
   children: ReactNode;
   userId: string | null;
+  userRole?: "admin" | "super_admin";
 }
 
-export function AdminLayoutClient({ children, userId }: AdminLayoutClientProps) {
+export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutClientProps) {
   const isMobile = useIsMobile();
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(!isMobile);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(!isMobile);
+
+  const pathname = usePathname();
 
   // Mobile layout with sheets
   if (isMobile) {
@@ -41,6 +46,29 @@ export function AdminLayoutClient({ children, userId }: AdminLayoutClientProps) 
                 <div className="flex-1 overflow-auto">
                   <AdminFileTree />
                 </div>
+                {/* Mobile Super Admin Navigation */}
+                {userRole === "super_admin" && (
+                  <div className="border-t p-4">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
+                      <Shield className="h-4 w-4" />
+                      Super Admin
+                    </div>
+                    <nav className="space-y-1">
+                      <Link
+                        href="/admin/manage-admins"
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                          pathname === "/admin/manage-admins"
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                      >
+                        <Users className="h-4 w-4" />
+                        Manage Admins
+                      </Link>
+                    </nav>
+                  </div>
+                )}
               </div>
             </SheetContent>
           </Sheet>
@@ -94,6 +122,32 @@ export function AdminLayoutClient({ children, userId }: AdminLayoutClientProps) 
         <div className="flex-1 overflow-auto">
           <AdminFileTree />
         </div>
+        
+        {/* Super Admin Navigation */}
+        {userRole === "super_admin" && (
+          <div className="border-t p-4">
+            <div className={cn("mb-2 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
+              <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <Shield className="h-4 w-4" />
+                Super Admin
+              </div>
+            </div>
+            <nav className={cn("space-y-1 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
+              <Link
+                href="/admin/manage-admins"
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                  pathname === "/admin/manage-admins"
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Users className="h-4 w-4" />
+                Manage Admins
+              </Link>
+            </nav>
+          </div>
+        )}
       </div>
       
       {/* Center - Main Content */}

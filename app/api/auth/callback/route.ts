@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { getUserByClerkId } from "@/lib/actions/auth";
+import { getUserByClerkId, hasUserCompletedOnboarding } from "@/lib/actions/auth";
 
 export async function GET() {
   const { userId } = await auth();
@@ -11,8 +11,14 @@ export async function GET() {
 
   const user = await getUserByClerkId(userId);
 
-  // If user doesn't exist in database or needs onboarding
+  // If user doesn't exist in database, redirect to onboarding
   if (!user) {
+    redirect("/onboarding");
+  }
+
+  // If user hasn't completed onboarding, redirect them there
+  const hasCompletedOnboarding = await hasUserCompletedOnboarding(userId);
+  if (!hasCompletedOnboarding) {
     redirect("/onboarding");
   }
 
@@ -21,7 +27,7 @@ export async function GET() {
     redirect("/teacher/dashboard");
   } else if (user.role === "learner") {
     redirect("/learner/dashboard");
-  } else if (user.role === "admin") {
+  } else if (user.role === "admin" || user.role === "super_admin") {
     redirect("/admin");
   }
 

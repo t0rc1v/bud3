@@ -297,31 +297,74 @@ When responding:
       }),
     },
     onFinish: async ({ response }) => {
-      // Save the assistant's response to the database if chatId is provided
+      // Save all messages to the database if chatId is provided
       if (chatId) {
         try {
           const { saveChatMessage } = await import('@/lib/actions/ai');
-          const assistantMessage = response.messages.find(m => m.role === 'assistant');
-          if (assistantMessage) {
-            // Convert content array to string
+          
+          // Create a map of toolCallId -> tool result for easy lookup
+          const toolResultsById = new Map<string, unknown>();
+          
+          // First, extract all tool results from tool messages
+          const toolMessages = response.messages.filter(m => m.role === 'tool');
+          
+          for (const toolMessage of toolMessages) {
+            if (Array.isArray(toolMessage.content)) {
+              for (const part of toolMessage.content as Array<{ type: string; toolCallId?: string; toolName?: string; output?: unknown; result?: unknown }>) {
+                if (part.type === 'tool-result' && part.toolCallId) {
+                  // AI SDK uses 'output' not 'result'
+                  const output = part.output !== undefined ? part.output : part.result;
+                  toolResultsById.set(part.toolCallId, output);
+                }
+              }
+            }
+          }
+          
+          // Now process assistant messages and attach results directly to tool calls
+          const assistantMessages = response.messages.filter(m => m.role === 'assistant');
+          
+          for (const assistantMessage of assistantMessages) {
             let contentStr = '';
+            const toolCallsWithResults: Array<{ toolCallId: string; toolName: string; input: unknown; output?: unknown }> = [];
+            
             if (Array.isArray(assistantMessage.content)) {
-              contentStr = assistantMessage.content.map((part: { type: string; text?: string }) => {
-                if (part.type === 'text') return part.text || '';
-                return '';
-              }).join('');
+              for (const part of assistantMessage.content as Array<{ type: string; text?: string; toolCallId?: string; toolName?: string; input?: unknown; args?: unknown }>) {
+                if (part.type === 'text') {
+                  contentStr += part.text || '';
+                } else if (part.type === 'tool-call') {
+                  const toolCallId = part.toolCallId || '';
+                  const output = toolResultsById.get(toolCallId);
+                  
+                  // AI SDK uses 'input' not 'args'
+                  const input = part.input !== undefined ? part.input : part.args;
+                  
+                  toolCallsWithResults.push({
+                    toolCallId: toolCallId,
+                    toolName: part.toolName || 'unknown',
+                    input: input || {},
+                    output: output, // Attach the output directly to the tool call
+                  });
+                }
+              }
             } else if (typeof assistantMessage.content === 'string') {
               contentStr = assistantMessage.content;
+            }
+            
+            // Save assistant message with tool calls AND their results in metadata
+            const metadata: Record<string, unknown> = {};
+            if (toolCallsWithResults.length > 0) {
+              metadata.toolCalls = toolCallsWithResults;
             }
             
             await saveChatMessage({
               chatId,
               role: 'assistant',
               content: contentStr,
+              metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
             });
           }
         } catch (error) {
-          console.error('Failed to save chat message:', error);
+          console.error('Failed to save chat messages:', error);
         }
       }
     },

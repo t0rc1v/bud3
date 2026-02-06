@@ -3,6 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -32,6 +33,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { createChat, deleteChat, getUserChats, getChatMessages, type Chat } from "@/lib/actions/ai";
 import { AddResourceToChat, type Resource } from "./add-resource-to-chat";
+import {
+  Tool,
+  ToolHeader,
+  ToolContent,
+  ToolInput,
+  ToolOutput,
+  SearchResultsOutput,
+  type ToolState,
+} from "@/components/ai-elements/tool";
 
 const TYPE_ICONS = {
   notes: FileText,
@@ -56,12 +66,30 @@ export function AIChat({
   userId,
   initialChatId,
 }: AIChatProps) {
-  const [chatId, setChatId] = useState<string | undefined>(initialChatId);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  
+  // Get chatId from URL query params or props
+  const urlChatId = searchParams.get("chatId");
+  const [chatId, setChatId] = useState<string | undefined>(urlChatId || initialChatId);
+  
   const [input, setInput] = useState("");
   const [chats, setChats] = useState<Chat[]>([]);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [attachedResources, setAttachedResources] = useState<Resource[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  // Helper function to update URL with chatId
+  const updateUrlWithChatId = useCallback((newChatId: string | undefined) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (newChatId) {
+      params.set("chatId", newChatId);
+    } else {
+      params.delete("chatId");
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [router, pathname, searchParams]);
 
   const { messages, sendMessage, status, stop, setMessages } = useChat({
     transport: new DefaultChatTransport({
@@ -73,44 +101,108 @@ export function AIChat({
     id: chatId || "default",
   });
 
-  // Load user's chats and messages on mount
+  // Sync chatId state with URL when URL changes
+  useEffect(() => {
+    const currentUrlChatId = searchParams.get("chatId");
+    if (currentUrlChatId && currentUrlChatId !== chatId) {
+      setChatId(currentUrlChatId);
+    }
+  }, [searchParams, chatId]);
+
+  // Load user's chats and messages
   useEffect(() => {
     async function loadChats() {
+      console.log('=== LOADING CHAT MESSAGES ===');
+      console.log('urlChatId:', urlChatId);
+      console.log('initialChatId:', initialChatId);
+      
       try {
         const userChats = await getUserChats(userId);
         setChats(userChats);
         
-        // If there's an initialChatId, load its messages
-        if (initialChatId) {
-          const chatMessages = await getChatMessages(initialChatId);
+        // Load messages for the current chatId (from URL or props)
+        const chatIdToLoad = urlChatId || initialChatId;
+        console.log('chatIdToLoad:', chatIdToLoad);
+        
+        if (chatIdToLoad) {
+          console.log('Fetching messages for chatId:', chatIdToLoad);
+          const chatMessages = await getChatMessages(chatIdToLoad);
+          console.log('Fetched', chatMessages.length, 'messages');
+          console.log('First message sample:', chatMessages[0] ? JSON.stringify(chatMessages[0], null, 2).slice(0, 500) : 'none');
           
-          const formattedMessages = chatMessages.map((msg) => {
-            const parts: Array<
-              | { type: "text"; text: string }
-              | { type: "file"; filename: string; url: string; mediaType: string }
-            > = [{ type: "text", text: msg.content }];
-            
-            // Add file parts from metadata if present
-            if (msg.metadata?.attachedResources && Array.isArray(msg.metadata.attachedResources)) {
-              msg.metadata.attachedResources.forEach((resource: {id: string; title: string; url: string; type: string}) => {
-                parts.push({
-                  type: "file",
-                  filename: resource.title,
-                  url: resource.url,
-                  mediaType: resource.type === 'image' ? 'image/*' : 
-                            resource.type === 'notes' ? 'application/pdf' : 'application/octet-stream'
+          // Format messages - results are now stored directly with tool calls
+          const formattedMessages = chatMessages
+            .filter((msg) => msg.role !== 'tool') // Skip tool role messages
+            .map((msg) => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const parts: any[] = [{ type: "text", text: msg.content }];
+              
+              // Add file parts from metadata if present
+              if (msg.metadata?.attachedResources && Array.isArray(msg.metadata.attachedResources)) {
+                msg.metadata.attachedResources.forEach((resource: {id: string; title: string; url: string; type: string}) => {
+                  parts.push({
+                    type: "file",
+                    filename: resource.title,
+                    url: resource.url,
+                    mediaType: resource.type === 'image' ? 'image/*' : 
+                              resource.type === 'notes' ? 'application/pdf' : 'application/octet-stream'
+                  });
                 });
-              });
-            }
-            
-            return {
-              id: msg.id,
-              role: msg.role as "user" | "assistant",
-              parts,
-              createdAt: msg.createdAt,
-            };
-          });
-          setMessages(formattedMessages);
+              }
+              
+              // Add tool parts - results are now attached directly to tool calls
+              console.log('Message metadata:', JSON.stringify(msg.metadata, null, 2));
+              if (msg.metadata?.toolCalls && Array.isArray(msg.metadata.toolCalls)) {
+                console.log('Found', msg.metadata.toolCalls.length, 'tool calls');
+                msg.metadata.toolCalls.forEach((toolCall: { toolCallId?: string; toolName: string; input?: unknown; args?: unknown; output?: unknown; result?: unknown }, idx: number) => {
+                  console.log('Tool call', idx, ':', JSON.stringify(toolCall, null, 2));
+                  const toolType = toolCall.toolName as string;
+                  const toolCallId = toolCall.toolCallId || `tool-call-${msg.id}-${idx}`;
+                  
+                  // Use output (new format) or result (old format for backwards compatibility)
+                  const output = toolCall.output !== undefined ? toolCall.output : toolCall.result;
+                  const hasOutput = output !== undefined && output !== null;
+                  const toolInput = toolCall.input !== undefined ? toolCall.input : toolCall.args;
+                  
+                  console.log('Tool', toolType, 'hasOutput:', hasOutput, 'outputType:', typeof output);
+                  
+                  // Create tool part following AI SDK format with state
+                  const toolPart: {
+                    type: string;
+                    toolCallId: string;
+                    state: string;
+                    input?: unknown;
+                    output?: unknown;
+                  } = {
+                    type: `tool-${toolType}`,
+                    toolCallId,
+                    state: hasOutput ? 'output-available' : 'input-available',
+                    input: toolInput,
+                  };
+                  
+                  if (hasOutput) {
+                    toolPart.output = output;
+                  }
+                  
+                  parts.push(toolPart);
+                });
+              } else {
+                console.log('No tool calls in metadata');
+              }
+              
+              return {
+                id: msg.id,
+                role: msg.role as "user" | "assistant",
+                parts,
+                createdAt: msg.createdAt,
+              };
+            });
+          
+          console.log('Formatted', formattedMessages.length, 'messages');
+          console.log('First formatted message parts:', formattedMessages[0]?.parts.map((p: { type: string }) => p.type));
+          setMessages(formattedMessages as typeof messages);
+        } else {
+          console.log('No chatIdToLoad, skipping message fetch');
         }
       } catch (error) {
         console.error("Failed to load chats:", error);
@@ -119,10 +211,18 @@ export function AIChat({
       }
     }
     loadChats();
-  }, [userId, initialChatId, setMessages]);
+  }, [userId, urlChatId, initialChatId, setMessages]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
+    console.log('Messages updated. Count:', messages.length);
+    if (messages.length > 0) {
+      console.log('Last message role:', messages[messages.length - 1].role);
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.parts) {
+        console.log('Last message parts:', lastMsg.parts.map((p: { type: string }) => p.type));
+      }
+    }
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
@@ -139,6 +239,7 @@ export function AIChat({
           title: input.slice(0, 50) + (input.length > 50 ? "..." : ""),
         });
         setChatId(newChat.id);
+        updateUrlWithChatId(newChat.id); // Update URL with new chat ID
         setChats((prev) => [newChat, ...prev]);
       } catch (error) {
         console.error("Failed to create chat:", error);
@@ -186,6 +287,7 @@ export function AIChat({
         title: "New Chat",
       });
       setChatId(newChat.id);
+      updateUrlWithChatId(newChat.id); // Update URL with new chat ID
       setChats((prev) => [newChat, ...prev]);
       setMessages([]);
       setAttachedResources([]);
@@ -200,6 +302,7 @@ export function AIChat({
       setChats((prev) => prev.filter((c) => c.id !== id));
       if (chatId === id) {
         setChatId(undefined);
+        updateUrlWithChatId(undefined); // Clear chatId from URL
         setMessages([]);
         setAttachedResources([]);
       }
@@ -210,39 +313,73 @@ export function AIChat({
 
   const handleSelectChat = async (id: string) => {
     setChatId(id);
+    updateUrlWithChatId(id); // Update URL with selected chat ID
     // Clear attached resources when switching chats
     setAttachedResources([]);
     try {
       const chatMessages = await getChatMessages(id);
       
-      // Convert database messages to useChat format with file parts from metadata
-      const formattedMessages = chatMessages.map((msg) => {
-        const parts: Array<
-          | { type: "text"; text: string }
-          | { type: "file"; filename: string; url: string; mediaType: string }
-        > = [{ type: "text", text: msg.content }];
-        
-        // Add file parts from metadata if present
-        if (msg.metadata?.attachedResources && Array.isArray(msg.metadata.attachedResources)) {
-          msg.metadata.attachedResources.forEach((resource: {id: string; title: string; url: string; type: string}) => {
-            parts.push({
-              type: "file",
-              filename: resource.title,
-              url: resource.url,
-              mediaType: resource.type === 'image' ? 'image/*' : 
-                        resource.type === 'notes' ? 'application/pdf' : 'application/octet-stream'
+      // Format messages - results are now stored directly with tool calls
+      const formattedMessages = chatMessages
+        .filter((msg) => msg.role !== 'tool') // Skip tool role messages
+        .map((msg) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const parts: any[] = [{ type: "text", text: msg.content }];
+          
+          // Add file parts from metadata if present
+          if (msg.metadata?.attachedResources && Array.isArray(msg.metadata.attachedResources)) {
+            msg.metadata.attachedResources.forEach((resource: {id: string; title: string; url: string; type: string}) => {
+              parts.push({
+                type: "file",
+                filename: resource.title,
+                url: resource.url,
+                mediaType: resource.type === 'image' ? 'image/*' : 
+                          resource.type === 'notes' ? 'application/pdf' : 'application/octet-stream'
+              });
             });
-          });
-        }
-        
-        return {
-          id: msg.id,
-          role: msg.role as "user" | "assistant",
-          parts,
-          createdAt: msg.createdAt,
-        };
-      });
-      setMessages(formattedMessages);
+          }
+          
+          // Add tool parts - results are now attached directly to tool calls
+          if (msg.metadata?.toolCalls && Array.isArray(msg.metadata.toolCalls)) {
+            msg.metadata.toolCalls.forEach((toolCall: { toolCallId?: string; toolName: string; input?: unknown; args?: unknown; output?: unknown; result?: unknown }, idx: number) => {
+              const toolType = toolCall.toolName as string;
+              const toolCallId = toolCall.toolCallId || `tool-call-${msg.id}-${idx}`;
+              
+              // Use output (new format) or result (old format for backwards compatibility)
+              const output = toolCall.output !== undefined ? toolCall.output : toolCall.result;
+              const hasOutput = output !== undefined && output !== null;
+              const toolInput = toolCall.input !== undefined ? toolCall.input : toolCall.args;
+              
+              // Create tool part following AI SDK format with state
+              const toolPart: {
+                type: string;
+                toolCallId: string;
+                state: string;
+                input?: unknown;
+                output?: unknown;
+              } = {
+                type: `tool-${toolType}`,
+                toolCallId,
+                state: hasOutput ? 'output-available' : 'input-available',
+                input: toolInput,
+              };
+              
+              if (hasOutput) {
+                toolPart.output = output;
+              }
+              
+              parts.push(toolPart);
+            });
+          }
+          
+          return {
+            id: msg.id,
+            role: msg.role as "user" | "assistant",
+            parts,
+            createdAt: msg.createdAt,
+          };
+        });
+      setMessages(formattedMessages as typeof messages);
     } catch (error) {
       console.error("Failed to load chat:", error);
       setMessages([]);
@@ -457,35 +594,139 @@ export function AIChat({
                           </div>
                       );
                     }
-                    if (part.type === "tool-web_search" || part.type === "tool-youtube_search") {
+                    // Handle tool parts - check if type starts with "tool-"
+                    if (typeof part.type === 'string' && part.type.startsWith("tool-")) {
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      const toolPart = part as any;
+                      const toolType = toolPart.type;
+                      const state = toolPart.state as ToolState;
+                      const input = toolPart.input;
+                      const output = toolPart.output;
+                      
+                      console.log('Rendering tool part:', toolType, 'state:', state, 'has output:', output !== undefined);
+                      
+                      // Determine if we should auto-open (completed tools)
+                      const shouldAutoOpen = state === 'output-available' || state === 'output-error';
+                      
+                      // Web Search or YouTube Search
+                      if (toolType === "tool-web_search" || toolType === "tool-youtube_search") {
+                        // AI SDK stores output as { type: "json", value: { results: [...] } }
+                        const outputWrapper = output as { type?: string; value?: { results?: Array<{ title?: string; url?: string; description?: string; snippet?: string }>; formatted?: string } } | undefined;
+                        const searchOutput = outputWrapper?.value;
+                        
+                        return (
+                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2">
+                            <ToolHeader
+                              toolType={toolType}
+                              state={state}
+                            />
+                            <ToolContent>
+                              <ToolInput input={input} />
+                              <ToolOutput
+                                output={
+                                  searchOutput?.results && searchOutput.results.length > 0 ? (
+                                    <SearchResultsOutput results={searchOutput.results.map(r => ({ ...r, description: r.snippet }))} maxDisplay={3} />
+                                  ) : undefined
+                                }
+                              />
+                            </ToolContent>
+                          </Tool>
+                        );
+                      }
+                      
+                      // Research Materials - has formatted output
+                      if (toolType === "tool-research_materials") {
+                        // AI SDK stores output as { type: "json", value: { results: [...] } }
+                        const outputWrapper = output as { type?: string; value?: { results?: Array<{ title?: string; url?: string; description?: string; type?: string }>; formatted?: string } } | undefined;
+                        const researchOutput = outputWrapper?.value;
+                        
+                        return (
+                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2">
+                            <ToolHeader
+                              toolType={toolType}
+                              state={state}
+                            />
+                            <ToolContent>
+                              <ToolInput input={input} />
+                              <ToolOutput
+                                output={
+                                  researchOutput?.results && researchOutput.results.length > 0 ? (
+                                    <div className="space-y-2">
+                                      <SearchResultsOutput results={researchOutput.results} maxDisplay={5} />
+                                    </div>
+                                  ) : undefined
+                                }
+                              />
+                            </ToolContent>
+                          </Tool>
+                        );
+                      }
+                      
+                      // Web Browse - shows title and content preview
+                      if (toolType === "tool-web_browse") {
+                        const browseOutput = output as { title?: string; url?: string; content?: string; success?: boolean; error?: string } | undefined;
+                        const errorText = !browseOutput?.success ? browseOutput?.error : undefined;
+                        
+                        return (
+                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2">
+                            <ToolHeader
+                              toolType={toolType}
+                              state={state}
+                              title={browseOutput?.title}
+                            />
+                            <ToolContent>
+                              <ToolInput input={input} />
+                              <ToolOutput
+                                output={
+                                  browseOutput?.content ? (
+                                    <div className="space-y-1">
+                                      {browseOutput.url && (
+                                        <a
+                                          href={browseOutput.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-xs text-primary hover:underline flex items-center gap-1"
+                                        >
+                                          <ExternalLink className="h-3 w-3" />
+                                          View Source
+                                        </a>
+                                      )}
+                                      <div className="text-xs text-muted-foreground line-clamp-4">
+                                        {browseOutput.content.slice(0, 500)}
+                                        {browseOutput.content.length > 500 && "..."}
+                                      </div>
+                                    </div>
+                                  ) : undefined
+                                }
+                                errorText={errorText}
+                              />
+                            </ToolContent>
+                          </Tool>
+                        );
+                      }
+                      
+                      // All other tools
                       return (
-                        <div key={i} className="mt-2 p-2 bg-background/50 rounded text-xs max-w-full">
-                          <div className="flex items-center gap-1 text-muted-foreground mb-1">
-                            <ExternalLink className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{part.type === "tool-web_search" ? "Web Search" : "YouTube Search"}</span>
-                          </div>
-                          <pre className="text-xs overflow-x-auto whitespace-pre-wrap break-all max-w-full">
-                            {JSON.stringify(part.output, null, 2)}
-                          </pre>
-                        </div>
-                      );
-                    }
-                    if (part.type === "tool-save_memory") {
-                      return (
-                        <div key={i} className="mt-2 p-2 bg-green-100/50 rounded text-xs text-green-800">
-                          <div className="flex items-center gap-1 mb-1">
-                            <span>Memory saved</span>
-                          </div>
-                        </div>
-                      );
-                    }
-                    if (part.type === "tool-add_learner") {
-                      return (
-                        <div key={i} className="mt-2 p-2 bg-blue-100/50 rounded text-xs text-blue-800">
-                          <div className="flex items-center gap-1 mb-1">
-                            <span>Learner added</span>
-                          </div>
-                        </div>
+                        <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2">
+                          <ToolHeader
+                            toolType={toolType}
+                            state={state}
+                          />
+                          <ToolContent>
+                            <ToolInput input={input} />
+                            <ToolOutput
+                              output={
+                                output && typeof output === 'object' ? (
+                                  <pre className="text-xs overflow-x-auto whitespace-pre-wrap break-all">
+                                    {JSON.stringify(output, null, 2)}
+                                  </pre>
+                                ) : output ? (
+                                  String(output)
+                                ) : undefined
+                              }
+                            />
+                          </ToolContent>
+                        </Tool>
                       );
                     }
                     return null;

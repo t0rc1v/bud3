@@ -367,8 +367,8 @@ export function AIChat({
       )}
 
       {/* Messages */}
-      <ScrollArea className="flex-1 px-4 py-4" ref={scrollRef}>
-        <div className="space-y-4">
+      <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
+        <div className="space-y-4 px-4 py-4">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 text-center">
               <Bot className="h-10 w-10 text-muted-foreground mb-2" />
@@ -400,7 +400,7 @@ export function AIChat({
                 )}
                 <div
                   className={cn(
-                    "rounded-lg px-4 py-2 max-w-[85%]",
+                    "rounded-lg px-4 py-2 max-w-[85%] overflow-hidden",
                     message.role === "user"
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted"
@@ -409,7 +409,7 @@ export function AIChat({
                   {message.parts.map((part, i) => {
                     if (part.type === "text") {
                       return (
-                        <div key={i} className="whitespace-pre-wrap text-sm">
+                        <div key={i} className="whitespace-pre-wrap break-words text-sm overflow-wrap-anywhere">
                           {part.text}
                         </div>
                       );
@@ -429,42 +429,42 @@ export function AIChat({
                       }
                       if (part.mediaType === "application/pdf") {
                         return (
-                          <div key={i} className="mt-2">
+                          <div key={i} className="mt-2 max-w-full">
                             <a 
                               href={part.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex items-center gap-2 p-2 bg-background/50 rounded text-xs hover:bg-background/70 transition-colors"
+                              className="flex items-center gap-2 p-2 bg-background/50 rounded text-xs hover:bg-background/70 transition-colors min-w-0"
                             >
-                              <FileText className="h-4 w-4" />
-                              <span className="truncate">{part.filename || "PDF Document"}</span>
+                              <FileText className="h-4 w-4 shrink-0" />
+                              <span className="truncate min-w-0">{part.filename || "PDF Document"}</span>
                             </a>
                           </div>
                         );
                       }
                       // Generic file attachment
                       return (
-                        <div key={i} className="mt-2">
-                          <a 
-                            href={part.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 p-2 bg-background/50 rounded text-xs hover:bg-background/70 transition-colors"
-                          >
-                            <Paperclip className="h-4 w-4" />
-                            <span className="truncate">{part.filename || "Attached file"}</span>
-                          </a>
-                        </div>
+                      <div key={i} className="mt-2 max-w-full">
+                            <a 
+                              href={part.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 p-2 bg-background/50 rounded text-xs hover:bg-background/70 transition-colors min-w-0"
+                            >
+                              <Paperclip className="h-4 w-4 shrink-0" />
+                              <span className="truncate min-w-0">{part.filename || "Attached file"}</span>
+                            </a>
+                          </div>
                       );
                     }
                     if (part.type === "tool-web_search" || part.type === "tool-youtube_search") {
                       return (
-                        <div key={i} className="mt-2 p-2 bg-background/50 rounded text-xs">
+                        <div key={i} className="mt-2 p-2 bg-background/50 rounded text-xs max-w-full">
                           <div className="flex items-center gap-1 text-muted-foreground mb-1">
-                            <ExternalLink className="h-3 w-3" />
-                            {part.type === "tool-web_search" ? "Web Search" : "YouTube Search"}
+                            <ExternalLink className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{part.type === "tool-web_search" ? "Web Search" : "YouTube Search"}</span>
                           </div>
-                          <pre className="text-xs overflow-x-auto">
+                          <pre className="text-xs overflow-x-auto whitespace-pre-wrap break-all max-w-full">
                             {JSON.stringify(part.output, null, 2)}
                           </pre>
                         </div>

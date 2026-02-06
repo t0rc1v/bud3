@@ -2,6 +2,12 @@ import { streamText, UIMessage, convertToModelMessages, tool, stepCountIs } from
 import { z } from 'zod';
 import { auth } from '@clerk/nextjs/server';
 import { getModel } from '@/lib/ai/providers';
+import {
+  searchWeb,
+  searchYouTube,
+  researchMaterials,
+  formatSearchResultsForAI,
+} from '@/lib/ai/tools';
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -86,15 +92,21 @@ export async function POST(req: Request) {
 You help teachers, students, and admins with their questions about educational content.
 
 You have access to the following tools:
-1. web_search - Search the web for information
-2. youtube_search - Search YouTube for educational videos
-3. save_memory - Save important information to memory for future reference
-4. web_browse - Browse any URL to extract its content (web pages, PDFs, documents)
+1. web_search - Search the web for current information, articles, and web pages
+2. youtube_search - Search YouTube specifically for educational videos
+3. research_materials - Comprehensive research tool that searches multiple sources (web, YouTube, research papers) for educational materials. Use this when looking for lesson materials or topic resources.
+4. save_memory - Save important information to memory for future reference (e.g., student results, lesson plans, important notes)
+5. add_learner - Add a learner to the teacher's my_learners list (teachers only)
+6. web_browse - Browse any URL to extract its content (web pages, PDFs, documents, images)
 
 When responding:
 - Be concise and educational
-- Use the available tools when needed to provide accurate information
-- When the user asks about a URL, use the web_browse tool to read it`;
+- Use web_search for general web information
+- Use youtube_search specifically when the user asks for video content
+- Use research_materials when the user is looking for educational resources to use in lessons
+- Use save_memory when the user wants to save important information for future reference
+- Use web_browse when a specific URL is provided to read its contents
+- Always cite your sources when using search results`;
 
   // Add memory context if available
   if (memoryItems && memoryItems.length > 0) {
@@ -111,31 +123,103 @@ When responding:
     stopWhen: stepCountIs(5),
     tools: {
       web_search: tool({
-        description: 'Search the web for current information on any topic',
+        description: 'Search the web for current information on any topic. Returns web pages, articles, and documents relevant to the query.',
         inputSchema: z.object({
           query: z.string().describe('The search query'),
+          numResults: z.number().optional().describe('Number of results to return (default: 10)'),
+          category: z.enum(['company', 'research paper', 'news', 'tweet', 'personal site', 'financial report', 'people']).optional().describe('Optional category to filter results'),
         }),
-        execute: async ({ query }) => {
-          // This is a placeholder - in production, integrate with Exa AI or similar
-          return {
-            results: [
-              { title: 'Web search not yet configured', url: '', snippet: 'Please configure Exa AI integration' }
-            ]
-          };
+        execute: async ({ query, numResults = 10, category }) => {
+          try {
+            const results = await searchWeb(query, {
+              numResults,
+              type: 'auto',
+              category,
+            });
+            return {
+              results,
+              formatted: formatSearchResultsForAI(results, 'web'),
+            };
+          } catch (error) {
+            return {
+              success: false,
+              error: `Failed to search web: ${error instanceof Error ? error.message : String(error)}`,
+            };
+          }
         },
       }),
       youtube_search: tool({
-        description: 'Search YouTube for educational videos',
+        description: 'Search YouTube for educational videos. Returns video results with titles, URLs, descriptions, and thumbnails.',
         inputSchema: z.object({
-          query: z.string().describe('The search query'),
+          query: z.string().describe('The search query for educational videos'),
+          numResults: z.number().optional().describe('Number of results to return (default: 10)'),
         }),
-        execute: async ({ query }) => {
-          // This is a placeholder - in production, integrate with YouTube API via Exa AI
-          return {
-            results: [
-              { title: 'YouTube search not yet configured', url: '', snippet: 'Please configure Exa AI integration' }
-            ]
-          };
+        execute: async ({ query, numResults = 10 }) => {
+          try {
+            const results = await searchYouTube(query, {
+              numResults,
+              type: 'auto',
+            });
+            return {
+              results,
+              formatted: formatSearchResultsForAI(results, 'youtube'),
+            };
+          } catch (error) {
+            return {
+              success: false,
+              error: `Failed to search YouTube: ${error instanceof Error ? error.message : String(error)}`,
+            };
+          }
+        },
+      }),
+      research_materials: tool({
+        description: 'Research and find educational materials from multiple sources (web articles, YouTube videos, research papers). This is a comprehensive search that aggregates results from various sources for lesson planning or topic research.',
+        inputSchema: z.object({
+          query: z.string().describe('The research query for finding educational materials'),
+          numResults: z.number().optional().describe('Total number of results to return (default: 15)'),
+          materialTypes: z.array(z.enum(['video', 'article', 'pdf'])).optional().describe('Types of materials to search for (default: all types)'),
+        }),
+        execute: async ({ query, numResults = 15, materialTypes = ['video', 'article', 'pdf'] }) => {
+          try {
+            const results = await researchMaterials(query, {
+              numResults,
+              materialTypes,
+            });
+            return {
+              results,
+              formatted: formatSearchResultsForAI(results, 'research'),
+            };
+          } catch (error) {
+            return {
+              success: false,
+              error: `Failed to research materials: ${error instanceof Error ? error.message : String(error)}`,
+            };
+          }
+        },
+      }),
+      get_grades: tool({
+        description: 'Get a list of all available grades/levels in the system. Use this when a teacher wants to add a learner but is unsure which grade ID to use.',
+        inputSchema: z.object({}),
+        execute: async () => {
+          try {
+            const { getGrades } = await import('@/lib/actions/teacher');
+            const grades = await getGrades();
+            return {
+              success: true,
+              grades: grades.map(g => ({
+                id: g.id,
+                title: g.title,
+                gradeNumber: g.gradeNumber,
+                level: g.level,
+                subjects: g.subjects?.map((s: { name: string; id: string }) => s.name) || [],
+              })),
+            };
+          } catch (error) {
+            return {
+              success: false,
+              error: `Failed to get grades: ${error instanceof Error ? error.message : String(error)}`,
+            };
+          }
         },
       }),
       save_memory: tool({

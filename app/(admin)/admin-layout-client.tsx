@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { PanelLeft, PanelRight, MessageSquare, Shield, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AIChat } from "@/components/ai/ai-chat";
@@ -21,13 +21,23 @@ interface AdminLayoutClientProps {
 
 export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutClientProps) {
   const isMobile = useIsMobile();
-  const [leftSidebarOpen, setLeftSidebarOpen] = useState(!isMobile);
-  const [rightSidebarOpen, setRightSidebarOpen] = useState(!isMobile);
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    // Defer mobile detection to after hydration to avoid mismatches
+    const timeoutId = setTimeout(() => setIsClient(true), 0);
+    return () => clearTimeout(timeoutId);
+  }, []);
 
   const pathname = usePathname();
 
+  // Prevent hydration mismatch by rendering desktop layout until client-side hydration is complete
+  const showMobile = isClient && isMobile;
+
   // Mobile layout with sheets
-  if (isMobile) {
+  if (showMobile) {
     return (
       <div className="flex h-screen flex-col overflow-hidden">
         {/* Mobile Header */}
@@ -79,7 +89,9 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
           <h1 className="font-semibold">Admin</h1>
           
           <div className="flex items-center gap-2">
-            <UserButton />
+            <div suppressHydrationWarning>
+              <UserButton />
+            </div>
             
             <Sheet>
               <SheetTrigger asChild>
@@ -189,7 +201,9 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
                 <span className="sr-only">Toggle chat</span>
               </Button>
             </div>
-            <UserButton afterSignOutUrl="/" />
+            <div suppressHydrationWarning>
+              <UserButton />
+            </div>
           </div>
         </div>
         

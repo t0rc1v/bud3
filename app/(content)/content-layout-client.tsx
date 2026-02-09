@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { PanelLeft, PanelRight, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AIChat } from "@/components/ai/ai-chat";
 import { UserButton } from "@clerk/nextjs";
 
@@ -19,13 +19,23 @@ interface ContentLayoutClientProps {
 
 export function ContentLayoutClient({ children, userId, userRole }: ContentLayoutClientProps) {
   const isMobile = useIsMobile();
-  const [leftSidebarOpen, setLeftSidebarOpen] = useState(!isMobile);
-  const [rightSidebarOpen, setRightSidebarOpen] = useState(!isMobile);
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    // Defer mobile detection to after hydration to avoid mismatches
+    const timeoutId = setTimeout(() => setIsClient(true), 0);
+    return () => clearTimeout(timeoutId);
+  }, []);
 
   const title = userRole === "teacher" ? "Teacher" : "Learner";
 
+  // Prevent hydration mismatch by rendering desktop layout until client-side hydration is complete
+  const showMobile = isClient && isMobile;
+
   // Mobile layout with sheets
-  if (isMobile) {
+  if (showMobile) {
     return (
       <div className="flex h-screen flex-col overflow-hidden">
         {/* Mobile Header */}
@@ -54,7 +64,9 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
           <h1 className="font-semibold">{title}</h1>
           
           <div className="flex items-center gap-2">
-            <UserButton />
+            <div suppressHydrationWarning>
+              <UserButton />
+            </div>
             
             <Sheet>
               <SheetTrigger asChild>
@@ -138,7 +150,9 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
                 <span className="sr-only">Toggle chat</span>
               </Button>
             </div>
-            <UserButton afterSignOutUrl="/" />
+            <div suppressHydrationWarning>
+              <UserButton />
+            </div>
           </div>
         </div>
         

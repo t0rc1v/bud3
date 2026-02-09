@@ -180,7 +180,7 @@ function ToolHeader({
 }
 
 // Tool Content component
-interface ToolContentProps extends React.ComponentProps<typeof CollapsibleContent> {}
+type ToolContentProps = React.ComponentProps<typeof CollapsibleContent>
 
 function ToolContent({ className, children, ...props }: ToolContentProps) {
   return (

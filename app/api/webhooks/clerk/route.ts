@@ -59,7 +59,7 @@ export async function POST(req: Request) {
   if (eventType === 'user.created') {
     const { id, email_addresses, primary_email_address_id, public_metadata } = evt.data as unknown as {
       id: string;
-      email_addresses: any[];
+      email_addresses: { id: string; email_address: string }[];
       primary_email_address_id: string;
       public_metadata?: { role?: string };
     }

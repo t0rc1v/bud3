@@ -2,16 +2,15 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { Textarea } from "@/components/ui/textarea";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import {
   Send,
-  Bot,
-  User,
   Loader2,
   X,
   Plus,
@@ -23,6 +22,9 @@ import {
   Image as ImageIcon,
   ExternalLink,
   Paperclip,
+  ChevronDown,
+  Sparkles,
+  MessageSquare,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -35,6 +37,7 @@ import { createChat, deleteChat, getUserChats, getChatMessages, type Chat } from
 import { AddResourceToChat, type Resource } from "./add-resource-to-chat";
 import { AssignmentModalTrigger } from "./assignment-modal";
 import { QuizModalTrigger } from "./quiz-modal";
+import { MarkdownRenderer } from "./markdown-renderer";
 import {
   Tool,
   ToolHeader,
@@ -80,12 +83,22 @@ export function AIChat({
   const [chats, setChats] = useState<Chat[]>([]);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [attachedResources, setAttachedResources] = useState<Resource[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [textareaRows, setTextareaRows] = useState(1);
   
+  // Detect mobile device
+  const isMobile = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+  }, []);
+   
   // Store pending message to send after chat is created
   const pendingMessageRef = useRef<{ text: string; files: Array<{ type: "file"; url: string; mediaType: string; filename: string }> } | null>(null);
   // Track chats that were just created to prevent loading messages and overwriting pending messages
   const newlyCreatedChatRef = useRef<string | null>(null);
+  // Track last chat ID to prevent duplicate loads when dependencies change
+  const lastChatIdRef = useRef<string | null>(null);
   
   // Helper function to update URL with chatId
   const updateUrlWithChatId = useCallback((newChatId: string | undefined) => {
@@ -131,18 +144,15 @@ export function AIChat({
     }
   }, [chatId, sendMessage]);
 
-  // Load user's chats and messages
+  // Compute the effective chat ID to load
+  const chatIdToLoad = urlChatId || initialChatId;
+  
+  // Load user's chats and messages - only runs when chatIdToLoad actually changes
   useEffect(() => {
     async function loadChats() {
-      console.log('=== LOADING CHAT MESSAGES ===');
-      console.log('urlChatId:', urlChatId);
-      console.log('initialChatId:', initialChatId);
-      
       // Skip loading messages if this is a newly created chat (first message pending)
-      const chatIdToLoad = urlChatId || initialChatId;
       if (chatIdToLoad && newlyCreatedChatRef.current === chatIdToLoad) {
-        console.log('Skipping load for newly created chat:', chatIdToLoad);
-        newlyCreatedChatRef.current = null; // Clear the flag after skipping
+        lastChatIdRef.current = chatIdToLoad;
         return;
       }
       
@@ -150,14 +160,8 @@ export function AIChat({
         const userChats = await getUserChats(userId);
         setChats(userChats);
         
-        // Load messages for the current chatId (from URL or props)
-        console.log('chatIdToLoad:', chatIdToLoad);
-        
         if (chatIdToLoad) {
-          console.log('Fetching messages for chatId:', chatIdToLoad);
           const chatMessages = await getChatMessages(chatIdToLoad);
-          console.log('Fetched', chatMessages.length, 'messages');
-          console.log('First message sample:', chatMessages[0] ? JSON.stringify(chatMessages[0], null, 2).slice(0, 500) : 'none');
           
           // Format messages - results are now stored directly with tool calls
           const formattedMessages = chatMessages
@@ -180,11 +184,8 @@ export function AIChat({
               }
               
               // Add tool parts - results are now attached directly to tool calls
-              console.log('Message metadata:', JSON.stringify(msg.metadata, null, 2));
               if (msg.metadata?.toolCalls && Array.isArray(msg.metadata.toolCalls)) {
-                console.log('Found', msg.metadata.toolCalls.length, 'tool calls');
                 msg.metadata.toolCalls.forEach((toolCall: { toolCallId?: string; toolName: string; input?: unknown; args?: unknown; output?: unknown; result?: unknown }, idx: number) => {
-                  console.log('Tool call', idx, ':', JSON.stringify(toolCall, null, 2));
                   const toolType = toolCall.toolName as string;
                   const toolCallId = toolCall.toolCallId || `tool-call-${msg.id}-${idx}`;
                   
@@ -192,8 +193,6 @@ export function AIChat({
                   const output = toolCall.output !== undefined ? toolCall.output : toolCall.result;
                   const hasOutput = output !== undefined && output !== null;
                   const toolInput = toolCall.input !== undefined ? toolCall.input : toolCall.args;
-                  
-                  console.log('Tool', toolType, 'hasOutput:', hasOutput, 'outputType:', typeof output);
                   
                   // Create tool part following AI SDK format with state
                   const toolPart: {
@@ -215,8 +214,6 @@ export function AIChat({
                   
                   parts.push(toolPart);
                 });
-              } else {
-                console.log('No tool calls in metadata');
               }
               
               return {
@@ -227,11 +224,8 @@ export function AIChat({
               };
             });
           
-          console.log('Formatted', formattedMessages.length, 'messages');
-          console.log('First formatted message parts:', formattedMessages[0]?.parts.map((p: { type: string }) => p.type));
           setMessages(formattedMessages as typeof messages);
-        } else {
-          console.log('No chatIdToLoad, skipping message fetch');
+          lastChatIdRef.current = chatIdToLoad;
         }
       } catch (error) {
         console.error("Failed to load chats:", error);
@@ -240,9 +234,26 @@ export function AIChat({
       }
     }
     loadChats();
-  }, [userId, urlChatId, initialChatId, setMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatIdToLoad]); // Only re-run when chatIdToLoad changes
 
-  // Auto-scroll to bottom when new messages arrive
+  // Track scroll position to show/hide scroll button
+  const handleScroll = useCallback(() => {
+    if (viewportRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = viewportRef.current;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      const isNearBottom = distanceFromBottom < 100;
+      setShowScrollButton(!isNearBottom && messages.length > 0);
+    }
+  }, [messages.length]);
+
+  const scrollToBottom = useCallback(() => {
+    if (viewportRef.current) {
+      viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+    }
+  }, []);
+
+  // Auto-scroll to bottom when new messages arrive and check button visibility
   useEffect(() => {
     console.log('Messages updated. Count:', messages.length);
     if (messages.length > 0) {
@@ -252,12 +263,27 @@ export function AIChat({
         console.log('Last message parts:', lastMsg.parts.map((p: { type: string }) => p.type));
       }
     }
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (viewportRef.current) {
+      viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+      // Check if we need to show scroll button after auto-scroll
+      setTimeout(() => {
+        handleScroll();
+      }, 100);
     }
-  }, [messages]);
+  }, [messages, handleScroll]);
 
-  const handleSend = async () => {
+  // Auto-resize textarea based on content
+  const handleTextareaChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setInput(value);
+    
+    // Calculate rows based on newlines (max 5 rows)
+    const newlineCount = (value.match(/\n/g) || []).length;
+    const newRows = Math.min(Math.max(newlineCount + 1, 1), 5);
+    setTextareaRows(newRows);
+  }, []);
+
+  const handleSend = useCallback(async () => {
     if (!input.trim() || status !== "ready") return;
 
     const userMessage = input;
@@ -304,7 +330,19 @@ export function AIChat({
     }
 
     setInput("");
-  };
+    setTextareaRows(1);
+  }, [input, status, chatId, attachedResources, sendMessage, updateUrlWithChatId, userId]);
+
+  // Handle Enter key to send message (Shift+Enter for new line)
+  // On mobile, Enter creates new lines - use send button to submit
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && !isMobile) {
+      e.preventDefault();
+      if (input.trim() && status === 'ready') {
+        handleSend();
+      }
+    }
+  }, [input, status, handleSend, isMobile]);
 
   // Helper function to map resource types to MIME types
   const getMediaType = (type: string): string => {
@@ -333,6 +371,9 @@ export function AIChat({
       setChats((prev) => [newChat, ...prev]);
       setMessages([]);
       setAttachedResources([]);
+      // Reset refs for new chat
+      lastChatIdRef.current = null;
+      newlyCreatedChatRef.current = newChat.id;
     } catch (error) {
       console.error("Failed to create chat:", error);
     }
@@ -347,85 +388,25 @@ export function AIChat({
         updateUrlWithChatId(undefined); // Clear chatId from URL
         setMessages([]);
         setAttachedResources([]);
+        // Reset refs when deleting current chat
+        lastChatIdRef.current = null;
+        newlyCreatedChatRef.current = null;
       }
     } catch (error) {
       console.error("Failed to delete chat:", error);
     }
   };
 
-  const handleSelectChat = async (id: string) => {
+  const handleSelectChat = (id: string) => {
+    // Just update the chatId - the useEffect will handle loading messages
     setChatId(id);
-    updateUrlWithChatId(id); // Update URL with selected chat ID
+    updateUrlWithChatId(id);
     // Clear attached resources when switching chats
     setAttachedResources([]);
-    try {
-      const chatMessages = await getChatMessages(id);
-      
-      // Format messages - results are now stored directly with tool calls
-      const formattedMessages = chatMessages
-        .filter((msg) => msg.role !== 'tool') // Skip tool role messages
-        .map((msg) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const parts: any[] = [{ type: "text", text: msg.content }];
-          
-          // Add file parts from metadata if present
-          if (msg.metadata?.attachedResources && Array.isArray(msg.metadata.attachedResources)) {
-            msg.metadata.attachedResources.forEach((resource: {id: string; title: string; url: string; type: string}) => {
-              parts.push({
-                type: "file",
-                filename: resource.title,
-                url: resource.url,
-                mediaType: resource.type === 'image' ? 'image/*' : 
-                          resource.type === 'notes' ? 'application/pdf' : 'application/octet-stream'
-              });
-            });
-          }
-          
-          // Add tool parts - results are now attached directly to tool calls
-          if (msg.metadata?.toolCalls && Array.isArray(msg.metadata.toolCalls)) {
-            msg.metadata.toolCalls.forEach((toolCall: { toolCallId?: string; toolName: string; input?: unknown; args?: unknown; output?: unknown; result?: unknown }, idx: number) => {
-              const toolType = toolCall.toolName as string;
-              const toolCallId = toolCall.toolCallId || `tool-call-${msg.id}-${idx}`;
-              
-              // Use output (new format) or result (old format for backwards compatibility)
-              const output = toolCall.output !== undefined ? toolCall.output : toolCall.result;
-              const hasOutput = output !== undefined && output !== null;
-              const toolInput = toolCall.input !== undefined ? toolCall.input : toolCall.args;
-              
-              // Create tool part following AI SDK format with state
-              const toolPart: {
-                type: string;
-                toolCallId: string;
-                state: string;
-                input?: unknown;
-                output?: unknown;
-              } = {
-                type: `tool-${toolType}`,
-                toolCallId,
-                state: hasOutput ? 'output-available' : 'input-available',
-                input: toolInput,
-              };
-              
-              if (hasOutput) {
-                toolPart.output = output;
-              }
-              
-              parts.push(toolPart);
-            });
-          }
-          
-          return {
-            id: msg.id,
-            role: msg.role as "user" | "assistant",
-            parts,
-            createdAt: msg.createdAt,
-          };
-        });
-      setMessages(formattedMessages as typeof messages);
-    } catch (error) {
-      console.error("Failed to load chat:", error);
-      setMessages([]);
-    }
+    // Reset refs to allow the effect to load the new chat
+    lastChatIdRef.current = null;
+    newlyCreatedChatRef.current = null;
+    // Note: Messages will be loaded by the useEffect when chatIdToLoad changes
   };
 
   const handleAddResource = useCallback((resource: Resource) => {
@@ -447,7 +428,7 @@ export function AIChat({
       {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2">
-          <Bot className="h-5 w-5 text-primary" />
+          <Sparkles className="h-5 w-5 text-primary" />
           <span className="font-semibold">AI Assistant</span>
         </div>
         <div className="flex items-center gap-1">
@@ -480,14 +461,20 @@ export function AIChat({
                 chats.map((chat) => (
                   <DropdownMenuItem
                     key={chat.id}
-                    className="flex items-center justify-between"
+                    className={cn(
+                      "flex items-center justify-between",
+                      chatId === chat.id && "bg-accent text-accent-foreground"
+                    )}
                     onClick={() => handleSelectChat(chat.id)}
                   >
-                    <span className="truncate">{chat.title}</span>
+                    <span className="truncate flex-1">{chat.title}</span>
+                    {chatId === chat.id && (
+                      <span className="ml-2 h-2 w-2 rounded-full bg-primary shrink-0" />
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 w-6 p-0 ml-2"
+                      className="h-6 w-6 p-0 ml-2 shrink-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteChat(chat.id);
@@ -546,11 +533,16 @@ export function AIChat({
       )}
 
       {/* Messages */}
-      <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
-        <div className="space-y-4 px-4 py-4">
+      <div className="flex-1 min-h-0 relative">
+        <ScrollArea 
+          className="h-full w-full" 
+          viewportRef={viewportRef}
+          onScroll={handleScroll}
+        >
+          <div className="space-y-4 px-4 py-6 min-w-0 w-full">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 text-center">
-              <Bot className="h-10 w-10 text-muted-foreground mb-2" />
+              <MessageSquare className="h-10 w-10 text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground">
                 Start a conversation with your AI assistant
               </p>
@@ -568,29 +560,28 @@ export function AIChat({
               <div
                 key={message.id}
                 className={cn(
-                  "flex gap-3",
+                  "flex gap-2 min-w-0",
                   message.role === "user" ? "justify-end" : "justify-start"
                 )}
               >
-                {message.role === "assistant" && (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                    <Bot className="h-4 w-4 text-primary" />
-                  </div>
-                )}
                 <div
                   className={cn(
-                    "rounded-lg px-4 py-2 max-w-[85%] overflow-hidden",
+                    "rounded-lg px-3 py-2 sm:px-4 sm:py-2 overflow-hidden",
+                    "w-fit max-w-[85%]",
                     message.role === "user"
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted"
                   )}
                 >
+                  <div>
                   {message.parts.map((part, i) => {
                     if (part.type === "text") {
                       return (
-                        <div key={i} className="whitespace-pre-wrap break-words text-sm overflow-wrap-anywhere">
-                          {part.text}
-                        </div>
+                        <MarkdownRenderer
+                          key={i}
+                          content={part.text}
+                          isAssistant={message.role === "assistant"}
+                        />
                       );
                     }
                     if (part.type === "file") {
@@ -657,7 +648,7 @@ export function AIChat({
                         const searchOutput = outputWrapper?.value;
                         
                         return (
-                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2">
+                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2 min-w-0">
                             <ToolHeader
                               toolType={toolType}
                               state={state}
@@ -683,7 +674,7 @@ export function AIChat({
                         const researchOutput = outputWrapper?.value;
                         
                         return (
-                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2">
+                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2 min-w-0">
                             <ToolHeader
                               toolType={toolType}
                               state={state}
@@ -693,7 +684,7 @@ export function AIChat({
                               <ToolOutput
                                 output={
                                   researchOutput?.results && researchOutput.results.length > 0 ? (
-                                    <div className="space-y-2">
+                                    <div className="space-y-2 min-w-0">
                                       <SearchResultsOutput results={researchOutput.results} maxDisplay={5} />
                                     </div>
                                   ) : undefined
@@ -710,7 +701,7 @@ export function AIChat({
                         const errorText = !browseOutput?.success ? browseOutput?.error : undefined;
                         
                         return (
-                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2">
+                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2 min-w-0">
                             <ToolHeader
                               toolType={toolType}
                               state={state}
@@ -762,7 +753,7 @@ export function AIChat({
                         }
 
                         return (
-                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2">
+                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2 min-w-0">
                             <ToolHeader
                               toolType={toolType}
                               state={state}
@@ -811,7 +802,7 @@ export function AIChat({
                       
                       // All other tools
                       return (
-                        <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2">
+                        <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2 min-w-0">
                           <ToolHeader
                             toolType={toolType}
                             state={state}
@@ -821,9 +812,11 @@ export function AIChat({
                             <ToolOutput
                               output={
                                 output && typeof output === 'object' ? (
-                                  <pre className="text-xs overflow-x-auto whitespace-pre-wrap break-all">
-                                    {JSON.stringify(output, null, 2)}
-                                  </pre>
+                                  <div className="max-w-full overflow-x-auto">
+                                    <pre className="text-xs whitespace-pre-wrap break-all" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                                      {JSON.stringify(output, null, 2)}
+                                    </pre>
+                                  </div>
                                 ) : output ? (
                                   String(output)
                                 ) : undefined
@@ -835,56 +828,72 @@ export function AIChat({
                     }
                     return null;
                   })}
-                </div>
-                {message.role === "user" && (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
-                    <User className="h-4 w-4" />
                   </div>
-                )}
+                </div>
               </div>
-            ))
+            )))}
+            {(status === "submitted" || status === "streaming") && (
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                {status === "submitted" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Thinking...</span>
+                  </>
+                ) : (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Typing...</span>
+                  </>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={stop}
+                  className="h-6 text-xs"
+                >
+                  Stop
+                </Button>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+        
+        {/* Scroll to Bottom Button */}
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={scrollToBottom}
+          className={cn(
+            "absolute bottom-4 left-1/2 -translate-x-1/2 shadow-lg rounded-full px-4 py-2 h-auto z-50",
+            "bg-background/90 backdrop-blur-sm border hover:bg-accent",
+            "transition-opacity duration-300",
+            showScrollButton && messages.length > 0 
+              ? "opacity-100 pointer-events-auto" 
+              : "opacity-0 pointer-events-none"
           )}
-          {(status === "submitted" || status === "streaming") && (
-            <div className="flex items-center gap-2 text-muted-foreground text-sm">
-              {status === "submitted" ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Thinking...</span>
-                </>
-              ) : (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Typing...</span>
-                </>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={stop}
-                className="h-6 text-xs"
-              >
-                Stop
-              </Button>
-            </div>
-          )}
-        </div>
-      </ScrollArea>
+        >
+          <ChevronDown className="h-4 w-4 animate-bounce" />
+          {/* <span className="text-xs font-medium">New messages</span> */}
+        </Button>
+      </div>
 
       {/* Input */}
-      <div className="border-t p-4">
+      <div className="border-t p-4 bg-background">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSend();
           }}
-          className="flex gap-2"
+          className="flex gap-2 items-end"
         >
-          <Input
+          <Textarea
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your message..."
+            onChange={handleTextareaChange}
+            onKeyDown={handleKeyDown}
+            placeholder={isMobile ? "Type your message..." : "Type your message... (Shift+Enter for new line, Enter to send)"}
             disabled={status !== "ready"}
-            className="flex-1"
+            rows={textareaRows}
+            className="flex-1 min-h-[44px] max-h-[160px] resize-none py-3"
           />
           <Button
             type="submit"

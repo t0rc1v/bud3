@@ -121,11 +121,11 @@ interface ToolProps extends React.ComponentProps<typeof Collapsible> {
   defaultOpen?: boolean;
 }
 
-function Tool({ defaultOpen, children, ...props }: ToolProps) {
+function Tool({ defaultOpen, children, className, ...props }: ToolProps) {
   const [open, setOpen] = React.useState(defaultOpen);
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} {...props}>
+    <Collapsible open={open} onOpenChange={setOpen} className={cn("min-w-0", className)} {...props}>
       {children}
     </Collapsible>
   );
@@ -155,25 +155,25 @@ function ToolHeader({
   return (
     <CollapsibleTrigger
       className={cn(
-        "flex items-center justify-between w-full p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors cursor-pointer",
+        "flex items-center justify-between w-full p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors cursor-pointer min-w-0",
         className
       )}
       {...props}
     >
-      <div className="flex items-center gap-2">
-        <div className="flex items-center justify-center h-6 w-6 rounded-md bg-primary/10">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex items-center justify-center h-6 w-6 rounded-md bg-primary/10 shrink-0">
           <ChevronRight className="h-4 w-4 text-primary" />
         </div>
-        <div className="flex flex-col items-start">
-          <span className="text-sm font-medium">{displayName}</span>
-          <span className="text-[10px] text-muted-foreground">
+        <div className="flex flex-col items-start min-w-0 flex-1">
+          <span className="text-sm font-medium truncate w-full text-left">{displayName}</span>
+          <span className="text-[10px] text-muted-foreground truncate w-full text-left">
             {toolType === "dynamic-tool" ? toolName : toolType.replace("tool-", "")}
           </span>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0 ml-2">
         {getStatusBadge(state)}
-        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
+        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180 shrink-0" />
       </div>
     </CollapsibleTrigger>
   );
@@ -191,7 +191,7 @@ function ToolContent({ className, children, ...props }: ToolContentProps) {
       )}
       {...props}
     >
-      <div className="p-3 pt-0 space-y-2">{children}</div>
+      <div className="p-3 pt-0 space-y-2 min-w-0">{children}</div>
     </CollapsibleContent>
   );
 }
@@ -205,12 +205,12 @@ function ToolInput({ input, className, ...props }: ToolInputProps) {
   if (!input) return null;
 
   return (
-    <div className={cn("space-y-1", className)} {...props}>
+    <div className={cn("space-y-1 min-w-0 max-w-full", className)} {...props}>
       <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
         Input
       </span>
-      <div className="bg-background/80 rounded-md p-2 text-xs font-mono overflow-x-auto">
-        <pre className="whitespace-pre-wrap break-all">
+      <div className="bg-background/80 rounded-md p-2 text-xs font-mono overflow-x-auto max-w-full min-w-0">
+        <pre className="whitespace-pre-wrap break-all break-words max-w-full overflow-x-auto" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
           {JSON.stringify(input, null, 2)}
         </pre>
       </div>
@@ -228,20 +228,20 @@ function ToolOutput({ output, errorText, className, ...props }: ToolOutputProps)
   if (!output && !errorText) return null;
 
   return (
-    <div className={cn("space-y-1", className)} {...props}>
+    <div className={cn("space-y-1 min-w-0 max-w-full", className)} {...props}>
       <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
         {errorText ? "Error" : "Output"}
       </span>
       {errorText ? (
-        <div className="bg-destructive/10 text-destructive rounded-md p-2 text-xs">
+        <div className="bg-destructive/10 text-destructive rounded-md p-2 text-xs overflow-hidden break-words break-all" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
           {errorText}
         </div>
       ) : (
-        <div className="bg-background/80 rounded-md p-2 text-sm">
+        <div className="bg-background/80 rounded-md p-2 text-sm overflow-hidden max-w-full min-w-0">
           {typeof output === "string" ? (
-            <div className="whitespace-pre-wrap">{output}</div>
+            <div className="whitespace-pre-wrap break-words overflow-hidden">{output}</div>
           ) : (
-            output
+            <div className="max-w-full overflow-x-auto">{output}</div>
           )}
         </div>
       )}
@@ -262,19 +262,20 @@ function SearchResultsOutput({ results, maxDisplay = 3 }: SearchResultsOutputPro
   const remaining = results.length - maxDisplay;
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 min-w-0">
       {displayResults.map((result, idx) => (
-        <div key={idx} className="flex flex-col gap-0.5">
+        <div key={idx} className="flex flex-col gap-0.5 min-w-0">
           <a
             href={result.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs font-medium text-primary hover:underline truncate"
+            className="text-xs font-medium text-primary hover:underline truncate block max-w-full"
+            title={result.title}
           >
             {result.title || "Untitled"}
           </a>
           {result.description && (
-            <span className="text-[10px] text-muted-foreground line-clamp-1">
+            <span className="text-[10px] text-muted-foreground line-clamp-1 truncate block">
               {result.description}
             </span>
           )}

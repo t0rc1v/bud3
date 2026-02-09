@@ -4,11 +4,12 @@ import { type ReactNode } from "react";
 import { ContentFileTree } from "@/components/content/content-file-tree";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { PanelLeft, PanelRight, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { AIChat } from "@/components/ai/ai-chat";
+import { UserButton } from "@clerk/nextjs";
 
 interface ContentLayoutClientProps {
   children: ReactNode;
@@ -37,6 +38,7 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-80 p-0">
+              <SheetTitle className="sr-only">Content File Tree Sidebar</SheetTitle>
               <div className="flex h-full flex-col">
                 <div className="border-b p-4">
                   <h2 className="font-semibold">Content</h2>
@@ -51,19 +53,31 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
           
           <h1 className="font-semibold">{title}</h1>
           
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9">
-                <MessageSquare className="h-5 w-5" />
-                <span className="sr-only">Open chat</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-80 p-0">
-              {userId && (
-                <AIChat userId={userId} />
-              )}
-            </SheetContent>
-          </Sheet>
+          <div className="flex items-center gap-2">
+            <UserButton />
+            
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <MessageSquare className="h-5 w-5" />
+                  <span className="sr-only">Open chat</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[22rem] p-0 sm:w-96">
+                <SheetTitle className="sr-only">AI Chat Sidebar</SheetTitle>
+                <div className="flex h-full flex-col">
+                  <div className="flex items-center justify-between border-b px-4 py-3">
+                    <h2 className="font-semibold">AI Chat</h2>
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    {userId && (
+                      <AIChat userId={userId} />
+                    )}
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
         </header>
         
         {/* Mobile Main Content */}
@@ -111,17 +125,20 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
             <span className="text-sm text-muted-foreground">Content</span>
           </div>
           
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">AI Chat</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
-              className="h-8 w-8"
-            >
-              <PanelRight className={cn("h-4 w-4 transition-transform", rightSidebarOpen && "rotate-180")} />
-              <span className="sr-only">Toggle chat</span>
-            </Button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">AI Chat</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
+                className="h-8 w-8"
+              >
+                <PanelRight className={cn("h-4 w-4 transition-transform", rightSidebarOpen && "rotate-180")} />
+                <span className="sr-only">Toggle chat</span>
+              </Button>
+            </div>
+            <UserButton afterSignOutUrl="/" />
           </div>
         </div>
         
@@ -134,7 +151,7 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
       <div
         className={cn(
           "flex-shrink-0 border-l bg-background transition-all duration-300 ease-in-out flex flex-col",
-          rightSidebarOpen ? "w-80" : "w-0 overflow-hidden"
+          rightSidebarOpen ? "w-96" : "w-0 overflow-hidden"
         )}
       >
         {userId && (

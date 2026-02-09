@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronDown,
@@ -79,6 +79,12 @@ export function UnifiedAdminPageClient({
 }: UnifiedAdminPageClientProps) {
   const router = useRouter();
   const [grades, setGrades] = useState<GradeWithFullHierarchy[]>(initialGrades);
+
+  // Sync grades when initialGrades changes (after revalidation)
+  useEffect(() => {
+    setGrades(initialGrades);
+  }, [initialGrades]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedGrades, setExpandedGrades] = useState<Set<string>>(new Set());
   const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(
@@ -91,6 +97,10 @@ export function UnifiedAdminPageClient({
   const [selectedResource, setSelectedResource] = useState<ResourceWithRelations | null>(null);
   const [isLoadingResource, setIsLoadingResource] = useState(false);
   const [openResourceInEditMode, setOpenResourceInEditMode] = useState(false);
+
+  // Dialog states
+  const [isCreateGradeOpen, setIsCreateGradeOpen] = useState(false);
+  const [isFirstGradeOpen, setIsFirstGradeOpen] = useState(false);
 
   // Stats
   const stats = useMemo(() => {
@@ -332,7 +342,7 @@ export function UnifiedAdminPageClient({
       {/* Quick Actions & Search */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex gap-2">
-          <Dialog>
+          <Dialog open={isCreateGradeOpen} onOpenChange={setIsCreateGradeOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
@@ -343,7 +353,7 @@ export function UnifiedAdminPageClient({
               <DialogHeader>
                 <DialogTitle>Create New Grade</DialogTitle>
               </DialogHeader>
-              <CreateGradeForm />
+              <CreateGradeForm onSuccess={() => setIsCreateGradeOpen(false)} />
             </DialogContent>
           </Dialog>
           <Button variant="outline" onClick={expandAll}>
@@ -425,7 +435,7 @@ export function UnifiedAdminPageClient({
                   : "Get started by creating your first grade"}
               </p>
               {!searchQuery && (
-                <Dialog>
+                <Dialog open={isFirstGradeOpen} onOpenChange={setIsFirstGradeOpen}>
                   <DialogTrigger asChild>
                     <Button className="mt-4">
                       <Plus className="h-4 w-4 mr-2" />
@@ -436,7 +446,7 @@ export function UnifiedAdminPageClient({
                     <DialogHeader>
                       <DialogTitle>Create New Grade</DialogTitle>
                     </DialogHeader>
-                    <CreateGradeForm />
+                    <CreateGradeForm onSuccess={() => setIsFirstGradeOpen(false)} />
                   </DialogContent>
                 </Dialog>
               )}
@@ -514,6 +524,9 @@ function GradeCard({
   allSubjects,
   allTopics,
 }: GradeCardProps) {
+  const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false);
+  const [isFirstSubjectOpen, setIsFirstSubjectOpen] = useState(false);
+
   return (
     <Card className="overflow-hidden">
       <Collapsible open={isExpanded} onOpenChange={onToggle}>
@@ -544,7 +557,7 @@ function GradeCard({
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="secondary">{grade.level}</Badge>
-              <Dialog>
+              <Dialog open={isAddSubjectOpen} onOpenChange={setIsAddSubjectOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Plus className="h-3 w-3 mr-1" />
@@ -555,7 +568,7 @@ function GradeCard({
                   <DialogHeader>
                     <DialogTitle>Add Subject to {grade.title}</DialogTitle>
                   </DialogHeader>
-                  <CreateSubjectForm grades={[grade]} />
+                  <CreateSubjectForm grades={[grade]} onSuccess={() => setIsAddSubjectOpen(false)} />
                 </DialogContent>
               </Dialog>
               <DropdownMenu>
@@ -587,7 +600,7 @@ function GradeCard({
               <div className="text-center py-8 text-muted-foreground">
                 <BookOpen className="h-8 w-8 mx-auto mb-2" />
                 <p>No subjects yet</p>
-                <Dialog>
+                <Dialog open={isFirstSubjectOpen} onOpenChange={setIsFirstSubjectOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm" className="mt-2">
                       <Plus className="h-3 w-3 mr-1" />
@@ -598,7 +611,7 @@ function GradeCard({
                     <DialogHeader>
                       <DialogTitle>Add Subject to {grade.title}</DialogTitle>
                     </DialogHeader>
-                    <CreateSubjectForm grades={[grade]} />
+                    <CreateSubjectForm grades={[grade]} onSuccess={() => setIsFirstSubjectOpen(false)} />
                   </DialogContent>
                 </Dialog>
               </div>
@@ -663,6 +676,9 @@ function SubjectItem({
   allSubjects,
   allTopics,
 }: SubjectItemProps) {
+  const [isAddTopicOpen, setIsAddTopicOpen] = useState(false);
+  const [isFirstTopicOpen, setIsFirstTopicOpen] = useState(false);
+
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
       <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
@@ -685,7 +701,7 @@ function SubjectItem({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Dialog>
+          <Dialog open={isAddTopicOpen} onOpenChange={setIsAddTopicOpen}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm">
                 <Plus className="h-3 w-3 mr-1" />
@@ -698,7 +714,7 @@ function SubjectItem({
                   Add Topic to {grade.title} &gt; {subject.name}
                 </DialogTitle>
               </DialogHeader>
-              <CreateTopicForm subjects={[subject]} />
+              <CreateTopicForm subjects={[subject]} onSuccess={() => setIsAddTopicOpen(false)} />
             </DialogContent>
           </Dialog>
           <DropdownMenu>
@@ -728,7 +744,7 @@ function SubjectItem({
           <div className="text-center py-4 text-muted-foreground">
             <FileText className="h-6 w-6 mx-auto mb-2" />
             <p className="text-sm">No topics yet</p>
-            <Dialog>
+            <Dialog open={isFirstTopicOpen} onOpenChange={setIsFirstTopicOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="mt-2">
                   <Plus className="h-3 w-3 mr-1" />
@@ -741,7 +757,7 @@ function SubjectItem({
                     Add Topic to {grade.title} &gt; {subject.name}
                   </DialogTitle>
                 </DialogHeader>
-                <CreateTopicForm subjects={[subject]} />
+                <CreateTopicForm subjects={[subject]} onSuccess={() => setIsFirstTopicOpen(false)} />
               </DialogContent>
             </Dialog>
           </div>
@@ -795,6 +811,9 @@ function TopicItem({
   subject,
   allTopics,
 }: TopicItemProps) {
+  const [isAddResourceOpen, setIsAddResourceOpen] = useState(false);
+  const [isFirstResourceOpen, setIsFirstResourceOpen] = useState(false);
+
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
       <div className="flex items-center justify-between p-2 rounded-lg bg-background hover:bg-muted/50 transition-colors">
@@ -817,7 +836,7 @@ function TopicItem({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Dialog>
+          <Dialog open={isAddResourceOpen} onOpenChange={setIsAddResourceOpen}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm">
                 <Plus className="h-3 w-3 mr-1" />
@@ -834,6 +853,7 @@ function TopicItem({
               <CreateResourceForm
                 subjects={[subject]}
                 topics={[topic]}
+                onSuccess={() => setIsAddResourceOpen(false)}
               />
             </DialogContent>
           </Dialog>
@@ -864,7 +884,7 @@ function TopicItem({
           <div className="text-center py-3 text-muted-foreground">
             <Library className="h-5 w-5 mx-auto mb-1" />
             <p className="text-sm">No resources yet</p>
-            <Dialog>
+            <Dialog open={isFirstResourceOpen} onOpenChange={setIsFirstResourceOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="mt-2">
                   <Plus className="h-3 w-3 mr-1" />
@@ -878,7 +898,7 @@ function TopicItem({
                     {topic.title}
                   </DialogTitle>
                 </DialogHeader>
-                <CreateResourceForm subjects={[subject]} topics={[topic]} />
+                <CreateResourceForm subjects={[subject]} topics={[topic]} onSuccess={() => setIsFirstResourceOpen(false)} />
               </DialogContent>
             </Dialog>
           </div>

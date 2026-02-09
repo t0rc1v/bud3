@@ -74,7 +74,9 @@ export async function createGrade(input: CreateGradeInput): Promise<void> {
     level: input.level,
     isActive: true,
   });
-  revalidatePath("/admin/grades");
+  revalidatePath("/admin");
+  revalidatePath("/teacher");
+  revalidatePath("/learner");
 }
 
 export async function updateGrade(input: UpdateGradeInput): Promise<void> {
@@ -86,12 +88,16 @@ export async function updateGrade(input: UpdateGradeInput): Promise<void> {
       updatedAt: new Date(),
     })
     .where(eq(grade.id, id));
-  revalidatePath("/admin/grades");
+  revalidatePath("/admin");
+  revalidatePath("/teacher");
+  revalidatePath("/learner");
 }
 
 export async function deleteGrade(id: string): Promise<void> {
   await db.delete(grade).where(eq(grade.id, id));
-  revalidatePath("/admin/grades");
+  revalidatePath("/admin");
+  revalidatePath("/teacher");
+  revalidatePath("/learner");
 }
 
 // Subject Actions
@@ -137,7 +143,9 @@ export async function createSubject(input: CreateSubjectInput): Promise<void> {
     color: input.color,
     isActive: true,
   });
-  revalidatePath("/admin/subjects");
+  revalidatePath("/admin");
+  revalidatePath("/teacher");
+  revalidatePath("/learner");
 }
 
 export async function updateSubject(input: UpdateSubjectInput): Promise<void> {
@@ -149,12 +157,16 @@ export async function updateSubject(input: UpdateSubjectInput): Promise<void> {
       updatedAt: new Date(),
     })
     .where(eq(subject.id, id));
-  revalidatePath("/admin/subjects");
+  revalidatePath("/admin");
+  revalidatePath("/teacher");
+  revalidatePath("/learner");
 }
 
 export async function deleteSubject(id: string): Promise<void> {
   await db.delete(subject).where(eq(subject.id, id));
-  revalidatePath("/admin/subjects");
+  revalidatePath("/admin");
+  revalidatePath("/teacher");
+  revalidatePath("/learner");
 }
 
 // Topic Actions
@@ -199,7 +211,9 @@ export async function createTopic(input: CreateTopicInput): Promise<void> {
     order: input.order,
     isActive: true,
   });
-  revalidatePath("/admin/topics");
+  revalidatePath("/admin");
+  revalidatePath("/teacher");
+  revalidatePath("/learner");
 }
 
 export async function updateTopic(input: UpdateTopicInput): Promise<void> {
@@ -211,12 +225,16 @@ export async function updateTopic(input: UpdateTopicInput): Promise<void> {
       updatedAt: new Date(),
     })
     .where(eq(topic.id, id));
-  revalidatePath("/admin/topics");
+  revalidatePath("/admin");
+  revalidatePath("/teacher");
+  revalidatePath("/learner");
 }
 
 export async function deleteTopic(id: string): Promise<void> {
   await db.delete(topic).where(eq(topic.id, id));
-  revalidatePath("/admin/topics");
+  revalidatePath("/admin");
+  revalidatePath("/teacher");
+  revalidatePath("/learner");
 }
 
 // Resource Actions
@@ -268,7 +286,9 @@ export async function createResource(input: CreateResourceInput): Promise<void> 
     isActive: true,
     createdAt: new Date(),
   });
-  revalidatePath("/admin/resources");
+  revalidatePath("/admin");
+  revalidatePath("/teacher");
+  revalidatePath("/learner");
 }
 
 export async function updateResource(input: UpdateResourceInput): Promise<void> {
@@ -301,11 +321,14 @@ export async function updateResource(input: UpdateResourceInput): Promise<void> 
     .update(resource)
     .set(updateData)
     .where(eq(resource.id, id));
-  revalidatePath("/admin/resources");
-  revalidatePath("/admin/unified");
+  revalidatePath("/admin");
+  revalidatePath("/teacher");
+  revalidatePath("/learner");
 }
 
 export async function deleteResource(id: string): Promise<void> {
   await db.delete(resource).where(eq(resource.id, id));
-  revalidatePath("/admin/resources");
+  revalidatePath("/admin");
+  revalidatePath("/teacher");
+  revalidatePath("/learner");
 }

@@ -17,9 +17,10 @@ import type { GradeWithSubjects } from "@/lib/types";
 
 interface CreateSubjectFormProps {
   grades: GradeWithSubjects[];
+  onSuccess?: () => void;
 }
 
-export function CreateSubjectForm({ grades }: CreateSubjectFormProps) {
+export function CreateSubjectForm({ grades, onSuccess }: CreateSubjectFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -41,6 +42,7 @@ export function CreateSubjectForm({ grades }: CreateSubjectFormProps) {
         icon: "📚",
         color: "#10b981",
       });
+      onSuccess?.();
     } finally {
       setIsLoading(false);
     }

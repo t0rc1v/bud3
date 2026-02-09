@@ -108,7 +108,7 @@ export function InteractiveQuiz({ data }: InteractiveQuizProps) {
   const questions = data.quiz.questions;
   const currentQuestion = questions[currentQuestionIndex];
   const totalQuestions = questions.length;
-  const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
+  const progress = totalQuestions > 0 ? ((currentQuestionIndex + 1) / totalQuestions) * 100 : 0;
 
   // Calculate score
   const calculateScore = useCallback(() => {

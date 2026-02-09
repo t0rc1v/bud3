@@ -21,6 +21,7 @@ import { CheckCircle2, ExternalLink } from "lucide-react";
 interface CreateResourceFormProps {
   subjects: SubjectWithTopics[];
   topics: TopicWithResources[];
+  onSuccess?: () => void;
 }
 
 const RESOURCE_TYPES: ResourceType[] = ["notes", "video", "audio", "image"];
@@ -39,7 +40,7 @@ const ALLOWED_CONTENT = {
   image: "Image files (max 16MB)",
 } as const;
 
-export function CreateResourceForm({ subjects, topics }: CreateResourceFormProps) {
+export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResourceFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
@@ -80,6 +81,7 @@ export function CreateResourceForm({ subjects, topics }: CreateResourceFormProps
       });
       setUploadedFile(null);
       setThumbnailFile(null);
+      onSuccess?.();
     } finally {
       setIsLoading(false);
     }

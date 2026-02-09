@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronDown,
@@ -86,7 +86,13 @@ export function UnifiedTeacherPageClient({
   myLearners: initialMyLearners,
 }: UnifiedTeacherPageClientProps) {
   const router = useRouter();
-  const [grades] = useState<GradeWithFullHierarchy[]>(initialGrades);
+  const [grades, setGrades] = useState<GradeWithFullHierarchy[]>(initialGrades);
+
+  // Sync grades when initialGrades changes (after revalidation)
+  useEffect(() => {
+    setGrades(initialGrades);
+  }, [initialGrades]);
+
   const [myLearnersList, setMyLearnersList] = useState<MyLearnerWithDetails[]>(initialMyLearners);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedGrades, setExpandedGrades] = useState<Set<string>>(new Set());

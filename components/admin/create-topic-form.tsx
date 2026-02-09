@@ -17,9 +17,10 @@ import type { SubjectWithTopics } from "@/lib/types";
 
 interface CreateTopicFormProps {
   subjects: SubjectWithTopics[];
+  onSuccess?: () => void;
 }
 
-export function CreateTopicForm({ subjects }: CreateTopicFormProps) {
+export function CreateTopicForm({ subjects, onSuccess }: CreateTopicFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -39,6 +40,7 @@ export function CreateTopicForm({ subjects }: CreateTopicFormProps) {
         title: "",
         order: 0,
       });
+      onSuccess?.();
     } finally {
       setIsLoading(false);
     }

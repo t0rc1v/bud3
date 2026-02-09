@@ -4,6 +4,8 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getUserByClerkId } from "@/lib/actions/auth";
 
+export const dynamic = "force-dynamic";
+
 export default async function TeacherPage() {
   const { userId } = await auth();
 

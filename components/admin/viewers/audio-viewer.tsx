@@ -28,7 +28,8 @@ export function AudioViewer({ url, title }: AudioViewerProps) {
 
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
-      setDuration(audioRef.current.duration);
+      const audioDuration = audioRef.current.duration;
+      setDuration(Number.isNaN(audioDuration) ? 0 : audioDuration);
       setIsLoading(false);
     }
   };

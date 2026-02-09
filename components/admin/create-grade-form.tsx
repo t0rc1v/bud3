@@ -15,7 +15,11 @@ import {
 } from "@/components/ui/select";
 import type { Level } from "@/lib/types";
 
-export function CreateGradeForm() {
+interface CreateGradeFormProps {
+  onSuccess?: () => void;
+}
+
+export function CreateGradeForm({ onSuccess }: CreateGradeFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -39,6 +43,7 @@ export function CreateGradeForm() {
         color: "#3b82f6",
         level: "elementary",
       });
+      onSuccess?.();
     } finally {
       setIsLoading(false);
     }
@@ -54,7 +59,7 @@ export function CreateGradeForm() {
           min={1}
           value={formData.gradeNumber}
           onChange={(e) =>
-            setFormData({ ...formData, gradeNumber: parseInt(e.target.value) })
+            setFormData({ ...formData, gradeNumber: parseInt(e.target.value) || 1 })
           }
           required
         />
@@ -78,7 +83,7 @@ export function CreateGradeForm() {
           min={1}
           value={formData.order}
           onChange={(e) =>
-            setFormData({ ...formData, order: parseInt(e.target.value) })
+            setFormData({ ...formData, order: parseInt(e.target.value) || 1 })
           }
           required
         />

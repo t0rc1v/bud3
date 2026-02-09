@@ -636,10 +636,7 @@ export function AIChat({
                       const input = toolPart.input;
                       const output = toolPart.output;
                       
-                      console.log('Rendering tool part:', toolType, 'state:', state, 'has output:', output !== undefined);
-                      
-                      // Determine if we should auto-open (completed tools)
-                      const shouldAutoOpen = state === 'output-available' || state === 'output-error';
+                      // Tools are collapsed by default - user can click to expand
                       
                       // Web Search or YouTube Search
                       if (toolType === "tool-web_search" || toolType === "tool-youtube_search") {
@@ -648,7 +645,7 @@ export function AIChat({
                         const searchOutput = outputWrapper?.value;
                         
                         return (
-                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2 min-w-0">
+                          <Tool key={i} defaultOpen={false} className="mt-2 min-w-0">
                             <ToolHeader
                               toolType={toolType}
                               state={state}
@@ -674,7 +671,7 @@ export function AIChat({
                         const researchOutput = outputWrapper?.value;
                         
                         return (
-                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2 min-w-0">
+                          <Tool key={i} defaultOpen={false} className="mt-2 min-w-0">
                             <ToolHeader
                               toolType={toolType}
                               state={state}
@@ -701,7 +698,7 @@ export function AIChat({
                         const errorText = !browseOutput?.success ? browseOutput?.error : undefined;
                         
                         return (
-                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2 min-w-0">
+                          <Tool key={i} defaultOpen={false} className="mt-2 min-w-0">
                             <ToolHeader
                               toolType={toolType}
                               state={state}
@@ -753,7 +750,7 @@ export function AIChat({
                         }
 
                         return (
-                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2 min-w-0">
+                          <Tool key={i} defaultOpen={false} className="mt-2 min-w-0">
                             <ToolHeader
                               toolType={toolType}
                               state={state}
@@ -784,7 +781,7 @@ export function AIChat({
                         }
 
                         return (
-                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2">
+                          <Tool key={i} defaultOpen={false} className="mt-2">
                             <ToolHeader
                               toolType={toolType}
                               state={state}
@@ -802,7 +799,7 @@ export function AIChat({
                       
                       // All other tools
                       return (
-                        <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2 min-w-0">
+                        <Tool key={i} defaultOpen={false} className="mt-2 min-w-0">
                           <ToolHeader
                             toolType={toolType}
                             state={state}

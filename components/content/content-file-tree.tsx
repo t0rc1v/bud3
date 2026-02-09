@@ -176,9 +176,10 @@ interface ContentFileTreeProps {
   onItemSelect?: (item: TreeItemData) => void;
   className?: string;
   userRole: "teacher" | "learner";
+  isOpen?: boolean;
 }
 
-export function ContentFileTree({ onItemSelect, className, userRole }: ContentFileTreeProps) {
+export function ContentFileTree({ onItemSelect, className, userRole, isOpen = true }: ContentFileTreeProps) {
   const [treeData, setTreeData] = useState<TreeItemData[]>([]);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
@@ -268,8 +269,13 @@ export function ContentFileTree({ onItemSelect, className, userRole }: ContentFi
   }, [buildTreeData]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // Only load data when sidebar is open
+    if (isOpen) {
+      fetchData();
+    } else {
+      setIsLoading(false);
+    }
+  }, [fetchData, isOpen]);
 
   const handleToggle = useCallback((id: string) => {
     setExpandedItems((prev) => {

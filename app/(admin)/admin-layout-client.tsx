@@ -58,7 +58,7 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
                   <p className="text-xs text-muted-foreground">Browse content</p>
                 </div>
                 <div className="flex-1 overflow-auto">
-                  <AdminFileTree />
+                  <AdminFileTree isOpen={true} />
                 </div>
                 {/* Mobile Super Admin Navigation */}
                 {userRole === "super_admin" && (
@@ -101,7 +101,7 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
                   <span className="sr-only">Open chat</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[22rem] p-0 sm:w-96">
+                <SheetContent side="right" className="w-[22rem] p-0 sm:w-96">
                 <SheetTitle className="sr-only">AI Chat Sidebar</SheetTitle>
                 <div className="flex h-full flex-col">
                   <div className="flex items-center justify-between border-b px-4 py-3">
@@ -109,7 +109,7 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
                   </div>
                   <div className="flex-1 overflow-hidden">
                     {userId && (
-                      <AIChat userId={userId} />
+                      <AIChat userId={userId} isOpen={true} />
                     )}
                   </div>
                 </div>
@@ -142,7 +142,7 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
           </h2>
         </div>
         <div className="flex-1 overflow-auto">
-          <AdminFileTree />
+          <AdminFileTree isOpen={leftSidebarOpen} />
         </div>
         
         {/* Super Admin Navigation */}
@@ -221,7 +221,7 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
         )}
       >
         {userId && (
-          <AIChat userId={userId} />
+          <AIChat userId={userId} isOpen={rightSidebarOpen} />
         )}
       </div>
     </div>

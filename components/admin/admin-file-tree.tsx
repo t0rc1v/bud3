@@ -323,9 +323,10 @@ const TreeNode: React.FC<TreeNodeProps> = ({
 interface AdminFileTreeProps {
   onItemSelect?: (item: TreeItemData) => void;
   className?: string;
+  isOpen?: boolean;
 }
 
-export function AdminFileTree({ onItemSelect, className }: AdminFileTreeProps) {
+export function AdminFileTree({ onItemSelect, className, isOpen = true }: AdminFileTreeProps) {
   const [treeData, setTreeData] = useState<TreeItemData[]>([]);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
@@ -424,8 +425,13 @@ export function AdminFileTree({ onItemSelect, className }: AdminFileTreeProps) {
   }, [buildTreeData]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // Only load data when sidebar is open
+    if (isOpen) {
+      fetchData();
+    } else {
+      setIsLoading(false);
+    }
+  }, [fetchData, isOpen]);
 
   const handleToggle = useCallback((id: string) => {
     setExpandedItems((prev) => {

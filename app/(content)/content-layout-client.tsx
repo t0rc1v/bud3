@@ -56,7 +56,7 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
                   <p className="text-xs text-muted-foreground">Browse content</p>
                 </div>
                 <div className="flex-1 overflow-auto">
-                  <ContentFileTree userRole={userRole} />
+                  <ContentFileTree userRole={userRole} isOpen={true} />
                 </div>
               </div>
             </SheetContent>
@@ -84,7 +84,7 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
                   </div>
                   <div className="flex-1 overflow-hidden">
                     {userId && (
-                      <AIChat userId={userId} />
+                      <AIChat userId={userId} isOpen={true} />
                     )}
                   </div>
                 </div>
@@ -117,7 +117,7 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
           </h2>
         </div>
         <div className="flex-1 overflow-auto">
-          <ContentFileTree userRole={userRole} />
+          <ContentFileTree userRole={userRole} isOpen={leftSidebarOpen} />
         </div>
       </div>
       
@@ -170,7 +170,7 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
         )}
       >
         {userId && (
-          <AIChat userId={userId} />
+          <AIChat userId={userId} isOpen={rightSidebarOpen} />
         )}
       </div>
     </div>

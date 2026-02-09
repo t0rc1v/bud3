@@ -65,11 +65,13 @@ const TYPE_COLORS = {
 interface AIChatProps {
   userId: string;
   initialChatId?: string;
+  isOpen?: boolean;
 }
 
 export function AIChat({
   userId,
   initialChatId,
+  isOpen = true,
 }: AIChatProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -159,8 +161,14 @@ export function AIChat({
   // Compute the effective chat ID to load
   const chatIdToLoad = urlChatId || initialChatId;
   
-  // Load user's chats and messages - only runs when chatIdToLoad actually changes
+  // Load user's chats and messages - only runs when chatIdToLoad or isOpen changes
   useEffect(() => {
+    // Only load data when sidebar is open
+    if (!isOpen) {
+      setIsLoadingChats(false);
+      return;
+    }
+
     async function loadChats() {
       // Skip loading messages if this is a newly created chat (first message pending)
       if (chatIdToLoad && newlyCreatedChatRef.current === chatIdToLoad) {
@@ -247,7 +255,7 @@ export function AIChat({
     }
     loadChats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatIdToLoad]); // Only re-run when chatIdToLoad changes
+  }, [chatIdToLoad, isOpen]); // Re-run when chatIdToLoad or isOpen changes
 
   // Track scroll position to show/hide scroll button
   const handleScroll = useCallback(() => {

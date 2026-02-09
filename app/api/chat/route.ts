@@ -87,33 +87,66 @@ export async function POST(req: Request) {
     console.error('Failed to load memory items:', error);
   }
 
+  // Get current date/time for context
+  const now = new Date();
+  const currentDateTime = now.toLocaleString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short'
+  });
+
   // Build system prompt with context
   let systemPrompt = `You are a helpful AI assistant for an educational platform called Bud. 
 You help teachers, students, and admins with their questions about educational content.
 
-You have access to the following tools:
-1. web_search - Search the web for current information, articles, and web pages
-2. youtube_search - Search YouTube specifically for educational videos
-3. research_materials - Comprehensive research tool that searches multiple sources (web, YouTube, research papers) for educational materials. Use this when looking for lesson materials or topic resources.
-4. save_memory - Save important information to memory for future reference (e.g., student results, lesson plans, important notes)
-5. add_learner - Add a learner to the teacher's my_learners list (teachers only)
-6. web_browse - Browse any URL to extract its content (web pages, PDFs, documents, images)
+Current date and time: ${currentDateTime}
+
+You have access to the following tools. Use them strategically based on the user's needs:
+
+1. web_search - Use this for general web searches to find current information, articles, news, or facts. Best for general knowledge questions, current events, or research topics. Consider the current date when searching for time-sensitive information.
+2. youtube_search - Use this ONLY when the user specifically asks for video content, tutorials, or educational videos. Do not use for general information searches.
+3. research_materials - Use this when the user is looking for educational resources, lesson materials, or teaching content across multiple formats (videos, articles, PDFs). Best for "find resources for teaching X" or "lesson plan materials".
+4. fetch_memory - Use this to retrieve saved memories from the database. Use when the user asks about something they previously saved (e.g., "what did I save about...", "show my notes on...", "remember when I...").
+5. save_memory - Use this to save important information to memory for future reference. Save things like: student results, lesson plans, important notes, preferences, or any data the user might want to recall later. Always confirm what you're saving with the user and include timestamps when relevant.
+6. server_actions - Use this to call specific backend functions that are exposed to you. This allows you to perform system operations like managing learners, grades, or resources when the user requests them.
+7. web_browse - Use this when the user provides a specific URL and asks you to read, summarize, or analyze its content. Works with web pages, PDFs, and documents.
+8. get_current_time - Use this to get the current date and time. Use when the user asks about scheduling, deadlines, or time-sensitive calculations.
 
 When responding:
 - Be concise and educational
-- Use web_search for general web information
-- Use youtube_search specifically when the user asks for video content
-- Use research_materials when the user is looking for educational resources to use in lessons
-- Use save_memory when the user wants to save important information for future reference
-- Use web_browse when a specific URL is provided to read its contents
-- Always cite your sources when using search results`;
+- Always cite your sources when using search results
+- Confirm before saving memories
+- Use the right tool for the job - don't use web_search when fetch_memory would work
+- Be aware of the current date when providing time-sensitive information`;
+
+  // Add date context section
+  systemPrompt += `\n\nCurrent Date Context:
+- Today's date: ${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+- Current time: ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+  
+  // Calculate academic year (assuming school year starts in August/September)
+  const month = now.getMonth();
+  const year = now.getFullYear();
+  const academicYear = month >= 7 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+  systemPrompt += `\n- Current academic year (approximate): ${academicYear}`;
+  
+  // Day of week context
+  const daysUntilWeekend = 6 - now.getDay();
+  if (daysUntilWeekend >= 0 && daysUntilWeekend <= 2) {
+    systemPrompt += `\n- Weekend is in ${daysUntilWeekend} day${daysUntilWeekend !== 1 ? 's' : ''}`;
+  }
 
   // Add memory context if available
   if (memoryItems && memoryItems.length > 0) {
-    systemPrompt += `\n\nYou have access to the following saved memory:\n`;
+    systemPrompt += `\n\nYou have access to the following saved memory (use fetch_memory tool to retrieve specific details):\n`;
     memoryItems.forEach((item: MemoryItem) => {
-      systemPrompt += `- ${item.title}: ${JSON.stringify(item.content)}\n`;
+      systemPrompt += `- ${item.title} (${item.category || 'uncategorized'}): ${item.description || 'No description'}\n`;
     });
+    systemPrompt += `\nWhen the user asks about any of these topics, use the fetch_memory tool with the appropriate category or search term to get the full details.`;
   }
 
   const result = streamText({
@@ -197,38 +230,13 @@ When responding:
           }
         },
       }),
-      get_grades: tool({
-        description: 'Get a list of all available grades/levels in the system. Use this when a teacher wants to add a learner but is unsure which grade ID to use.',
-        inputSchema: z.object({}),
-        execute: async () => {
-          try {
-            const { getGrades } = await import('@/lib/actions/teacher');
-            const grades = await getGrades();
-            return {
-              success: true,
-              grades: grades.map(g => ({
-                id: g.id,
-                title: g.title,
-                gradeNumber: g.gradeNumber,
-                level: g.level,
-                subjects: g.subjects?.map((s: { name: string; id: string }) => s.name) || [],
-              })),
-            };
-          } catch (error) {
-            return {
-              success: false,
-              error: `Failed to get grades: ${error instanceof Error ? error.message : String(error)}`,
-            };
-          }
-        },
-      }),
       save_memory: tool({
-        description: 'Save important information to memory for future reference',
+        description: 'Save important information to memory for future reference. Save things like: student results, lesson plans, important notes, preferences, or any data the user might want to recall later. Always confirm what you\'re saving with the user. Use clear, descriptive titles and appropriate categories for easy retrieval.',
         inputSchema: z.object({
-          title: z.string().describe('A title for this memory'),
-          category: z.string().describe('Category for organization (e.g., "student_results", "lesson_plans")'),
-          content: z.any().describe('The structured data to save'),
-          description: z.string().describe('A description of what this memory contains'),
+          title: z.string().describe('A clear, descriptive title for this memory (e.g., "John\'s Math Test Results", "Lesson Plan: Photosynthesis")'),
+          category: z.string().describe('Category for organization (e.g., "student_results", "lesson_plans", "notes", "preferences")'),
+          content: z.any().describe('The structured data to save (JSON object with relevant details)'),
+          description: z.string().describe('A brief description explaining what this memory contains and when to use it'),
         }),
         execute: async ({ title, category, content, description }) => {
           try {
@@ -240,31 +248,14 @@ When responding:
               content,
               description,
             });
-            return { success: true, message: 'Memory saved successfully' };
-          } catch (error) {
-            return { success: false, error: String(error) };
-          }
-        },
-      }),
-      add_learner: tool({
-        description: 'Add a learner to the teacher\'s my_learners list (teachers only)',
-        inputSchema: z.object({
-          email: z.string().describe('The learner\'s email address'),
-          gradeId: z.string().describe('The grade ID for the learner'),
-          metadata: z.object({}).optional().describe('Optional metadata about the learner'),
-        }),
-        execute: async ({ email, gradeId, metadata }) => {
-          try {
-            const { addMyLearner } = await import('@/lib/actions/teacher');
-            await addMyLearner(userId, email, gradeId, metadata);
-            return { success: true, message: 'Learner added successfully' };
+            return { success: true, message: `Memory "${title}" saved successfully in category "${category}"` };
           } catch (error) {
             return { success: false, error: String(error) };
           }
         },
       }),
       web_browse: tool({
-        description: 'Browse a URL to extract its content. Use this to read web pages, PDFs, or other documents. This tool works with any URL including PDF files hosted on the web.',
+        description: 'Browse a URL to extract its content. Use this ONLY when the user provides a specific URL and asks you to read, summarize, or analyze its content. Works with web pages, PDFs, and documents hosted on the web.',
         inputSchema: z.object({
           url: z.string().describe('The URL to browse and extract content from'),
           maxCharacters: z.number().optional().describe('Maximum characters to return (default: 10000)'),
@@ -291,6 +282,283 @@ When responding:
             return { 
               success: false, 
               error: `Failed to browse URL: ${error instanceof Error ? error.message : String(error)}` 
+            };
+          }
+        },
+      }),
+      fetch_memory: tool({
+        description: 'Retrieve saved memories from the database. Use this when the user asks about previously saved information (e.g., "what did I save about...", "show my notes on...", "remember when I..."). Search by category or keywords to find relevant memories.',
+        inputSchema: z.object({
+          category: z.string().optional().describe('Optional: Filter memories by category (e.g., "student_results", "lesson_plans", "notes")'),
+          searchTerm: z.string().optional().describe('Optional: Search term to find memories by title or description'),
+          limit: z.number().optional().describe('Maximum number of memories to return (default: 10)'),
+        }),
+        execute: async ({ category, searchTerm, limit = 10 }) => {
+          try {
+            const { getMemoryItems, getMemoryItemsByCategory } = await import('@/lib/actions/ai');
+            
+            let memories;
+            if (category) {
+              memories = await getMemoryItemsByCategory(userId, category);
+            } else {
+              memories = await getMemoryItems(userId);
+            }
+            
+            // Filter by search term if provided
+            if (searchTerm) {
+              const searchLower = searchTerm.toLowerCase();
+              memories = memories.filter(m => 
+                m.title.toLowerCase().includes(searchLower) ||
+                (m.description && m.description.toLowerCase().includes(searchLower)) ||
+                JSON.stringify(m.content).toLowerCase().includes(searchLower)
+              );
+            }
+            
+            // Apply limit
+            memories = memories.slice(0, limit);
+            
+            return {
+              success: true,
+              memories: memories.map(m => ({
+                id: m.id,
+                title: m.title,
+                category: m.category,
+                description: m.description,
+                content: m.content,
+                createdAt: m.createdAt,
+                updatedAt: m.updatedAt,
+              })),
+              count: memories.length,
+            };
+          } catch (error) {
+            return {
+              success: false,
+              error: `Failed to fetch memories: ${error instanceof Error ? error.message : String(error)}`,
+            };
+          }
+        },
+      }),
+      server_actions: tool({
+        description: 'Call exposed server-side functions to perform system operations. Available actions include: get_grades (list all grades/levels), add_learner (add a learner to teacher\'s list), get_my_learners (list teacher\'s learners), create_resource (create educational resources), get_resources (list resources). Use this when the user requests operations that require backend data manipulation.',
+        inputSchema: z.object({
+          action: z.enum(['get_grades', 'add_learner', 'get_my_learners', 'create_resource', 'get_resources', 'get_subjects', 'get_topics']),
+          params: z.any().optional(),
+        }),
+        execute: async ({ action, params = {} }) => {
+          try {
+            switch (action) {
+              case 'get_grades': {
+                const { getGrades } = await import('@/lib/actions/teacher');
+                const grades = await getGrades();
+                return {
+                  success: true,
+                  action: 'get_grades',
+                  data: grades.map(g => ({
+                    id: g.id,
+                    title: g.title,
+                    gradeNumber: g.gradeNumber,
+                    level: g.level,
+                    subjects: g.subjects?.map((s: { name: string; id: string }) => s.name) || [],
+                  })),
+                };
+              }
+              
+              case 'add_learner': {
+                const { addMyLearner } = await import('@/lib/actions/teacher');
+                const { email, gradeId, metadata } = params;
+                if (!email || !gradeId) {
+                  return {
+                    success: false,
+                    error: 'Missing required parameters: email and gradeId are required',
+                  };
+                }
+                await addMyLearner(userId, email as string, gradeId as string, metadata as Record<string, unknown>);
+                return {
+                  success: true,
+                  action: 'add_learner',
+                  message: `Learner with email ${email} added successfully`,
+                };
+              }
+              
+              case 'get_my_learners': {
+                const { getMyLearners } = await import('@/lib/actions/teacher');
+                const learners = await getMyLearners(userId);
+                return {
+                  success: true,
+                  action: 'get_my_learners',
+                  data: learners.map(l => ({
+                    id: l.id,
+                    learnerId: l.learnerId,
+                    email: l.learnerEmail,
+                    gradeId: l.gradeId,
+                    gradeTitle: l.grade?.title,
+                    metadata: l.metadata,
+                  })),
+                };
+              }
+              
+              case 'create_resource': {
+                const { createResource } = await import('@/lib/actions/teacher');
+                const { subjectId, topicId, title, description, type, url, thumbnailUrl, metadata } = params;
+                if (!subjectId || !topicId || !title || !description || !type || !url) {
+                  return {
+                    success: false,
+                    error: 'Missing required parameters: subjectId, topicId, title, description, type, and url are required',
+                  };
+                }
+                await createResource({
+                  subjectId: subjectId as string,
+                  topicId: topicId as string,
+                  title: title as string,
+                  description: description as string,
+                  type: type as "notes" | "video" | "audio" | "image",
+                  url: url as string,
+                  thumbnailUrl: thumbnailUrl as string | undefined,
+                  metadata: metadata as Record<string, unknown> | undefined,
+                });
+                return {
+                  success: true,
+                  action: 'create_resource',
+                  message: `Resource "${title}" created successfully`,
+                };
+              }
+              
+              case 'get_resources': {
+                const { getResources } = await import('@/lib/actions/teacher');
+                const resources = await getResources();
+                return {
+                  success: true,
+                  action: 'get_resources',
+                  data: resources.map(r => ({
+                    id: r.id,
+                    title: r.title,
+                    description: r.description,
+                    type: r.type,
+                    subject: r.subject?.name,
+                    topic: r.topic?.title,
+                    url: r.url,
+                  })),
+                };
+              }
+              
+              case 'get_subjects': {
+                const { getSubjects } = await import('@/lib/actions/teacher');
+                const subjects = await getSubjects();
+                return {
+                  success: true,
+                  action: 'get_subjects',
+                  data: subjects.map(s => ({
+                    id: s.id,
+                    name: s.name,
+                    grade: s.grade?.title,
+                    topicCount: s.topics?.length || 0,
+                  })),
+                };
+              }
+              
+              case 'get_topics': {
+                const { getTopics } = await import('@/lib/actions/teacher');
+                const topics = await getTopics();
+                return {
+                  success: true,
+                  action: 'get_topics',
+                  data: topics.map(t => ({
+                    id: t.id,
+                    title: t.title,
+                    subject: t.subject?.name,
+                    resourceCount: t.resources?.length || 0,
+                  })),
+                };
+              }
+              
+              default:
+                return {
+                  success: false,
+                  error: `Unknown action: ${action}`,
+                };
+            }
+          } catch (error) {
+            return {
+              success: false,
+              action,
+              error: `Failed to execute ${action}: ${error instanceof Error ? error.message : String(error)}`,
+            };
+          }
+        },
+      }),
+      get_current_time: tool({
+        description: 'Get the current date and time. Use this when the user asks about scheduling, deadlines, planning events, or any time-sensitive calculations. Also useful when saving memories that should include timestamps.',
+        inputSchema: z.object({
+          format: z.enum(['full', 'date-only', 'time-only', 'iso']).optional().describe('Format of the datetime to return (default: full)'),
+          timezone: z.string().optional().describe('Timezone to use (default: local timezone)'),
+        }),
+        execute: async ({ format = 'full', timezone }) => {
+          try {
+            const now = new Date();
+            let formatted;
+            
+            switch (format) {
+              case 'date-only':
+                formatted = now.toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  timeZone: timezone,
+                });
+                break;
+              case 'time-only':
+                formatted = now.toLocaleTimeString('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  timeZone: timezone,
+                });
+                break;
+              case 'iso':
+                formatted = now.toISOString();
+                break;
+              case 'full':
+              default:
+                formatted = now.toLocaleString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  timeZoneName: 'short',
+                  timeZone: timezone,
+                });
+                break;
+            }
+            
+            return {
+              success: true,
+              datetime: formatted,
+              iso: now.toISOString(),
+              timestamp: now.getTime(),
+              timezone: timezone || 'local',
+              format,
+              components: {
+                year: now.getFullYear(),
+                month: now.getMonth() + 1,
+                day: now.getDate(),
+                hour: now.getHours(),
+                minute: now.getMinutes(),
+                second: now.getSeconds(),
+                dayOfWeek: now.toLocaleDateString('en-US', { weekday: 'long' }),
+                dayOfYear: Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24)),
+              },
+              academicYear: now.getMonth() >= 7 
+                ? `${now.getFullYear()}-${now.getFullYear() + 1}` 
+                : `${now.getFullYear() - 1}-${now.getFullYear()}`,
+            };
+          } catch (error) {
+            return {
+              success: false,
+              error: `Failed to get current time: ${error instanceof Error ? error.message : String(error)}`,
             };
           }
         },

@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { chat, chatMessage, aiMemory } from "@/lib/db/schema";
+import { chat, chatMessage, aiMemory, aiAssignment, aiQuiz, aiQuizAttempt } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
@@ -225,4 +225,305 @@ export async function deleteMemoryItem(id: string): Promise<void> {
   await db.update(aiMemory).set({ isActive: false }).where(eq(aiMemory.id, id));
 }
 
+// AI Assignment Interfaces
+export interface AIAssignmentItem {
+  id: string;
+  userId: string;
+  chatId: string | null;
+  title: string;
+  subject: string;
+  grade: string;
+  type: string;
+  instructions: string;
+  totalMarks: number;
+  timeLimit: number | null;
+  dueDate: Date | null;
+  includeAnswerKey: boolean;
+  questions: unknown;
+  answerKey: unknown | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
+// AI Quiz Interfaces
+export interface AIQuizItem {
+  id: string;
+  userId: string;
+  chatId: string | null;
+  title: string;
+  subject: string;
+  description: string | null;
+  instructions: string;
+  totalMarks: number;
+  passingScore: number;
+  timeLimit: number | null;
+  settings: unknown;
+  questions: unknown;
+  validation: unknown;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AIQuizAttempt {
+  id: string;
+  quizId: string;
+  userId: string;
+  answers: unknown;
+  score: number;
+  totalMarks: number;
+  percentage: number;
+  passed: boolean;
+  timeTaken: number | null;
+  completedAt: Date;
+  createdAt: Date;
+}
+
+// Save AI Generated Assignment
+export async function saveAIAssignment({
+  userId,
+  chatId,
+  title,
+  subject,
+  grade,
+  type,
+  instructions,
+  totalMarks,
+  timeLimit,
+  dueDate,
+  includeAnswerKey,
+  questions,
+  answerKey,
+}: {
+  userId: string;
+  chatId?: string;
+  title: string;
+  subject: string;
+  grade: string;
+  type: string;
+  instructions: string;
+  totalMarks: number;
+  timeLimit?: number;
+  dueDate?: string;
+  includeAnswerKey: boolean;
+  questions: unknown[];
+  answerKey?: unknown;
+}): Promise<AIAssignmentItem> {
+  const result = await db
+    .insert(aiAssignment)
+    .values({
+      userId,
+      chatId: chatId || null,
+      title,
+      subject,
+      grade,
+      type,
+      instructions,
+      totalMarks,
+      timeLimit: timeLimit || null,
+      dueDate: dueDate ? new Date(dueDate) : null,
+      includeAnswerKey,
+      questions,
+      answerKey: answerKey || null,
+      isActive: true,
+    })
+    .returning();
+
+  const saved = result[0];
+  return {
+    ...saved,
+    questions: saved.questions as unknown,
+    answerKey: saved.answerKey as unknown,
+  };
+}
+
+// Get AI Assignment by ID
+export async function getAIAssignmentById(id: string): Promise<AIAssignmentItem | null> {
+  const result = await db
+    .select()
+    .from(aiAssignment)
+    .where(and(eq(aiAssignment.id, id), eq(aiAssignment.isActive, true)))
+    .limit(1);
+
+  if (result.length === 0) return null;
+
+  const item = result[0];
+  return {
+    ...item,
+    questions: item.questions as unknown,
+    answerKey: item.answerKey as unknown,
+  };
+}
+
+// Get AI Assignments by User
+export async function getAIAssignmentsByUser(userId: string): Promise<AIAssignmentItem[]> {
+  const items = await db
+    .select()
+    .from(aiAssignment)
+    .where(and(eq(aiAssignment.userId, userId), eq(aiAssignment.isActive, true)))
+    .orderBy(desc(aiAssignment.createdAt));
+
+  return items.map(item => ({
+    ...item,
+    questions: item.questions as unknown,
+    answerKey: item.answerKey as unknown,
+  }));
+}
+
+// Save AI Generated Quiz
+export async function saveAIQuiz({
+  userId,
+  chatId,
+  title,
+  subject,
+  description,
+  instructions,
+  totalMarks,
+  passingScore,
+  timeLimit,
+  settings,
+  questions,
+  validation,
+}: {
+  userId: string;
+  chatId?: string;
+  title: string;
+  subject: string;
+  description?: string;
+  instructions: string;
+  totalMarks: number;
+  passingScore: number;
+  timeLimit?: number | null;
+  settings: unknown;
+  questions: unknown[];
+  validation: unknown;
+}): Promise<AIQuizItem> {
+  const result = await db
+    .insert(aiQuiz)
+    .values({
+      userId,
+      chatId: chatId || null,
+      title,
+      subject,
+      description: description || null,
+      instructions,
+      totalMarks,
+      passingScore,
+      timeLimit: timeLimit || null,
+      settings,
+      questions,
+      validation,
+      isActive: true,
+    })
+    .returning();
+
+  const saved = result[0];
+  return {
+    ...saved,
+    settings: saved.settings as unknown,
+    questions: saved.questions as unknown,
+    validation: saved.validation as unknown,
+  };
+}
+
+// Get AI Quiz by ID
+export async function getAIQuizById(id: string): Promise<AIQuizItem | null> {
+  const result = await db
+    .select()
+    .from(aiQuiz)
+    .where(and(eq(aiQuiz.id, id), eq(aiQuiz.isActive, true)))
+    .limit(1);
+
+  if (result.length === 0) return null;
+
+  const item = result[0];
+  return {
+    ...item,
+    settings: item.settings as unknown,
+    questions: item.questions as unknown,
+    validation: item.validation as unknown,
+  };
+}
+
+// Get AI Quizzes by User
+export async function getAIQuizzesByUser(userId: string): Promise<AIQuizItem[]> {
+  const items = await db
+    .select()
+    .from(aiQuiz)
+    .where(and(eq(aiQuiz.userId, userId), eq(aiQuiz.isActive, true)))
+    .orderBy(desc(aiQuiz.createdAt));
+
+  return items.map(item => ({
+    ...item,
+    settings: item.settings as unknown,
+    questions: item.questions as unknown,
+    validation: item.validation as unknown,
+  }));
+}
+
+// Save Quiz Attempt
+export async function saveQuizAttempt({
+  quizId,
+  userId,
+  answers,
+  score,
+  totalMarks,
+  percentage,
+  passed,
+  timeTaken,
+}: {
+  quizId: string;
+  userId: string;
+  answers: unknown;
+  score: number;
+  totalMarks: number;
+  percentage: number;
+  passed: boolean;
+  timeTaken?: number;
+}): Promise<AIQuizAttempt> {
+  const result = await db
+    .insert(aiQuizAttempt)
+    .values({
+      quizId,
+      userId,
+      answers,
+      score,
+      totalMarks,
+      percentage,
+      passed,
+      timeTaken: timeTaken || null,
+      completedAt: new Date(),
+    })
+    .returning();
+
+  const saved = result[0];
+  return {
+    ...saved,
+    answers: saved.answers as unknown,
+  };
+}
+
+// Get Quiz Attempts by Quiz and User
+export async function getQuizAttemptsByQuiz(quizId: string, userId: string): Promise<AIQuizAttempt[]> {
+  const attempts = await db
+    .select()
+    .from(aiQuizAttempt)
+    .where(and(eq(aiQuizAttempt.quizId, quizId), eq(aiQuizAttempt.userId, userId)))
+    .orderBy(desc(aiQuizAttempt.completedAt));
+
+  return attempts.map(attempt => ({
+    ...attempt,
+    answers: attempt.answers as unknown,
+  }));
+}
+
+// Delete AI Assignment (soft delete)
+export async function deleteAIAssignment(id: string): Promise<void> {
+  await db.update(aiAssignment).set({ isActive: false }).where(eq(aiAssignment.id, id));
+}
+
+// Delete AI Quiz (soft delete)
+export async function deleteAIQuiz(id: string): Promise<void> {
+  await db.update(aiQuiz).set({ isActive: false }).where(eq(aiQuiz.id, id));
+}

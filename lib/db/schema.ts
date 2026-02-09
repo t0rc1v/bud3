@@ -319,3 +319,104 @@ export const userRelationsExtended = relations(user, ({ many }) => ({
   chats: many(chat),
   aiMemories: many(aiMemory),
 }));
+
+// AI Generated Assignments Table - for teacher-created printable assignments
+export const aiAssignment = pgTable("ai_assignment", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: varchar('user_id', { length: 255 })
+    .notNull()
+    .references(() => user.userId, { onDelete: 'cascade' }),
+  chatId: uuid('chat_id')
+    .references(() => chat.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  subject: varchar('subject', { length: 100 }).notNull(),
+  grade: varchar('grade', { length: 100 }).notNull(),
+  type: varchar('type', { length: 50 }).notNull(), // 'assignment', 'homework', 'quiz', 'test', 'continuous_assessment', 'worksheet'
+  instructions: text('instructions').notNull(),
+  totalMarks: integer('total_marks').notNull(),
+  timeLimit: integer('time_limit'), // in minutes, optional
+  dueDate: timestamp('due_date', { withTimezone: true }),
+  includeAnswerKey: boolean('include_answer_key').default(true).notNull(),
+  questions: jsonb('questions').notNull(), // array of question objects
+  answerKey: jsonb('answer_key'), // answer key data
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+});
+
+// AI Generated Quizzes Table - for learner interactive quizzes
+export const aiQuiz = pgTable("ai_quiz", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: varchar('user_id', { length: 255 })
+    .notNull()
+    .references(() => user.userId, { onDelete: 'cascade' }),
+  chatId: uuid('chat_id')
+    .references(() => chat.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  subject: varchar('subject', { length: 100 }).notNull(),
+  description: text('description'),
+  instructions: text('instructions').notNull(),
+  totalMarks: integer('total_marks').notNull(),
+  passingScore: integer('passing_score').default(60).notNull(), // percentage
+  timeLimit: integer('time_limit'), // in minutes, optional
+  settings: jsonb('settings').notNull(), // quiz settings object
+  questions: jsonb('questions').notNull(), // array of question objects with options
+  validation: jsonb('validation').notNull(), // correct answers for validation
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+});
+
+// Quiz Attempts Table - track user quiz attempts and scores
+export const aiQuizAttempt = pgTable("ai_quiz_attempt", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  quizId: uuid('quiz_id')
+    .notNull()
+    .references(() => aiQuiz.id, { onDelete: 'cascade' }),
+  userId: varchar('user_id', { length: 255 })
+    .notNull()
+    .references(() => user.userId, { onDelete: 'cascade' }),
+  answers: jsonb('answers').notNull(), // user's submitted answers
+  score: integer('score').notNull(), // earned marks
+  totalMarks: integer('total_marks').notNull(),
+  percentage: integer('percentage').notNull(),
+  passed: boolean('passed').notNull(),
+  timeTaken: integer('time_taken'), // in seconds, optional
+  completedAt: timestamp('completed_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt,
+});
+
+// Relations for assignments and quizzes
+export const aiAssignmentRelations = relations(aiAssignment, ({ one }) => ({
+  user: one(user, {
+    fields: [aiAssignment.userId],
+    references: [user.userId],
+  }),
+  chat: one(chat, {
+    fields: [aiAssignment.chatId],
+    references: [chat.id],
+  }),
+}));
+
+export const aiQuizRelations = relations(aiQuiz, ({ one, many }) => ({
+  user: one(user, {
+    fields: [aiQuiz.userId],
+    references: [user.userId],
+  }),
+  chat: one(chat, {
+    fields: [aiQuiz.chatId],
+    references: [chat.id],
+  }),
+  attempts: many(aiQuizAttempt),
+}));
+
+export const aiQuizAttemptRelations = relations(aiQuizAttempt, ({ one }) => ({
+  quiz: one(aiQuiz, {
+    fields: [aiQuizAttempt.quizId],
+    references: [aiQuiz.id],
+  }),
+  user: one(user, {
+    fields: [aiQuizAttempt.userId],
+    references: [user.userId],
+  }),
+}));

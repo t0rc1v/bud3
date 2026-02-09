@@ -33,6 +33,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { createChat, deleteChat, getUserChats, getChatMessages, type Chat } from "@/lib/actions/ai";
 import { AddResourceToChat, type Resource } from "./add-resource-to-chat";
+import { AssignmentModalTrigger } from "./assignment-modal";
+import { QuizModalTrigger } from "./quiz-modal";
 import {
   Tool,
   ToolHeader,
@@ -699,6 +701,68 @@ export function AIChat({
                                   ) : undefined
                                 }
                                 errorText={errorText}
+                              />
+                            </ToolContent>
+                          </Tool>
+                        );
+                      }
+                      
+                      // Create Assignment Tool
+                      if (toolType === "tool-create_assignment") {
+                        // AI SDK wraps output as { type: "json", value: {...} }
+                        const outputWrapper = output as { type?: string; value?: { success?: boolean; format?: string; assignmentId?: string; metadata?: unknown; content?: unknown; answerKey?: unknown; exportOptions?: unknown; error?: string } } | undefined;
+                        const assignmentOutput = outputWrapper?.value;
+
+                        if (assignmentOutput?.success) {
+                          return (
+                            <div key={i} className="mt-2 w-full min-w-0">
+                              <AssignmentModalTrigger data={assignmentOutput as unknown as React.ComponentProps<typeof AssignmentModalTrigger>['data']} />
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2">
+                            <ToolHeader
+                              toolType={toolType}
+                              state={state}
+                            />
+                            <ToolContent>
+                              <ToolInput input={input} />
+                              <ToolOutput
+                                errorText={assignmentOutput?.error}
+                                output={assignmentOutput?.success ? "Assignment created successfully" : undefined}
+                              />
+                            </ToolContent>
+                          </Tool>
+                        );
+                      }
+
+                      // Create Quiz Tool
+                      if (toolType === "tool-create_quiz") {
+                        // AI SDK wraps output as { type: "json", value: {...} }
+                        const outputWrapper = output as { type?: string; value?: { success?: boolean; format?: string; artifact?: string; quizId?: string; metadata?: unknown; quiz?: unknown; actions?: unknown; error?: string } } | undefined;
+                        const quizOutput = outputWrapper?.value;
+
+                        if (quizOutput?.success) {
+                          return (
+                            <div key={i} className="mt-2 w-full min-w-0">
+                              <QuizModalTrigger data={quizOutput as unknown as React.ComponentProps<typeof QuizModalTrigger>['data']} />
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <Tool key={i} defaultOpen={shouldAutoOpen} className="mt-2">
+                            <ToolHeader
+                              toolType={toolType}
+                              state={state}
+                            />
+                            <ToolContent>
+                              <ToolInput input={input} />
+                              <ToolOutput
+                                errorText={quizOutput?.error}
+                                output={quizOutput?.success ? "Quiz created successfully" : undefined}
                               />
                             </ToolContent>
                           </Tool>

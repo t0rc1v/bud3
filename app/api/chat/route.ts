@@ -115,6 +115,23 @@ You have access to the following tools. Use them strategically based on the user
 6. server_actions - Use this to call specific backend functions that are exposed to you. This allows you to perform system operations like managing learners, grades, or resources when the user requests them.
 7. web_browse - Use this when the user provides a specific URL and asks you to read, summarize, or analyze its content. Works with web pages, PDFs, and documents.
 8. get_current_time - Use this to get the current date and time. Use when the user asks about scheduling, deadlines, or time-sensitive calculations.
+9. create_assignment - Use this to create assignments, homeworks, quizzes, or continuous assessment tests for TEACHERS/ADMINS. This generates a PRINTABLE DOCUMENT with an 'Export to PDF' button. Use this when:
+   - Teachers want to create paper-based assessments
+   - Creating worksheets for classroom distribution
+   - Preparing homework that students complete offline
+   - Making continuous assessment tests (CATs)
+   - Generating printable exams with answer keys
+   
+10. create_quiz - Use this to create interactive quizzes for LEARNERS. This generates an INTERACTIVE QUIZ that students can take DIRECTLY IN THE APP. Use this when:
+    - Students want to take online assessments
+    - Creating practice tests for self-study
+    - Building interactive learning activities
+    - Making formative assessments with immediate feedback
+    - Allowing students to retake quizzes for practice
+
+IMPORTANT DISTINCTION:
+- Teachers/Admins → create_assignment (creates printable PDF-ready documents)
+- Students/Learners → create_quiz (creates interactive in-app assessments)
 
 When responding:
 - Be concise and educational
@@ -559,6 +576,251 @@ When responding:
             return {
               success: false,
               error: `Failed to get current time: ${error instanceof Error ? error.message : String(error)}`,
+            };
+          }
+        },
+      }),
+      create_assignment: tool({
+        description: 'Create assignments, homeworks, quizzes, or continuous assessment tests for TEACHERS and ADMINS. This generates a printable document with questions, answer key, and instructions. The output includes an "Export to PDF" button for easy printing and distribution. Use this when educators need paper-based assessments or worksheets.',
+        inputSchema: z.object({
+          title: z.string().describe('Title of the assignment (e.g., "Mathematics Quiz - Algebra", "Homework Assignment 3")'),
+          subject: z.string().describe('Subject area (e.g., "Mathematics", "Science", "English")'),
+          grade: z.string().describe('Grade level or class (e.g., "Grade 7", "Form 3", "High School")'),
+          type: z.enum(['assignment', 'homework', 'quiz', 'test', 'continuous_assessment', 'worksheet']).describe('Type of assessment'),
+          instructions: z.string().describe('General instructions for students taking the assessment'),
+          questions: z.array(z.object({
+            id: z.string().describe('Unique identifier for the question (e.g., "q1", "q2")'),
+            type: z.enum(['multiple_choice', 'true_false', 'short_answer', 'essay', 'fill_in_blank', 'matching']).describe('Question type'),
+            text: z.string().describe('The question text'),
+            options: z.array(z.string()).optional().describe('For multiple choice: the answer options (A, B, C, D)'),
+            correctAnswer: z.any().describe('The correct answer (string for single answers, array for multiple)'),
+            marks: z.number().describe('Points/marks for this question'),
+            explanation: z.string().optional().describe('Explanation of the correct answer (for answer key)'),
+          })).describe('Array of questions for the assessment'),
+          totalMarks: z.number().describe('Total marks/points for the entire assessment'),
+          timeLimit: z.number().optional().describe('Time limit in minutes (if applicable)'),
+          dueDate: z.string().optional().describe('Due date for submission (e.g., "2025-02-15")'),
+          includeAnswerKey: z.boolean().optional().describe('Whether to include an answer key (default: true for teachers)'),
+        }),
+        execute: async ({ title, subject, grade, type, instructions, questions, totalMarks, timeLimit, dueDate, includeAnswerKey = true }) => {
+          try {
+            // Generate answer key
+            const answerKey = questions.map(q => ({
+              id: q.id,
+              type: q.type,
+              correctAnswer: q.correctAnswer,
+              marks: q.marks,
+              explanation: q.explanation || '',
+            }));
+
+            // Calculate total marks from questions if not provided
+            const calculatedTotalMarks = questions.reduce((sum, q) => sum + (q.marks || 0), 0);
+            const finalTotalMarks = totalMarks || calculatedTotalMarks;
+
+            // Save to database
+            const { saveAIAssignment } = await import('@/lib/actions/ai');
+            const savedAssignment = await saveAIAssignment({
+              userId,
+              chatId,
+              title,
+              subject,
+              grade,
+              type,
+              instructions,
+              totalMarks: finalTotalMarks,
+              timeLimit,
+              dueDate,
+              includeAnswerKey,
+              questions,
+              answerKey: includeAnswerKey ? answerKey : undefined,
+            });
+
+            const assignment = {
+              success: true,
+              format: 'assignment',
+              assignmentId: savedAssignment.id,
+              metadata: {
+                title,
+                subject,
+                grade,
+                type,
+                createdAt: savedAssignment.createdAt.toISOString(),
+                totalMarks: finalTotalMarks,
+                questionCount: questions.length,
+                timeLimit,
+                dueDate,
+                includeAnswerKey,
+              },
+              content: {
+                header: {
+                  title,
+                  subject,
+                  grade,
+                  type: type.replace(/_/g, ' ').toUpperCase(),
+                  totalMarks: finalTotalMarks,
+                  timeLimit,
+                  dueDate,
+                },
+                instructions,
+                questions: questions.map((q, index) => ({
+                  number: index + 1,
+                  id: q.id,
+                  type: q.type,
+                  text: q.text,
+                  options: q.options,
+                  marks: q.marks,
+                })),
+              },
+              answerKey: includeAnswerKey ? {
+                title: `${title} - ANSWER KEY`,
+                answers: answerKey.map((a, index) => ({
+                  number: index + 1,
+                  ...a,
+                })),
+              } : null,
+              exportOptions: {
+                canExportPDF: true,
+                canExportWord: true,
+                canPrint: true,
+              },
+            };
+
+            return assignment;
+          } catch (error) {
+            return {
+              success: false,
+              error: `Failed to create assignment: ${error instanceof Error ? error.message : String(error)}`,
+            };
+          }
+        },
+      }),
+      create_quiz: tool({
+        description: 'Create interactive quizzes for LEARNERS that can be taken within the app. This generates a quiz with the quiz artifact component, allowing students to answer questions interactively, get immediate feedback, and track their score. Use this for online assessments, practice tests, and formative evaluations.',
+        inputSchema: z.object({
+          title: z.string().describe('Title of the quiz (e.g., "Practice Quiz: Photosynthesis", "Weekly Math Test")'),
+          subject: z.string().describe('Subject area (e.g., "Biology", "Mathematics", "History")'),
+          description: z.string().optional().describe('Brief description of what the quiz covers'),
+          instructions: z.string().describe('Instructions for taking the quiz'),
+          questions: z.array(z.object({
+            id: z.string().describe('Unique identifier for the question (e.g., "q1", "q2")'),
+            type: z.enum(['multiple_choice', 'true_false', 'short_answer', 'fill_in_blank']).describe('Question type'),
+            text: z.string().describe('The question text'),
+            options: z.array(z.object({
+              id: z.string().describe('Option identifier (e.g., "A", "B", "1", "2")'),
+              text: z.string().describe('Option text'),
+              isCorrect: z.boolean().describe('Whether this is the correct answer'),
+            })).describe('Answer options for multiple choice or true/false questions'),
+            correctAnswer: z.any().describe('The correct answer value (for validation)'),
+            marks: z.number().describe('Points for this question'),
+            explanation: z.string().optional().describe('Explanation shown after answering (for learning)'),
+            hint: z.string().optional().describe('Optional hint for the question'),
+          })).describe('Array of quiz questions'),
+          settings: z.object({
+            shuffleQuestions: z.boolean().optional().describe('Randomize question order (default: false)'),
+            shuffleOptions: z.boolean().optional().describe('Randomize answer options (default: false)'),
+            showCorrectAnswerImmediately: z.boolean().optional().describe('Show correct answer after each question (default: true)'),
+            showExplanation: z.boolean().optional().describe('Show explanation after answering (default: true)'),
+            allowRetake: z.boolean().optional().describe('Allow students to retake the quiz (default: true)'),
+            timeLimit: z.number().optional().describe('Time limit in minutes (optional)'),
+            passingScore: z.number().optional().describe('Passing score percentage (default: 60)'),
+            maxAttempts: z.number().optional().describe('Maximum number of attempts allowed (default: unlimited)'),
+          }).optional().describe('Quiz settings and behavior'),
+        }),
+        execute: async ({ title, subject, description, instructions, questions, settings = {} }) => {
+          try {
+            const defaultSettings = {
+              shuffleQuestions: false,
+              shuffleOptions: false,
+              showCorrectAnswerImmediately: true,
+              showExplanation: true,
+              allowRetake: true,
+              timeLimit: null,
+              passingScore: 60,
+              maxAttempts: null,
+              ...settings,
+            };
+
+            const totalMarks = questions.reduce((sum, q) => sum + (q.marks || 0), 0);
+            const passingMarks = Math.ceil(totalMarks * (defaultSettings.passingScore / 100));
+
+            // Save to database
+            const { saveAIQuiz } = await import('@/lib/actions/ai');
+            const savedQuiz = await saveAIQuiz({
+              userId,
+              chatId,
+              title,
+              subject,
+              description,
+              instructions,
+              totalMarks,
+              passingScore: defaultSettings.passingScore,
+              timeLimit: defaultSettings.timeLimit,
+              settings: defaultSettings,
+              questions,
+              validation: {
+                answers: questions.map(q => ({
+                  id: q.id,
+                  correctAnswer: q.correctAnswer,
+                  marks: q.marks,
+                })),
+              },
+            });
+
+            const quiz = {
+              success: true,
+              format: 'interactive_quiz',
+              artifact: 'quiz',
+              quizId: savedQuiz.id,
+              metadata: {
+                title,
+                subject,
+                description,
+                createdAt: savedQuiz.createdAt.toISOString(),
+                questionCount: questions.length,
+                totalMarks,
+                passingMarks,
+                passingScore: defaultSettings.passingScore,
+              },
+              quiz: {
+                title,
+                subject,
+                description,
+                instructions,
+                settings: defaultSettings,
+                questions: questions.map((q, index) => ({
+                  number: index + 1,
+                  id: q.id,
+                  type: q.type,
+                  text: q.text,
+                  options: q.options,
+                  marks: q.marks,
+                  explanation: q.explanation || null,
+                  hint: q.hint || null,
+                  // Don't send correctAnswer to frontend for security in assessment mode
+                  // It will be validated server-side
+                })),
+                validation: {
+                  // Store correct answers separately for server-side validation
+                  answers: questions.map(q => ({
+                    id: q.id,
+                    correctAnswer: q.correctAnswer,
+                    marks: q.marks,
+                  })),
+                },
+              },
+              actions: {
+                canStart: true,
+                canSave: true,
+                canSubmit: true,
+                canViewResults: true,
+              },
+            };
+
+            return quiz;
+          } catch (error) {
+            return {
+              success: false,
+              error: `Failed to create quiz: ${error instanceof Error ? error.message : String(error)}`,
             };
           }
         },

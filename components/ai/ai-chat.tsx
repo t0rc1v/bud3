@@ -82,6 +82,11 @@ export function AIChat({
   const [attachedResources, setAttachedResources] = useState<Resource[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   
+  // Store pending message to send after chat is created
+  const pendingMessageRef = useRef<{ text: string; files: Array<{ type: "file"; url: string; mediaType: string; filename: string }> } | null>(null);
+  // Track chats that were just created to prevent loading messages and overwriting pending messages
+  const newlyCreatedChatRef = useRef<string | null>(null);
+  
   // Helper function to update URL with chatId
   const updateUrlWithChatId = useCallback((newChatId: string | undefined) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -111,6 +116,21 @@ export function AIChat({
     }
   }, [searchParams, chatId]);
 
+  // Send pending message after chatId is set (for first message in new chat)
+  useEffect(() => {
+    if (chatId && pendingMessageRef.current) {
+      const message = pendingMessageRef.current;
+      pendingMessageRef.current = null;
+      // Small delay to ensure useChat has re-rendered with new chatId
+      setTimeout(() => {
+        sendMessage({
+          text: message.text,
+          files: message.files,
+        });
+      }, 0);
+    }
+  }, [chatId, sendMessage]);
+
   // Load user's chats and messages
   useEffect(() => {
     async function loadChats() {
@@ -118,12 +138,19 @@ export function AIChat({
       console.log('urlChatId:', urlChatId);
       console.log('initialChatId:', initialChatId);
       
+      // Skip loading messages if this is a newly created chat (first message pending)
+      const chatIdToLoad = urlChatId || initialChatId;
+      if (chatIdToLoad && newlyCreatedChatRef.current === chatIdToLoad) {
+        console.log('Skipping load for newly created chat:', chatIdToLoad);
+        newlyCreatedChatRef.current = null; // Clear the flag after skipping
+        return;
+      }
+      
       try {
         const userChats = await getUserChats(userId);
         setChats(userChats);
         
         // Load messages for the current chatId (from URL or props)
-        const chatIdToLoad = urlChatId || initialChatId;
         console.log('chatIdToLoad:', chatIdToLoad);
         
         if (chatIdToLoad) {
@@ -233,24 +260,7 @@ export function AIChat({
   const handleSend = async () => {
     if (!input.trim() || status !== "ready") return;
 
-    // If no chat exists, create one
-    if (!chatId) {
-      try {
-        const newChat = await createChat({
-          userId,
-          title: input.slice(0, 50) + (input.length > 50 ? "..." : ""),
-        });
-        setChatId(newChat.id);
-        updateUrlWithChatId(newChat.id); // Update URL with new chat ID
-        setChats((prev) => [newChat, ...prev]);
-      } catch (error) {
-        console.error("Failed to create chat:", error);
-        return;
-      }
-    }
-
     const userMessage = input;
-    setInput("");
     
     // Convert attached resources to FileUIPart format for AI SDK
     const fileParts = attachedResources.map((resource) => ({
@@ -259,11 +269,41 @@ export function AIChat({
       mediaType: getMediaType(resource.type),
       filename: resource.title,
     }));
-    
-    sendMessage({ 
-      text: userMessage,
-      files: fileParts,
-    });
+
+    // If no chat exists, store the message and create one
+    if (!chatId) {
+      // Store message to send after chat is created
+      pendingMessageRef.current = {
+        text: userMessage,
+        files: fileParts,
+      };
+      
+      try {
+        const newChat = await createChat({
+          userId,
+          title: input.slice(0, 50) + (input.length > 50 ? "..." : ""),
+        });
+        // Mark this chat as newly created to prevent the load effect from overwriting messages
+        newlyCreatedChatRef.current = newChat.id;
+        setChatId(newChat.id);
+        updateUrlWithChatId(newChat.id); // Update URL with new chat ID
+        setChats((prev) => [newChat, ...prev]);
+        // Message will be sent by the effect after chatId state updates
+      } catch (error) {
+        console.error("Failed to create chat:", error);
+        pendingMessageRef.current = null;
+        newlyCreatedChatRef.current = null;
+        return;
+      }
+    } else {
+      // Chat exists, send message immediately
+      sendMessage({ 
+        text: userMessage,
+        files: fileParts,
+      });
+    }
+
+    setInput("");
   };
 
   // Helper function to map resource types to MIME types

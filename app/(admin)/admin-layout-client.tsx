@@ -21,12 +21,13 @@ interface AdminLayoutClientProps {
 
 export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutClientProps) {
   const isMobile = useIsMobile();
-  const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
-  const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  // Default to closed on mobile, open on desktop (for SSR consistency)
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(!isMobile);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(!isMobile);
 
   useEffect(() => {
-    // Defer mobile detection to after hydration to avoid mismatches
+    // After hydration, set isClient to true to allow mobile detection
     const timeoutId = setTimeout(() => setIsClient(true), 0);
     return () => clearTimeout(timeoutId);
   }, []);
@@ -128,11 +129,11 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
   // Desktop layout with collapsible sidebars
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Left Sidebar - File Tree */}
+      {/* Left Sidebar - File Tree - Hidden during initial load to prevent flash on mobile */}
       <div
         className={cn(
           "flex-shrink-0 border-r bg-sidebar transition-all duration-300 ease-in-out flex flex-col",
-          leftSidebarOpen ? "w-72" : "w-0 overflow-hidden"
+          !isClient ? "w-0 overflow-hidden" : leftSidebarOpen ? "w-72" : "w-0 overflow-hidden"
         )}
       >
         <div className="flex h-16 items-center justify-between border-b px-4">
@@ -212,11 +213,11 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
         </main>
       </div>
       
-      {/* Right Sidebar - AI Chat */}
+      {/* Right Sidebar - AI Chat - Hidden during initial load to prevent flash on mobile */}
       <div
         className={cn(
           "flex-shrink-0 border-l bg-background transition-all duration-300 ease-in-out flex flex-col",
-          rightSidebarOpen ? "w-96" : "w-0 overflow-hidden"
+          !isClient ? "w-0 overflow-hidden" : rightSidebarOpen ? "w-96" : "w-0 overflow-hidden"
         )}
       >
         {userId && (

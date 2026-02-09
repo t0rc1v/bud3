@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -86,11 +86,23 @@ export function AIChat({
   const viewportRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [textareaRows, setTextareaRows] = useState(1);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
-  // Detect mobile device
-  const isMobile = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+  // Detect mobile device - use state + useEffect to avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+    const checkMobile = () => {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+    };
+    setIsMobile(checkMobile());
+    
+    const handleResize = () => {
+      setIsMobile(checkMobile());
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
    
   // Store pending message to send after chat is created
@@ -424,7 +436,7 @@ export function AIChat({
   }, []);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" suppressHydrationWarning>
       {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2">
@@ -540,7 +552,28 @@ export function AIChat({
           onScroll={handleScroll}
         >
           <div className="space-y-4 px-4 py-6 min-w-0 w-full">
-          {messages.length === 0 ? (
+          {isLoadingChats && chatId ? (
+            // Loading skeleton for chat messages
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <div className="bg-primary/20 rounded-lg px-4 py-3 w-[70%] animate-pulse">
+                  <div className="h-4 bg-primary/30 rounded w-3/4"></div>
+                </div>
+              </div>
+              <div className="flex justify-start">
+                <div className="bg-muted rounded-lg px-4 py-3 w-[80%] animate-pulse space-y-2">
+                  <div className="h-4 bg-muted-foreground/20 rounded w-full"></div>
+                  <div className="h-4 bg-muted-foreground/20 rounded w-5/6"></div>
+                  <div className="h-4 bg-muted-foreground/20 rounded w-4/6"></div>
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <div className="bg-primary/20 rounded-lg px-4 py-3 w-[60%] animate-pulse">
+                  <div className="h-4 bg-primary/30 rounded w-2/3"></div>
+                </div>
+              </div>
+            </div>
+          ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 text-center">
               <MessageSquare className="h-10 w-10 text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground">
@@ -887,7 +920,7 @@ export function AIChat({
             value={input}
             onChange={handleTextareaChange}
             onKeyDown={handleKeyDown}
-            placeholder={isMobile ? "Type your message..." : "Type your message... (Shift+Enter for new line, Enter to send)"}
+            placeholder={mounted && isMobile ? "Type your message..." : "Type your message... (Shift+Enter for new line, Enter to send)"}
             disabled={status !== "ready"}
             rows={textareaRows}
             className="flex-1 min-h-[44px] max-h-[160px] resize-none py-3"

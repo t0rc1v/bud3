@@ -309,9 +309,72 @@ export function ContentFileTree({ onItemSelect, className, userRole }: ContentFi
 
   if (isLoading) {
     return (
-      <div className={cn("flex items-center justify-center p-8", className)}>
-        <Loader2 className="h-6 w-6 animate-spin" />
-        <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
+      <div className={cn("flex flex-col h-full p-3 space-y-2", className)}>
+        {/* Toolbar skeleton */}
+        <div className="flex items-center justify-between py-2">
+          <div className="h-4 bg-muted rounded w-20 animate-pulse"></div>
+          <div className="flex gap-1">
+            <div className="h-6 w-6 bg-muted rounded animate-pulse"></div>
+            <div className="h-6 w-6 bg-muted rounded animate-pulse"></div>
+          </div>
+        </div>
+        {/* Tree items skeleton */}
+        <div className="space-y-2 flex-1">
+          {/* Grade 1 */}
+          <div className="flex items-center gap-2 p-2">
+            <div className="h-4 w-4 bg-muted rounded animate-pulse"></div>
+            <div className="h-4 w-4 bg-muted rounded-full animate-pulse"></div>
+            <div className="h-4 bg-muted rounded w-32 animate-pulse"></div>
+          </div>
+          {/* Grade 1 subjects */}
+          <div className="space-y-1.5 pl-6">
+            <div className="flex items-center gap-2">
+              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
+              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
+              <div className="h-3.5 bg-muted rounded w-24 animate-pulse"></div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
+              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
+              <div className="h-3.5 bg-muted rounded w-28 animate-pulse"></div>
+            </div>
+          </div>
+          {/* Grade 2 */}
+          <div className="flex items-center gap-2 p-2">
+            <div className="h-4 w-4 bg-muted rounded animate-pulse"></div>
+            <div className="h-4 w-4 bg-muted rounded-full animate-pulse"></div>
+            <div className="h-4 bg-muted rounded w-28 animate-pulse"></div>
+          </div>
+          {/* Grade 3 */}
+          <div className="flex items-center gap-2 p-2">
+            <div className="h-4 w-4 bg-muted rounded animate-pulse"></div>
+            <div className="h-4 w-4 bg-muted rounded-full animate-pulse"></div>
+            <div className="h-4 bg-muted rounded w-36 animate-pulse"></div>
+          </div>
+          {/* Grade 3 subjects */}
+          <div className="space-y-1.5 pl-6">
+            <div className="flex items-center gap-2">
+              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
+              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
+              <div className="h-3.5 bg-muted rounded w-20 animate-pulse"></div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
+              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
+              <div className="h-3.5 bg-muted rounded w-24 animate-pulse"></div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
+              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
+              <div className="h-3.5 bg-muted rounded w-22 animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+        {/* Status bar skeleton */}
+        <div className="flex items-center justify-between py-2 border-t">
+          <div className="h-3 bg-muted rounded w-16 animate-pulse"></div>
+          <div className="h-3 bg-muted rounded w-20 animate-pulse"></div>
+        </div>
       </div>
     );
   }
@@ -334,7 +397,7 @@ export function ContentFileTree({ onItemSelect, className, userRole }: ContentFi
   }
 
   return (
-    <div className={cn("flex flex-col h-full", className)}>
+    <div className={cn("flex flex-col h-full", className)} suppressHydrationWarning>
       {/* Toolbar */}
       <div className="flex items-center justify-between px-3 py-2 border-b">
         <span className="text-sm font-medium">Content Tree</span>

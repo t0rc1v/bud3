@@ -283,7 +283,7 @@ export function UnifiedAdminPageClient({
   );
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6" suppressHydrationWarning>
       {/* Header */}
       <div className="flex flex-col gap-2">
         <h2 className="text-2xl font-bold tracking-tight">
@@ -528,13 +528,13 @@ function GradeCard({
   const [isFirstSubjectOpen, setIsFirstSubjectOpen] = useState(false);
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden w-full">
       <Collapsible open={isExpanded} onOpenChange={onToggle}>
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+        <CardHeader className="pb-4 px-3 sm:px-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="p-0 h-auto">
+                <Button variant="ghost" size="sm" className="p-0 h-auto shrink-0">
                   {isExpanded ? (
                     <ChevronDown className="h-5 w-5 text-muted-foreground" />
                   ) : (
@@ -543,25 +543,26 @@ function GradeCard({
                 </Button>
               </CollapsibleTrigger>
               <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm sm:text-base shrink-0"
                 style={{ backgroundColor: grade.color }}
               >
                 {grade.gradeNumber}
               </div>
-              <div>
-                <CardTitle className="text-lg">{grade.title}</CardTitle>
-                <p className="text-sm text-muted-foreground">
+              <div className="min-w-0 flex-1">
+                <CardTitle className="text-base sm:text-lg truncate">{grade.title}</CardTitle>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {grade.subjects.length} subjects
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">{grade.level}</Badge>
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+              <Badge variant="secondary" className="text-xs shrink-0">{grade.level}</Badge>
               <Dialog open={isAddSubjectOpen} onOpenChange={setIsAddSubjectOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Plus className="h-3 w-3 mr-1" />
-                    Add Subject
+                  <Button variant="outline" size="sm" className="text-xs px-2 sm:px-3 shrink-0">
+                    <Plus className="h-3 w-3 mr-0 sm:mr-1" />
+                    <span className="hidden sm:inline">Add Subject</span>
+                    <span className="sm:hidden">Add</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
@@ -573,7 +574,7 @@ function GradeCard({
               </Dialog>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" className="shrink-0 px-2">
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -595,7 +596,7 @@ function GradeCard({
           </div>
         </CardHeader>
         <CollapsibleContent>
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 px-3 sm:px-6">
             {grade.subjects.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <BookOpen className="h-8 w-8 mx-auto mb-2" />
@@ -616,7 +617,7 @@ function GradeCard({
                 </Dialog>
               </div>
             ) : (
-              <div className="space-y-3 ml-4 border-l-2 border-muted pl-4">
+              <div className="space-y-3 ml-2 sm:ml-4 border-l-2 border-muted pl-2 sm:pl-4">
                 {grade.subjects.map((subject) => (
                   <SubjectItem
                     key={subject.id}
@@ -681,10 +682,10 @@ function SubjectItem({
 
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
-      <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between p-2 sm:p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="p-0 h-auto">
+            <Button variant="ghost" size="sm" className="p-0 h-auto shrink-0">
               {isExpanded ? (
                 <FolderOpen className="h-4 w-4 text-muted-foreground" />
               ) : (
@@ -692,20 +693,21 @@ function SubjectItem({
               )}
             </Button>
           </CollapsibleTrigger>
-          <span className="text-xl">{subject.icon}</span>
-          <div>
-            <p className="font-medium">{subject.name}</p>
-            <p className="text-sm text-muted-foreground">
+          <span className="text-lg sm:text-xl shrink-0">{subject.icon}</span>
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-sm sm:text-base truncate">{subject.name}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">
               {subject.topics.length} topics
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <Dialog open={isAddTopicOpen} onOpenChange={setIsAddTopicOpen}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <Plus className="h-3 w-3 mr-1" />
-                Add Topic
+              <Button variant="ghost" size="sm" className="text-xs px-2 sm:px-3">
+                <Plus className="h-3 w-3 mr-0 sm:mr-1" />
+                <span className="hidden sm:inline">Add Topic</span>
+                <span className="sm:hidden">Add</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
@@ -719,7 +721,7 @@ function SubjectItem({
           </Dialog>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" className="px-2">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -762,7 +764,7 @@ function SubjectItem({
             </Dialog>
           </div>
         ) : (
-          <div className="space-y-2 ml-8 mt-2 border-l-2 border-muted pl-4">
+          <div className="space-y-2 ml-4 sm:ml-8 mt-2 border-l-2 border-muted pl-2 sm:pl-4">
             {subject.topics.map((topic) => (
               <TopicItem
                 key={topic.id}
@@ -816,10 +818,10 @@ function TopicItem({
 
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
-      <div className="flex items-center justify-between p-2 rounded-lg bg-background hover:bg-muted/50 transition-colors">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between p-2 rounded-lg bg-background hover:bg-muted/50 transition-colors gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="p-0 h-auto">
+            <Button variant="ghost" size="sm" className="p-0 h-auto shrink-0">
               {isExpanded ? (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               ) : (
@@ -827,20 +829,21 @@ function TopicItem({
               )}
             </Button>
           </CollapsibleTrigger>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <p className="font-medium text-sm">{topic.title}</p>
+          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-xs sm:text-sm truncate">{topic.title}</p>
             <p className="text-xs text-muted-foreground">
               {topic.resources.length} resources
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <Dialog open={isAddResourceOpen} onOpenChange={setIsAddResourceOpen}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <Plus className="h-3 w-3 mr-1" />
-                Add Resource
+              <Button variant="ghost" size="sm" className="text-xs px-2 sm:px-3">
+                <Plus className="h-3 w-3 mr-0 sm:mr-1" />
+                <span className="hidden sm:inline">Add Resource</span>
+                <span className="sm:hidden">Add</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
@@ -859,7 +862,7 @@ function TopicItem({
           </Dialog>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" className="px-2">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -903,7 +906,7 @@ function TopicItem({
             </Dialog>
           </div>
         ) : (
-          <div className="space-y-1 ml-8 mt-1">
+          <div className="space-y-1 ml-4 sm:ml-8 mt-1">
             {topic.resources.map((resource) => (
               <ResourceItem
                 key={resource.id}
@@ -930,19 +933,19 @@ interface ResourceItemProps {
 
 function ResourceItem({ resource, onDelete, onView, onEdit }: ResourceItemProps) {
   return (
-    <div className="flex items-center justify-between p-2 rounded bg-muted/30 hover:bg-muted/50 transition-colors text-sm">
-      <div className="flex items-center gap-3">
-        <Library className="h-4 w-4 text-muted-foreground" />
-        <div>
-          <p className="font-medium">{resource.title}</p>
+    <div className="flex items-center justify-between p-2 rounded bg-muted/30 hover:bg-muted/50 transition-colors text-xs sm:text-sm gap-2">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+        <Library className="h-4 w-4 text-muted-foreground shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="font-medium truncate">{resource.title}</p>
           <p className="text-xs text-muted-foreground">{resource.type}</p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 w-7 p-0"
+          className="h-6 w-6 sm:h-7 sm:w-7 p-0"
           onClick={() => onView(resource)}
         >
           <Eye className="h-3 w-3" />
@@ -950,14 +953,14 @@ function ResourceItem({ resource, onDelete, onView, onEdit }: ResourceItemProps)
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 w-7 p-0"
+          className="h-6 w-6 sm:h-7 sm:w-7 p-0"
           onClick={() => window.open(resource.url, "_blank")}
         >
           <ExternalLink className="h-3 w-3" />
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+            <Button variant="ghost" size="sm" className="h-6 w-6 sm:h-7 sm:w-7 p-0">
               <MoreVertical className="h-3 w-3" />
             </Button>
           </DropdownMenuTrigger>

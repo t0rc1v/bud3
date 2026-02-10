@@ -101,7 +101,7 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
                   />
                 </div>
                 {/* Mobile Super Admin Navigation */}
-                {userRole === "super_admin" && (
+                {(userRole === "super_admin" || userRole === "admin") && (
                   <div className="border-t p-4">
                     <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
                       <Shield className="h-4 w-4" />
@@ -119,6 +119,30 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
                       >
                         <Users className="h-4 w-4" />
                         Manage Admins
+                      </Link>
+                      <Link
+                        href="/admin/rewards"
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                          pathname === "/admin/rewards"
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                      >
+                        <Gift className="h-4 w-4" />
+                        Rewards & Unlocks
+                      </Link>
+                      <Link
+                        href="/admin/manage-unlock-fees"
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                          pathname === "/admin/manage-unlock-fees"
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                      >
+                        <Coins className="h-4 w-4" />
+                        Manage Unlock Fees
                       </Link>
                     </nav>
                   </div>

@@ -380,12 +380,12 @@ export function UnifiedAdminPageClient({
 
       {/* Quick Actions & Search */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Dialog open={isCreateGradeOpen} onOpenChange={setIsCreateGradeOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Grade
+              <Button size="sm" className="h-9 sm:h-10 gap-1.5">
+                <Plus className="h-4 w-4" />
+                <span>Add Grade</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
@@ -395,13 +395,13 @@ export function UnifiedAdminPageClient({
               <CreateGradeForm onSuccess={() => setIsCreateGradeOpen(false)} />
             </DialogContent>
           </Dialog>
-          <Button variant="outline" onClick={expandAll}>
-            <ChevronDownSquare className="h-4 w-4 mr-2" />
-            Expand All
+          <Button variant="outline" size="sm" onClick={expandAll} className="h-9 sm:h-10 gap-1.5">
+            <ChevronDownSquare className="h-4 w-4" />
+            <span>Expand</span>
           </Button>
-          <Button variant="outline" onClick={collapseAll}>
-            <ChevronRightSquare className="h-4 w-4 mr-2" />
-            Collapse All
+          <Button variant="outline" size="sm" onClick={collapseAll} className="h-9 sm:h-10 gap-1.5">
+            <ChevronRightSquare className="h-4 w-4" />
+            <span>Collapse</span>
           </Button>
         </div>
         <div className="relative w-full sm:w-auto sm:min-w-[300px]">

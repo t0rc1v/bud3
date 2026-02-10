@@ -322,14 +322,14 @@ export function UnifiedLearnerPageClient({ initialGrades }: UnifiedLearnerPageCl
         <>
           {/* Search and Actions */}
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={expandAll}>
-                <ChevronDownSquare className="h-4 w-4 mr-2" />
-                Expand All
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={expandAll} className="h-9 sm:h-10 gap-1.5">
+                <ChevronDownSquare className="h-4 w-4" />
+                <span>Expand</span>
               </Button>
-              <Button variant="outline" onClick={collapseAll}>
-                <ChevronRightSquare className="h-4 w-4 mr-2" />
-                Collapse All
+              <Button variant="outline" size="sm" onClick={collapseAll} className="h-9 sm:h-10 gap-1.5">
+                <ChevronRightSquare className="h-4 w-4" />
+                <span>Collapse</span>
               </Button>
             </div>
             <div className="relative w-full sm:w-auto sm:min-w-[300px]">

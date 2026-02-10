@@ -668,7 +668,7 @@ export function AdminFileTree({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-8 w-8 sm:h-6 sm:w-6"
             onClick={expandAll}
             title="Expand All"
           >
@@ -677,7 +677,7 @@ export function AdminFileTree({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-8 w-8 sm:h-6 sm:w-6"
             onClick={collapseAll}
             title="Collapse All"
           >

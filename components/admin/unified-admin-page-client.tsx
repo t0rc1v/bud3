@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronDown,
   ChevronRight,
@@ -78,12 +78,51 @@ export function UnifiedAdminPageClient({
   initialGrades,
 }: UnifiedAdminPageClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [grades, setGrades] = useState<GradeWithFullHierarchy[]>(initialGrades);
 
   // Sync grades when initialGrades changes (after revalidation)
   useEffect(() => {
     setGrades(initialGrades);
   }, [initialGrades]);
+
+  // Handle viewResource query param from file tree dropdown
+  useEffect(() => {
+    const viewResourceId = searchParams.get("viewResource");
+    if (viewResourceId && grades.length > 0) {
+      // Find and load the resource
+      const loadResource = async () => {
+        setIsLoadingResource(true);
+        try {
+          const resource = await getResourceById(viewResourceId);
+          if (resource) {
+            setSelectedResource(resource);
+            // Build breadcrumbs
+            const newBreadcrumbs: BreadcrumbItem[] = [];
+            for (const grade of grades) {
+              for (const subject of grade.subjects) {
+                for (const topic of subject.topics) {
+                  if (topic.resources.some(r => r.id === viewResourceId)) {
+                    newBreadcrumbs.push({ type: "grade", id: grade.id, name: grade.title });
+                    newBreadcrumbs.push({ type: "subject", id: subject.id, name: subject.name });
+                    newBreadcrumbs.push({ type: "topic", id: topic.id, name: topic.title });
+                    newBreadcrumbs.push({ type: "resource", id: resource.id, name: resource.title });
+                    setBreadcrumbs(newBreadcrumbs);
+                    return;
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Failed to load resource:", error);
+        } finally {
+          setIsLoadingResource(false);
+        }
+      };
+      loadResource();
+    }
+  }, [searchParams, grades]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedGrades, setExpandedGrades] = useState<Set<string>>(new Set());

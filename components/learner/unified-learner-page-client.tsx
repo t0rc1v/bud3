@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -62,6 +63,7 @@ interface UnifiedLearnerPageClientProps {
 }
 
 export function UnifiedLearnerPageClient({ initialGrades }: UnifiedLearnerPageClientProps) {
+  const searchParams = useSearchParams();
   const [balance, setBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [grades, setGrades] = useState<GradeData[]>(initialGrades);
@@ -70,6 +72,29 @@ export function UnifiedLearnerPageClient({ initialGrades }: UnifiedLearnerPageCl
   const [expandedGrades, setExpandedGrades] = useState<Set<string>>(new Set());
   const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
+
+  // Handle viewResource query param from file tree dropdown
+  useEffect(() => {
+    const viewResourceId = searchParams.get("viewResource");
+    if (viewResourceId && grades.length > 0) {
+      // Find the resource in grades data
+      for (const grade of grades) {
+        for (const subject of grade.subjects) {
+          for (const topic of subject.topics) {
+            const resource = topic.resources.find(r => r.id === viewResourceId && r.isUnlocked);
+            if (resource) {
+              setViewingResource({
+                ...resource,
+                subjectName: subject.name,
+                topicTitle: topic.title,
+              });
+              return;
+            }
+          }
+        }
+      }
+    }
+  }, [searchParams, grades]);
 
   useEffect(() => {
     loadData();

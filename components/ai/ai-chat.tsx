@@ -66,12 +66,16 @@ interface AIChatProps {
   userId: string;
   initialChatId?: string;
   isOpen?: boolean;
+  resourceToAdd?: Resource | null;
+  onResourceAdded?: () => void;
 }
 
 export function AIChat({
   userId,
   initialChatId,
   isOpen = true,
+  resourceToAdd,
+  onResourceAdded,
 }: AIChatProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -442,6 +446,14 @@ export function AIChat({
   const handleRemoveResource = useCallback((resourceId: string) => {
     setAttachedResources((prev) => prev.filter((r) => r.id !== resourceId));
   }, []);
+
+  // Handle external resource addition from file tree
+  useEffect(() => {
+    if (resourceToAdd) {
+      handleAddResource(resourceToAdd);
+      onResourceAdded?.();
+    }
+  }, [resourceToAdd, handleAddResource, onResourceAdded]);
 
   return (
     <div className="flex h-full flex-col" suppressHydrationWarning>

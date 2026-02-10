@@ -53,6 +53,8 @@ export async function GET(req: Request) {
                       id: resource.id,
                       title: resource.title,
                       type: resource.type,
+                      url: resource.url,
+                      description: resource.description,
                       unlockFee: feeAmount,
                       isUnlocked,
                     };

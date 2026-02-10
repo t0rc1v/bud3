@@ -17,14 +17,26 @@ import {
   AlertCircle,
   Lock,
   Unlock,
+  MoreVertical,
+  Eye,
+  Plus,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
-type TreeItemType = "grade" | "subject" | "topic" | "resource";
+export type TreeItemType = "grade" | "subject" | "topic" | "resource";
 
-interface ResourceData {
+export interface ResourceData {
   id: string;
   title: string;
   type: string;
+  url: string;
+  description?: string;
   unlockFee: number;
   isUnlocked: boolean;
 }
@@ -47,7 +59,7 @@ interface GradeData {
   subjects: SubjectData[];
 }
 
-interface TreeItemData {
+export interface TreeItemData {
   id: string;
   name: string;
   type: TreeItemType;
@@ -65,6 +77,8 @@ interface TreeNodeProps {
   selectedItem: string | null;
   onToggle: (id: string) => void;
   onSelect: (item: TreeItemData) => void;
+  onViewResource?: (item: TreeItemData) => void;
+  onAddResourceToChat?: (item: TreeItemData) => void;
 }
 
 const getItemIcon = (type: TreeItemType, isUnlocked?: boolean) => {
@@ -93,7 +107,12 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   selectedItem,
   onToggle,
   onSelect,
+  onViewResource,
+  onAddResourceToChat,
 }) => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isExpanded = expandedItems.has(item.id);
   const isSelected = selectedItem === item.id;
   const hasChildren = (item.children?.length ?? 0) > 0 || (item.childCount ?? 0) > 0;
@@ -118,6 +137,58 @@ const TreeNode: React.FC<TreeNodeProps> = ({
       e.preventDefault();
       onToggle(item.id);
     }
+  };
+
+  const handleViewResource = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (item.type === "resource" && item.isUnlocked) {
+      // Navigate with viewResource query param to open resource in main content
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("viewResource", item.id);
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+    onViewResource?.(item);
+  };
+
+  const getQuickActionsDropdown = () => {
+    // Only show dropdown for unlocked resources
+    if (item.type !== "resource" || !item.isUnlocked) {
+      return null;
+    }
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreVertical className="h-3 w-3" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onClick={handleViewResource}
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            View Resource
+          </DropdownMenuItem>
+          {onAddResourceToChat && (
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddResourceToChat(item);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add to Chat
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
   };
 
   const paddingLeft = level * 16;
@@ -171,6 +242,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({
             </span>
           )}
         </div>
+
+        {getQuickActionsDropdown()}
       </div>
 
       {isExpanded && item.children && (
@@ -184,6 +257,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({
               selectedItem={selectedItem}
               onToggle={onToggle}
               onSelect={onSelect}
+              onViewResource={onViewResource}
+              onAddResourceToChat={onAddResourceToChat}
             />
           ))}
         </div>
@@ -197,9 +272,18 @@ interface ContentFileTreeProps {
   className?: string;
   userRole: "teacher" | "learner";
   isOpen?: boolean;
+  onViewResource?: (item: TreeItemData) => void;
+  onAddResourceToChat?: (item: TreeItemData) => void;
 }
 
-export function ContentFileTree({ onItemSelect, className, userRole, isOpen = true }: ContentFileTreeProps) {
+export function ContentFileTree({ 
+  onItemSelect, 
+  className, 
+  userRole, 
+  isOpen = true,
+  onViewResource,
+  onAddResourceToChat,
+}: ContentFileTreeProps) {
   const [treeData, setTreeData] = useState<TreeItemData[]>([]);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
@@ -414,6 +498,8 @@ export function ContentFileTree({ onItemSelect, className, userRole, isOpen = tr
                 selectedItem={selectedItem}
                 onToggle={handleToggle}
                 onSelect={handleSelect}
+                onViewResource={onViewResource}
+                onAddResourceToChat={onAddResourceToChat}
               />
             ))
           )}

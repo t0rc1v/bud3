@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { PanelLeft, PanelRight, MessageSquare, Shield, Users, Gift, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AIChat } from "@/components/ai/ai-chat";
+import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
 import { UserButton } from "@clerk/nextjs";
+import type { TreeItemData } from "@/components/admin/admin-file-tree";
+import type { Resource } from "@/lib/types";
 
 interface AdminLayoutClientProps {
   children: ReactNode;
@@ -25,6 +27,9 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
   // Default to closed on mobile, open on desktop (for SSR consistency)
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(!isMobile);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(!isMobile);
+  
+  // State for resource actions from file tree
+  const [resourceToAddToChat, setResourceToAddToChat] = useState<ChatResource | null>(null);
 
   useEffect(() => {
     // After hydration, set isClient to true to allow mobile detection
@@ -33,6 +38,37 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
   }, []);
 
   const pathname = usePathname();
+
+  // Handle view resource from file tree dropdown
+  const handleViewResource = useCallback((item: TreeItemData) => {
+    if (item.type === "resource") {
+      // The file tree component already navigates with the viewResource query param
+      // This callback is for any additional handling if needed
+      console.log("Viewing resource from file tree:", item.id);
+    }
+  }, []);
+
+  // Handle add resource to chat from file tree dropdown
+  const handleAddResourceToChat = useCallback((item: TreeItemData) => {
+    if (item.type === "resource") {
+      const resourceData = item.data as Resource;
+      const resource: ChatResource = {
+        id: resourceData.id,
+        title: resourceData.title,
+        description: resourceData.description || "",
+        url: resourceData.url || "",
+        type: (resourceData.type as "notes" | "video" | "audio" | "image") || "notes",
+      };
+      
+      // Open chat sidebar if closed
+      if (!rightSidebarOpen) {
+        setRightSidebarOpen(true);
+      }
+      
+      // Store resource to be added when chat opens
+      setResourceToAddToChat(resource);
+    }
+  }, [rightSidebarOpen]);
 
   // Prevent hydration mismatch by rendering desktop layout until client-side hydration is complete
   const showMobile = isClient && isMobile;
@@ -58,7 +94,11 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
                   <p className="text-xs text-muted-foreground">Browse content</p>
                 </div>
                 <div className="flex-1 overflow-auto">
-                  <AdminFileTree isOpen={true} />
+                  <AdminFileTree 
+                    isOpen={true}
+                    onViewResource={handleViewResource}
+                    onAddResourceToChat={handleAddResourceToChat}
+                  />
                 </div>
                 {/* Mobile Super Admin Navigation */}
                 {userRole === "super_admin" && (
@@ -109,7 +149,12 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
                   </div>
                   <div className="flex-1 overflow-hidden">
                     {userId && (
-                      <AIChat userId={userId} isOpen={true} />
+                      <AIChat 
+                        userId={userId} 
+                        isOpen={true} 
+                        resourceToAdd={resourceToAddToChat}
+                        onResourceAdded={() => setResourceToAddToChat(null)}
+                      />
                     )}
                   </div>
                 </div>
@@ -142,7 +187,11 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
           </h2>
         </div>
         <div className="flex-1 overflow-auto">
-          <AdminFileTree isOpen={leftSidebarOpen} />
+          <AdminFileTree 
+            isOpen={leftSidebarOpen}
+            onViewResource={handleViewResource}
+            onAddResourceToChat={handleAddResourceToChat}
+          />
         </div>
         
         {/* Admin Navigation */}
@@ -245,7 +294,12 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
         )}
       >
         {userId && (
-          <AIChat userId={userId} isOpen={rightSidebarOpen} />
+          <AIChat 
+            userId={userId} 
+            isOpen={rightSidebarOpen} 
+            resourceToAdd={resourceToAddToChat}
+            onResourceAdded={() => setResourceToAddToChat(null)}
+          />
         )}
       </div>
     </div>

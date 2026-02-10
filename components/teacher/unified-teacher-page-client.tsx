@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronDown,
   ChevronRight,
@@ -93,6 +93,8 @@ export function UnifiedTeacherPageClient({
   teacherId,
   myLearners: initialMyLearners,
 }: UnifiedTeacherPageClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [grades, setGrades] = useState<GradeData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [myLearnersList, setMyLearnersList] = useState<MyLearnerWithDetails[]>(initialMyLearners);
@@ -104,6 +106,29 @@ export function UnifiedTeacherPageClient({
   const [activeTab, setActiveTab] = useState("content");
   const [isAddingLearner, setIsAddingLearner] = useState(false);
   const [balance, setBalance] = useState(0);
+
+  // Handle viewResource query param from file tree dropdown
+  useEffect(() => {
+    const viewResourceId = searchParams.get("viewResource");
+    if (viewResourceId && grades.length > 0) {
+      // Find the resource in grades data
+      for (const grade of grades) {
+        for (const subject of grade.subjects) {
+          for (const topic of subject.topics) {
+            const resource = topic.resources.find(r => r.id === viewResourceId && r.isUnlocked);
+            if (resource) {
+              setViewingResource({
+                ...resource,
+                subjectName: subject.name,
+                topicTitle: topic.title,
+              });
+              return;
+            }
+          }
+        }
+      }
+    }
+  }, [searchParams, grades]);
 
   // Load data with unlock status
   const loadData = async () => {

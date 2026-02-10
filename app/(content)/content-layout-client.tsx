@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { PanelLeft, PanelRight, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
-import { AIChat } from "@/components/ai/ai-chat";
+import { useState, useEffect, useCallback } from "react";
+import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
 import { UserButton } from "@clerk/nextjs";
 import { CreditBadge, CreditModal } from "@/components/credits/credit-modal";
+import type { TreeItemData, ResourceData } from "@/components/content/content-file-tree";
 
 interface ContentLayoutClientProps {
   children: ReactNode;
@@ -24,6 +25,9 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
   // Default to closed on mobile, open on desktop (for SSR consistency)
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(!isMobile);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(!isMobile);
+  
+  // State for resource actions from file tree
+  const [resourceToAddToChat, setResourceToAddToChat] = useState<ChatResource | null>(null);
 
   useEffect(() => {
     // After hydration, set isClient to true to allow mobile detection
@@ -32,6 +36,28 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
   }, []);
 
   const title = userRole === "teacher" ? "Teacher" : "Learner";
+
+  // Handle add resource to chat from file tree dropdown
+  const handleAddResourceToChat = useCallback((item: TreeItemData) => {
+    if (item.type === "resource") {
+      const resourceData = item.data as ResourceData;
+      const resource: ChatResource = {
+        id: resourceData.id,
+        title: resourceData.title,
+        description: resourceData.description || "",
+        url: resourceData.url || "",
+        type: (resourceData.type as "notes" | "video" | "audio" | "image") || "notes",
+      };
+      
+      // Open chat sidebar if closed
+      if (!rightSidebarOpen) {
+        setRightSidebarOpen(true);
+      }
+      
+      // Store resource to be added when chat opens
+      setResourceToAddToChat(resource);
+    }
+  }, [rightSidebarOpen]);
 
   // Prevent hydration mismatch by rendering desktop layout until client-side hydration is complete
   const showMobile = isClient && isMobile;
@@ -57,7 +83,11 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
                   <p className="text-xs text-muted-foreground">Browse content</p>
                 </div>
                 <div className="flex-1 overflow-auto">
-                  <ContentFileTree userRole={userRole} isOpen={true} />
+                  <ContentFileTree 
+                    userRole={userRole} 
+                    isOpen={true} 
+                    onAddResourceToChat={handleAddResourceToChat}
+                  />
                 </div>
               </div>
             </SheetContent>
@@ -88,7 +118,12 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
                   </div>
                   <div className="flex-1 overflow-hidden">
                     {userId && (
-                      <AIChat userId={userId} isOpen={true} />
+                      <AIChat 
+                        userId={userId} 
+                        isOpen={true} 
+                        resourceToAdd={resourceToAddToChat}
+                        onResourceAdded={() => setResourceToAddToChat(null)}
+                      />
                     )}
                   </div>
                 </div>
@@ -121,7 +156,11 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
           </h2>
         </div>
         <div className="flex-1 overflow-auto">
-          <ContentFileTree userRole={userRole} isOpen={leftSidebarOpen} />
+          <ContentFileTree 
+            userRole={userRole} 
+            isOpen={leftSidebarOpen} 
+            onAddResourceToChat={handleAddResourceToChat}
+          />
         </div>
       </div>
       
@@ -177,7 +216,12 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
         )}
       >
         {userId && (
-          <AIChat userId={userId} isOpen={rightSidebarOpen} />
+          <AIChat 
+            userId={userId} 
+            isOpen={rightSidebarOpen} 
+            resourceToAdd={resourceToAddToChat}
+            onResourceAdded={() => setResourceToAddToChat(null)}
+          />
         )}
       </div>
     </div>

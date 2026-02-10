@@ -30,13 +30,16 @@ import {
   ChevronUp,
   Loader2,
   AlertCircle,
+  Eye,
 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   getGrades,
   getSubjects,
@@ -61,9 +64,9 @@ import { CreateSubjectForm } from "./create-subject-form";
 import { CreateTopicForm } from "./create-topic-form";
 import { CreateResourceForm } from "./create-resource-form";
 
-type TreeItemType = "grade" | "subject" | "topic" | "resource";
+export type TreeItemType = "grade" | "subject" | "topic" | "resource";
 
-interface TreeItemData {
+export interface TreeItemData {
   id: string;
   name: string;
   type: TreeItemType;
@@ -82,6 +85,8 @@ interface TreeNodeProps {
   onRefresh: () => void;
   allSubjects: SubjectWithTopicsAndGrade[];
   allTopics: TopicWithResourcesAndSubject[];
+  onViewResource?: (item: TreeItemData) => void;
+  onAddResourceToChat?: (item: TreeItemData) => void;
 }
 
 const getItemIcon = (type: TreeItemType) => {
@@ -109,7 +114,12 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   onRefresh,
   allSubjects,
   allTopics,
+  onViewResource,
+  onAddResourceToChat,
 }) => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isExpanded = expandedItems.has(item.id);
   const isSelected = selectedItem === item.id;
   const hasChildren = (item.children?.length ?? 0) > 0 || (item.childCount ?? 0) > 0;
@@ -117,6 +127,17 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     onToggle(item.id);
+  };
+
+  const handleViewResource = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (item.type === "resource") {
+      // Navigate with viewResource query param to open resource in main content
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("viewResource", item.id);
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+    onViewResource?.(item);
   };
 
   const handleSelect = () => {
@@ -278,6 +299,28 @@ const TreeNode: React.FC<TreeNodeProps> = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {/* Resource-specific actions for all resource items - admin has access to all */}
+              {item.type === "resource" && (
+                <DropdownMenuItem onClick={handleViewResource}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Resource
+                </DropdownMenuItem>
+              )}
+              {item.type === "resource" && onAddResourceToChat && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddResourceToChat(item);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add to Chat
+                </DropdownMenuItem>
+              )}
+              {/* Separator between resource actions and edit/delete */}
+              {item.type === "resource" && (
+                <DropdownMenuSeparator />
+              )}
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
@@ -312,6 +355,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({
               onRefresh={onRefresh}
               allSubjects={allSubjects}
               allTopics={allTopics}
+              onViewResource={onViewResource}
+              onAddResourceToChat={onAddResourceToChat}
             />
           ))}
         </div>
@@ -324,9 +369,17 @@ interface AdminFileTreeProps {
   onItemSelect?: (item: TreeItemData) => void;
   className?: string;
   isOpen?: boolean;
+  onViewResource?: (item: TreeItemData) => void;
+  onAddResourceToChat?: (item: TreeItemData) => void;
 }
 
-export function AdminFileTree({ onItemSelect, className, isOpen = true }: AdminFileTreeProps) {
+export function AdminFileTree({ 
+  onItemSelect, 
+  className, 
+  isOpen = true,
+  onViewResource,
+  onAddResourceToChat,
+}: AdminFileTreeProps) {
   const [treeData, setTreeData] = useState<TreeItemData[]>([]);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
@@ -655,6 +708,8 @@ export function AdminFileTree({ onItemSelect, className, isOpen = true }: AdminF
                 onRefresh={fetchData}
                 allSubjects={allSubjects}
                 allTopics={allTopics}
+                onViewResource={onViewResource}
+                onAddResourceToChat={onAddResourceToChat}
               />
             ))
           )}

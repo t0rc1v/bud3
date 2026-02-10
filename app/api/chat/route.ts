@@ -36,6 +36,29 @@ export async function POST(req: Request) {
     chatId?: string;
   } = await req.json();
 
+  // Check and deduct credits for AI response
+  try {
+    const { checkAndDeductCreditsForAIResponse } = await import('@/lib/actions/credits');
+    const creditCheck = await checkAndDeductCreditsForAIResponse(userId, chatId);
+    
+    if (!creditCheck.success) {
+      return new Response(
+        JSON.stringify({ 
+          error: creditCheck.error || 'Insufficient credits',
+          type: 'INSUFFICIENT_CREDITS',
+          remainingCredits: creditCheck.remainingCredits,
+        }), 
+        { 
+          status: 402, 
+          headers: { 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+  } catch (error) {
+    console.error('Error checking credits:', error);
+    // Continue even if credit check fails - we don't want to block the chat
+  }
+
   // Save the user's message to the database if chatId is provided
   if (chatId && messages.length > 0) {
     try {

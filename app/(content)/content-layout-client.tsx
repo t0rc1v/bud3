@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { AIChat } from "@/components/ai/ai-chat";
 import { UserButton } from "@clerk/nextjs";
+import { CreditBadge, CreditModal } from "@/components/credits/credit-modal";
 
 interface ContentLayoutClientProps {
   children: ReactNode;
@@ -65,6 +66,9 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
           <h1 className="font-semibold">{title}</h1>
           
           <div className="flex items-center gap-2">
+            <div suppressHydrationWarning>
+              <CreditModal trigger={<CreditBadge className="cursor-pointer" />} />
+            </div>
             <div suppressHydrationWarning>
               <UserButton />
             </div>
@@ -139,6 +143,9 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
           </div>
           
           <div className="flex items-center gap-4">
+            <div suppressHydrationWarning>
+              <CreditModal trigger={<CreditBadge className="cursor-pointer" />} />
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">AI Chat</span>
               <Button

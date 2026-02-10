@@ -1,0 +1,101 @@
+import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { 
+  initiateSTKPush, 
+  isValidPhoneNumber, 
+  formatPhoneNumber,
+  CREDIT_PRICING 
+} from "@/lib/mpesa";
+import { createCreditPurchase } from "@/lib/actions/credits";
+
+export async function POST(req: Request) {
+  try {
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const body = await req.json();
+    const { phoneNumber, amount, type = "credits" } = body;
+
+    // Validate inputs
+    if (!phoneNumber || !amount) {
+      return NextResponse.json(
+        { error: "Phone number and amount are required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate amount
+    if (!CREDIT_PRICING.isValidAmount(amount)) {
+      return NextResponse.json(
+        { error: `Minimum purchase amount is Ksh ${CREDIT_PRICING.minimumPurchaseKes}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate phone number
+    if (!isValidPhoneNumber(phoneNumber)) {
+      return NextResponse.json(
+        { error: "Invalid phone number. Please provide a valid Kenyan phone number" },
+        { status: 400 }
+      );
+    }
+
+    const formattedPhone = formatPhoneNumber(phoneNumber);
+    const credits = CREDIT_PRICING.calculateCredits(amount);
+
+    // Create purchase record
+    const purchase = await createCreditPurchase(userId, formattedPhone, amount, type);
+
+    // Initiate STK Push
+    const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/callback`;
+    console.log('Initiating STK Push with callback URL:', callbackUrl);
+    
+    const stkResponse = await initiateSTKPush({
+      phoneNumber: formattedPhone,
+      amount,
+      accountReference: `BUD${purchase.id.slice(-6)}`,
+      transactionDesc: type === "unlock" ? "Content Unlock" : "AI Credits",
+      callbackUrl,
+    });
+
+    if (!stkResponse.success) {
+      return NextResponse.json(
+        { 
+          error: stkResponse.error || "Failed to initiate payment",
+          purchaseId: purchase.id,
+        },
+        { status: 500 }
+      );
+    }
+
+    // Update purchase with request IDs
+    const { updateCreditPurchaseStatus } = await import("@/lib/actions/credits");
+    await updateCreditPurchaseStatus(purchase.id, "processing", {
+      checkoutRequestId: stkResponse.checkoutRequestId,
+      merchantRequestId: stkResponse.merchantRequestId,
+    });
+
+    return NextResponse.json({
+      success: true,
+      purchaseId: purchase.id,
+      checkoutRequestId: stkResponse.checkoutRequestId,
+      merchantRequestId: stkResponse.merchantRequestId,
+      message: "Payment initiated. Please check your phone and enter your M-Pesa PIN",
+      credits: credits,
+      amount: amount,
+    });
+
+  } catch (error) {
+    console.error("Payment initiation error:", error);
+    return NextResponse.json(
+      { error: "Failed to initiate payment" },
+      { status: 500 }
+    );
+  }
+}

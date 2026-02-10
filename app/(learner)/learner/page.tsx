@@ -1,5 +1,3 @@
-import { getGradesFullHierarchy } from "@/lib/actions/teacher";
-import { UnifiedLearnerPageClient } from "@/components/learner/unified-learner-page-client";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getUserByClerkId } from "@/lib/actions/auth";
@@ -19,7 +17,6 @@ export default async function LearnerPage() {
     redirect("/");
   }
 
-  const grades = await getGradesFullHierarchy();
-
-  return <UnifiedLearnerPageClient initialGrades={grades} />;
+  // Redirect to the new dashboard with content unlocking
+  redirect("/learner/dashboard");
 }

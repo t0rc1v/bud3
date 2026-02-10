@@ -1,0 +1,1 @@
+ALTER TABLE "resource" ADD COLUMN "is_locked" boolean DEFAULT true NOT NULL;

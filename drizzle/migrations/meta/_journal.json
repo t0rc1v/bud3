@@ -22,6 +22,34 @@
       "when": 1770616118561,
       "tag": "0002_loose_paper_doll",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1770649739560,
+      "tag": "0003_fuzzy_justice",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1770659074450,
+      "tag": "0004_wide_puppet_master",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1770662702737,
+      "tag": "0005_solid_nicolaos",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1770705031278,
+      "tag": "0006_optimal_killraven",
+      "breakpoints": true
     }
   ]
 }

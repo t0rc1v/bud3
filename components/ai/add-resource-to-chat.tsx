@@ -14,9 +14,10 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, FileText, Video, Headphones, Image as ImageIcon, Check } from "lucide-react";
+import { Plus, FileText, Video, Headphones, Image as ImageIcon, Check, Lock, Unlock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getResources } from "@/lib/actions/teacher";
+import { hasUserUnlockedContent, getUnlockFeeByResource } from "@/lib/actions/credits";
 import type { ResourceWithRelations } from "@/lib/types";
 
 const TYPE_ICONS = {
@@ -41,19 +42,26 @@ export interface Resource {
   type: "notes" | "video" | "audio" | "image";
 }
 
+interface ResourceWithUnlockStatus extends ResourceWithRelations {
+  isUnlocked: boolean;
+  creditsRequired: number;
+}
+
 interface AddResourceToChatProps {
   attachedResources: Resource[];
   onAddResource: (resource: Resource) => void;
   onRemoveResource: (resourceId: string) => void;
+  userId?: string;
 }
 
 export function AddResourceToChat({
   attachedResources,
   onAddResource,
   onRemoveResource,
+  userId,
 }: AddResourceToChatProps) {
   const [open, setOpen] = useState(false);
-  const [resources, setResources] = useState<ResourceWithRelations[]>([]);
+  const [resources, setResources] = useState<ResourceWithUnlockStatus[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -62,8 +70,32 @@ export function AddResourceToChat({
     if (resources.length === 0) {
       setIsLoading(true);
       try {
+        // Get all resources
         const allResources = await getResources();
-        setResources(allResources);
+        
+        // Check unlock status for each resource
+        const resourcesWithStatus = await Promise.all(
+          allResources.map(async (resource) => {
+            let isUnlocked = true; // Default to unlocked if no fee exists
+            let creditsRequired = 0;
+            
+            if (userId) {
+              const unlockFee = await getUnlockFeeByResource(resource.id);
+              if (unlockFee) {
+                creditsRequired = unlockFee.creditsRequired;
+                isUnlocked = await hasUserUnlockedContent(userId, unlockFee.id);
+              }
+            }
+            
+            return {
+              ...resource,
+              isUnlocked,
+              creditsRequired,
+            };
+          })
+        );
+        
+        setResources(resourcesWithStatus);
       } catch (error) {
         console.error("Failed to load resources:", error);
       } finally {
@@ -72,7 +104,10 @@ export function AddResourceToChat({
     }
   };
 
-  const filteredResources = resources.filter(
+  // Filter only unlocked resources
+  const unlockedResources = resources.filter(r => r.isUnlocked);
+  
+  const filteredResources = unlockedResources.filter(
     (resource) =>
       resource.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       resource.description.toLowerCase().includes(searchQuery.toLowerCase())
@@ -81,8 +116,7 @@ export function AddResourceToChat({
   const isAttached = (resourceId: string) =>
     attachedResources.some((r) => r.id === resourceId);
 
-  const handleToggleResource = async (resource: ResourceWithRelations) => {
-    // Simply toggle in local state - no database operations
+  const handleToggleResource = async (resource: ResourceWithUnlockStatus) => {
     if (isAttached(resource.id)) {
       onRemoveResource(resource.id);
     } else {
@@ -96,95 +130,119 @@ export function AddResourceToChat({
     }
   };
 
+  // Count locked resources
+  const lockedCount = resources.filter(r => !r.isUnlocked).length;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" onClick={handleOpen}>
-          <Plus className="h-4 w-4 mr-1" />
-          Add Resource
+        <Button variant="outline" size="sm" onClick={handleOpen}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Resources
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>Add Resources to Chat</DialogTitle>
           <DialogDescription>
-            Select resources to provide context for your conversation. Only notes (PDFs) and images can be directly analyzed by the AI.
+            Select unlocked resources to include in your conversation.
+            {lockedCount > 0 && (
+              <span className="block mt-2 text-yellow-600">
+                <Lock className="h-4 w-4 inline mr-1" />
+                {lockedCount} resources are locked and not shown. 
+                <a href="/learner/dashboard" className="underline">Unlock them first</a>.
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-4">
+        <div className="space-y-4">
           <Input
             placeholder="Search resources..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-        </div>
 
-        <ScrollArea className="flex-1 mt-4 -mx-6 px-6">
-          {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Loading resources...
-            </div>
-          ) : filteredResources.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No resources found
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filteredResources.map((resource) => {
-                const Icon = TYPE_ICONS[resource.type];
-                const attached = isAttached(resource.id);
+          <ScrollArea className="h-[400px] pr-4">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              </div>
+            ) : filteredResources.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {unlockedResources.length === 0 ? (
+                  <>
+                    <Lock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No unlocked resources available</p>
+                    <p className="text-sm mt-2">
+                      <a href="/learner/dashboard" className="text-primary underline">
+                        Go to dashboard to unlock content
+                      </a>
+                    </p>
+                  </>
+                ) : (
+                  <p>No resources match your search</p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredResources.map((resource) => {
+                  const Icon = TYPE_ICONS[resource.type];
+                  const attached = isAttached(resource.id);
 
-                return (
-                  <div
-                    key={resource.id}
-                    className={cn(
-                      "flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-pointer",
-                      attached
-                        ? "border-primary bg-primary/5"
-                        : "hover:bg-muted"
-                    )}
-                    onClick={() => handleToggleResource(resource)}
-                  >
-                    <Checkbox checked={attached} className="mt-1 pointer-events-none" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Icon className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium truncate">
-                          {resource.title}
-                        </span>
+                  return (
+                    <div
+                      key={resource.id}
+                      onClick={() => handleToggleResource(resource)}
+                      className={cn(
+                        "flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors",
+                        attached
+                          ? "bg-primary/10 border border-primary/20"
+                          : "hover:bg-muted border border-transparent"
+                      )}
+                    >
+                      <Checkbox
+                        checked={attached}
+                        onChange={() => {}}
+                        className="mt-1"
+                      />
+                      <div
+                        className={cn(
+                          "p-2 rounded-lg",
+                          TYPE_COLORS[resource.type]
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
                       </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {resource.description}
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Badge
-                          variant="secondary"
-                          className={cn("text-xs", TYPE_COLORS[resource.type])}
-                        >
-                          {resource.type}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {resource.subject.name} · {resource.topic?.title}
-                        </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium truncate">
+                            {resource.title}
+                          </h4>
+                          {attached && (
+                            <Check className="h-4 w-4 text-primary" />
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {resource.description}
+                        </p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge
+                            variant="secondary"
+                            className={cn("text-xs", TYPE_COLORS[resource.type])}
+                          >
+                            {resource.type}
+                          </Badge>
+                          <Unlock className="h-3 w-3 text-green-600" />
+                          <span className="text-xs text-green-600">Unlocked</span>
+                        </div>
                       </div>
                     </div>
-                    {attached && (
-                      <Check className="h-5 w-5 text-primary shrink-0" />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </ScrollArea>
-
-        <div className="mt-4 pt-4 border-t flex justify-between items-center">
-          <span className="text-sm text-muted-foreground">
-            {attachedResources.length} resource
-            {attachedResources.length !== 1 ? "s" : ""} attached
-          </span>
-          <Button onClick={() => setOpen(false)}>Done</Button>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
         </div>
       </DialogContent>
     </Dialog>

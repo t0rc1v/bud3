@@ -530,7 +530,7 @@ export async function checkUserPermission(
 ): Promise<boolean> {
   // Super admin always has all permissions
   const userData = await db.query.user.findFirst({
-    where: eq(user.id, userId),
+    where: eq(user.userId, userId),
   });
 
   if (userData?.role === "super_admin") {

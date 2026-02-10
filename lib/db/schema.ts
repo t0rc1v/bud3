@@ -314,10 +314,184 @@ export const aiMemoryRelations = relations(aiMemory, ({ one }) => ({
   }),
 }));
 
-// Update user relations to include chat and memory
+// Update user relations to include chat, memory, and credit
 export const userRelationsExtended = relations(user, ({ many }) => ({
   chats: many(chat),
   aiMemories: many(aiMemory),
+  credit: many(userCredit),
+  creditTransactions: many(creditTransaction),
+  creditPurchases: many(creditPurchase),
+  unlockedContent: many(unlockedContent),
+}));
+
+// Credit System Tables
+export const userCredit = pgTable("user_credit", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: varchar('user_id', { length: 255 })
+    .notNull()
+    .references(() => user.userId, { onDelete: 'cascade' }),
+  balance: integer('balance').notNull().default(0),
+  totalPurchased: integer('total_purchased').notNull().default(0),
+  totalUsed: integer('total_used').notNull().default(0),
+  updatedAt,
+}, (table) => ({
+  uniqueUserCredit: { columns: [table.userId] },
+}));
+
+// Credit transaction types
+export const transactionTypeEnum = pgEnum("transaction_type", [
+  "purchase",
+  "usage",
+  "refund",
+  "gift",
+  "unlock",
+  "bonus"
+]);
+
+// Credit transaction history
+export const creditTransaction = pgTable("credit_transaction", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: varchar('user_id', { length: 255 })
+    .notNull()
+    .references(() => user.userId, { onDelete: 'cascade' }),
+  type: transactionTypeEnum('type').notNull(),
+  amount: integer('amount').notNull(), // positive for credits added, negative for credits used
+  balanceAfter: integer('balance_after').notNull(),
+  description: text('description'),
+  metadata: jsonb('metadata'), // Additional info like resourceId, chatId, etc.
+  createdAt,
+});
+
+// M-Pesa payment tracking
+export const paymentStatusEnum = pgEnum("payment_status", [
+  "pending",
+  "processing",
+  "completed",
+  "failed",
+  "cancelled",
+  "refunded"
+]);
+
+export const purchaseTypeEnum = pgEnum("purchase_type", [
+  "credits",
+  "unlock"
+]);
+
+export const creditPurchase = pgTable("credit_purchase", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: varchar('user_id', { length: 255 })
+    .notNull()
+    .references(() => user.userId, { onDelete: 'cascade' }),
+  mpesaReceiptNumber: varchar('mpesa_receipt_number', { length: 50 }),
+  checkoutRequestId: varchar('checkout_request_id', { length: 100 }),
+  merchantRequestId: varchar('merchant_request_id', { length: 100 }),
+  phoneNumber: varchar('phone_number', { length: 20 }),
+  amountKes: integer('amount_kes').notNull(), // Amount in KES (Ksh)
+  creditsPurchased: integer('credits_purchased').notNull(),
+  purchaseType: purchaseTypeEnum('purchase_type').notNull().default("credits"),
+  status: paymentStatusEnum('status').notNull().default("pending"),
+  resultCode: varchar('result_code', { length: 10 }),
+  resultDesc: text('result_desc'),
+  transactionDate: timestamp('transaction_date', { withTimezone: true }),
+  metadata: jsonb('metadata'),
+  createdAt,
+  updatedAt,
+});
+
+// Unlock fees configuration
+export const unlockableTypeEnum = pgEnum("unlockable_type", [
+  "resource",
+  "topic",
+  "subject"
+]);
+
+export const unlockFee = pgTable("unlock_fee", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  type: unlockableTypeEnum('type').notNull(),
+  resourceId: uuid('resource_id').references(() => resource.id, { onDelete: 'cascade' }),
+  topicId: uuid('topic_id').references(() => topic.id, { onDelete: 'cascade' }),
+  subjectId: uuid('subject_id').references(() => subject.id, { onDelete: 'cascade' }),
+  feeAmount: integer('fee_amount').notNull().default(100), // Default Ksh 100
+  creditsRequired: integer('credits_required').notNull().default(50), // Credits needed to unlock
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+}, (table) => ({
+  // Ensure only one of resource/topic/subject is set
+  checkResource: { columns: [table.type, table.resourceId] },
+  checkTopic: { columns: [table.type, table.topicId] },
+  checkSubject: { columns: [table.type, table.subjectId] },
+}));
+
+// Track unlocked content per user
+// Note: All unlocks are done via direct M-Pesa payment (not credits)
+// Credits are only used for AI chat responses
+export const unlockedContent = pgTable("unlocked_content", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: varchar('user_id', { length: 255 })
+    .notNull()
+    .references(() => user.userId, { onDelete: 'cascade' }),
+  unlockFeeId: uuid('unlock_fee_id')
+    .notNull()
+    .references(() => unlockFee.id, { onDelete: 'cascade' }),
+  // M-Pesa payment receipt number for tracking
+  paymentReference: varchar('payment_reference', { length: 100 }),
+  // Amount paid in KES (for record keeping)
+  amountPaidKes: integer('amount_paid_kes').notNull().default(0),
+  unlockedAt: timestamp('unlocked_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt,
+}, (table) => ({
+  uniqueUserUnlock: { columns: [table.userId, table.unlockFeeId] },
+}));
+
+// Relations for credit tables
+export const userCreditRelations = relations(userCredit, ({ one, many }) => ({
+  user: one(user, {
+    fields: [userCredit.userId],
+    references: [user.userId],
+  }),
+  transactions: many(creditTransaction),
+}));
+
+export const creditTransactionRelations = relations(creditTransaction, ({ one }) => ({
+  user: one(user, {
+    fields: [creditTransaction.userId],
+    references: [user.userId],
+  }),
+}));
+
+export const creditPurchaseRelations = relations(creditPurchase, ({ one }) => ({
+  user: one(user, {
+    fields: [creditPurchase.userId],
+    references: [user.userId],
+  }),
+}));
+
+export const unlockFeeRelations = relations(unlockFee, ({ one, many }) => ({
+  resource: one(resource, {
+    fields: [unlockFee.resourceId],
+    references: [resource.id],
+  }),
+  topic: one(topic, {
+    fields: [unlockFee.topicId],
+    references: [topic.id],
+  }),
+  subject: one(subject, {
+    fields: [unlockFee.subjectId],
+    references: [subject.id],
+  }),
+  unlockedBy: many(unlockedContent),
+}));
+
+export const unlockedContentRelations = relations(unlockedContent, ({ one }) => ({
+  user: one(user, {
+    fields: [unlockedContent.userId],
+    references: [user.userId],
+  }),
+  unlockFee: one(unlockFee, {
+    fields: [unlockedContent.unlockFeeId],
+    references: [unlockFee.id],
+  }),
 }));
 
 // AI Generated Assignments Table - for teacher-created printable assignments

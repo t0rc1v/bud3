@@ -6,11 +6,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
   ChevronRight,
   ChevronDown,
   Folder,
@@ -20,34 +15,47 @@ import {
   ChevronUp,
   Loader2,
   AlertCircle,
+  Lock,
+  Unlock,
 } from "lucide-react";
-import {
-  getGrades,
-  getSubjects,
-  getTopics,
-  getResources,
-} from "@/lib/actions/teacher";
-import type {
-  Grade,
-  Subject,
-  Topic,
-  Resource,
-  GradeWithSubjects,
-  SubjectWithTopics,
-  TopicWithResources,
-  SubjectWithTopicsAndGrade,
-  TopicWithResourcesAndSubject,
-} from "@/lib/types";
 
 type TreeItemType = "grade" | "subject" | "topic" | "resource";
+
+interface ResourceData {
+  id: string;
+  title: string;
+  type: string;
+  unlockFee: number;
+  isUnlocked: boolean;
+}
+
+interface TopicData {
+  id: string;
+  title: string;
+  resources: ResourceData[];
+}
+
+interface SubjectData {
+  id: string;
+  name: string;
+  topics: TopicData[];
+}
+
+interface GradeData {
+  id: string;
+  title: string;
+  subjects: SubjectData[];
+}
 
 interface TreeItemData {
   id: string;
   name: string;
   type: TreeItemType;
-  data: Grade | Subject | Topic | Resource;
+  data: GradeData | SubjectData | TopicData | ResourceData;
   children?: TreeItemData[];
   childCount?: number;
+  isUnlocked?: boolean;
+  unlockFee?: number;
 }
 
 interface TreeNodeProps {
@@ -59,7 +67,7 @@ interface TreeNodeProps {
   onSelect: (item: TreeItemData) => void;
 }
 
-const getItemIcon = (type: TreeItemType) => {
+const getItemIcon = (type: TreeItemType, isUnlocked?: boolean) => {
   switch (type) {
     case "grade":
       return <GraduationCap className="h-4 w-4 text-blue-500" />;
@@ -68,7 +76,11 @@ const getItemIcon = (type: TreeItemType) => {
     case "topic":
       return <Folder className="h-4 w-4 text-amber-500" />;
     case "resource":
-      return <FileText className="h-4 w-4 text-gray-500" />;
+      return isUnlocked ? (
+        <Unlock className="h-4 w-4 text-green-500" />
+      ) : (
+        <Lock className="h-4 w-4 text-yellow-500" />
+      );
     default:
       return <FileText className="h-4 w-4" />;
   }
@@ -143,8 +155,16 @@ const TreeNode: React.FC<TreeNodeProps> = ({
         </Button>
 
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          {getItemIcon(item.type)}
+          {getItemIcon(item.type, item.isUnlocked)}
           <span className="text-sm truncate">{item.name}</span>
+          {item.type === "resource" && (
+            <span className={cn(
+              "text-xs ml-1",
+              item.isUnlocked ? "text-green-600" : "text-yellow-600"
+            )}>
+              {item.isUnlocked ? "Unlocked" : `Ksh ${item.unlockFee}`}
+            </span>
+          )}
           {!isExpanded && item.childCount && item.childCount > 0 && (
             <span className="text-xs text-muted-foreground ml-1">
               ({item.childCount})
@@ -187,26 +207,18 @@ export function ContentFileTree({ onItemSelect, className, userRole, isOpen = tr
   const [error, setError] = useState<string | null>(null);
 
   const buildTreeData = useCallback(
-    (
-      grades: GradeWithSubjects[],
-      subjects: SubjectWithTopics[],
-      topics: TopicWithResources[],
-      resources: Resource[]
-    ): TreeItemData[] => {
+    (grades: GradeData[]): TreeItemData[] => {
       return grades.map((grade) => {
-        const gradeSubjects = subjects.filter((s) => s.gradeId === grade.id);
-        const subjectTreeItems: TreeItemData[] = gradeSubjects.map((subject) => {
-          const subjectTopics = topics.filter((t) => t.subjectId === subject.id);
-          const topicTreeItems: TreeItemData[] = subjectTopics.map((topic) => {
-            const topicResources = resources.filter(
-              (r) => r.topicId === topic.id
-            );
-            const resourceTreeItems: TreeItemData[] = topicResources.map(
+        const subjectTreeItems: TreeItemData[] = grade.subjects.map((subject) => {
+          const topicTreeItems: TreeItemData[] = subject.topics.map((topic) => {
+            const resourceTreeItems: TreeItemData[] = topic.resources.map(
               (resource) => ({
                 id: resource.id,
                 name: resource.title,
                 type: "resource",
                 data: resource,
+                isUnlocked: resource.isUnlocked,
+                unlockFee: resource.unlockFee,
               })
             );
 
@@ -248,17 +260,13 @@ export function ContentFileTree({ onItemSelect, className, userRole, isOpen = tr
       setIsLoading(true);
       setError(null);
 
-      const [gradesData, subjectsData, topicsData, resourcesData] = await Promise.all([
-        getGrades(),
-        getSubjects(),
-        getTopics(),
-        getResources(),
-      ]);
+      const response = await fetch("/api/content/hierarchy-with-unlock-status");
+      if (!response.ok) {
+        throw new Error("Failed to fetch content");
+      }
 
-      const validSubjects = subjectsData;
-      const validTopics = topicsData;
-
-      const tree = buildTreeData(gradesData, validSubjects as unknown as SubjectWithTopics[], validTopics as unknown as TopicWithResources[], resourcesData);
+      const data = await response.json();
+      const tree = buildTreeData(data.grades);
       setTreeData(tree);
     } catch (err) {
       setError("Failed to load data");
@@ -269,7 +277,6 @@ export function ContentFileTree({ onItemSelect, className, userRole, isOpen = tr
   }, [buildTreeData]);
 
   useEffect(() => {
-    // Only load data when sidebar is open
     if (isOpen) {
       fetchData();
     } else {
@@ -316,7 +323,6 @@ export function ContentFileTree({ onItemSelect, className, userRole, isOpen = tr
   if (isLoading) {
     return (
       <div className={cn("flex flex-col h-full p-3 space-y-2", className)}>
-        {/* Toolbar skeleton */}
         <div className="flex items-center justify-between py-2">
           <div className="h-4 bg-muted rounded w-20 animate-pulse"></div>
           <div className="flex gap-1">
@@ -324,62 +330,12 @@ export function ContentFileTree({ onItemSelect, className, userRole, isOpen = tr
             <div className="h-6 w-6 bg-muted rounded animate-pulse"></div>
           </div>
         </div>
-        {/* Tree items skeleton */}
         <div className="space-y-2 flex-1">
-          {/* Grade 1 */}
           <div className="flex items-center gap-2 p-2">
             <div className="h-4 w-4 bg-muted rounded animate-pulse"></div>
             <div className="h-4 w-4 bg-muted rounded-full animate-pulse"></div>
             <div className="h-4 bg-muted rounded w-32 animate-pulse"></div>
           </div>
-          {/* Grade 1 subjects */}
-          <div className="space-y-1.5 pl-6">
-            <div className="flex items-center gap-2">
-              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
-              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
-              <div className="h-3.5 bg-muted rounded w-24 animate-pulse"></div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
-              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
-              <div className="h-3.5 bg-muted rounded w-28 animate-pulse"></div>
-            </div>
-          </div>
-          {/* Grade 2 */}
-          <div className="flex items-center gap-2 p-2">
-            <div className="h-4 w-4 bg-muted rounded animate-pulse"></div>
-            <div className="h-4 w-4 bg-muted rounded-full animate-pulse"></div>
-            <div className="h-4 bg-muted rounded w-28 animate-pulse"></div>
-          </div>
-          {/* Grade 3 */}
-          <div className="flex items-center gap-2 p-2">
-            <div className="h-4 w-4 bg-muted rounded animate-pulse"></div>
-            <div className="h-4 w-4 bg-muted rounded-full animate-pulse"></div>
-            <div className="h-4 bg-muted rounded w-36 animate-pulse"></div>
-          </div>
-          {/* Grade 3 subjects */}
-          <div className="space-y-1.5 pl-6">
-            <div className="flex items-center gap-2">
-              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
-              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
-              <div className="h-3.5 bg-muted rounded w-20 animate-pulse"></div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
-              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
-              <div className="h-3.5 bg-muted rounded w-24 animate-pulse"></div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
-              <div className="h-3.5 w-3.5 bg-muted rounded animate-pulse"></div>
-              <div className="h-3.5 bg-muted rounded w-22 animate-pulse"></div>
-            </div>
-          </div>
-        </div>
-        {/* Status bar skeleton */}
-        <div className="flex items-center justify-between py-2 border-t">
-          <div className="h-3 bg-muted rounded w-16 animate-pulse"></div>
-          <div className="h-3 bg-muted rounded w-20 animate-pulse"></div>
         </div>
       </div>
     );
@@ -427,6 +383,16 @@ export function ContentFileTree({ onItemSelect, className, userRole, isOpen = tr
             <ChevronUp className="h-4 w-4" />
           </Button>
         </div>
+      </div>
+
+      {/* Legend */}
+      <div className="px-3 py-2 border-b text-xs text-muted-foreground flex gap-3">
+        <span className="flex items-center gap-1">
+          <Lock className="h-3 w-3 text-yellow-500" /> Locked
+        </span>
+        <span className="flex items-center gap-1">
+          <Unlock className="h-3 w-3 text-green-500" /> Unlocked
+        </span>
       </div>
 
       {/* Tree Content */}

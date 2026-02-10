@@ -454,6 +454,7 @@ export function AIChat({
         <div className="flex items-center gap-1">
           <AddResourceToChat
             attachedResources={attachedResources}
+            userId={userId}
             onAddResource={handleAddResource}
             onRemoveResource={handleRemoveResource}
           />

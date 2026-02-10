@@ -5,7 +5,7 @@ import { AdminFileTree } from "@/components/admin/admin-file-tree";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { PanelLeft, PanelRight, MessageSquare, Shield, Users } from "lucide-react";
+import { PanelLeft, PanelRight, MessageSquare, Shield, Users, Gift, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -145,13 +145,13 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
           <AdminFileTree isOpen={leftSidebarOpen} />
         </div>
         
-        {/* Super Admin Navigation */}
-        {userRole === "super_admin" && (
+        {/* Admin Navigation */}
+        {(userRole === "super_admin" || userRole === "admin") && (
           <div className="border-t p-4">
             <div className={cn("mb-2 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
               <div className="flex items-center gap-2 text-sm font-semibold text-primary">
                 <Shield className="h-4 w-4" />
-                Super Admin
+                Admin Tools
               </div>
             </div>
             <nav className={cn("space-y-1 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
@@ -166,6 +166,30 @@ export function AdminLayoutClient({ children, userId, userRole }: AdminLayoutCli
               >
                 <Users className="h-4 w-4" />
                 Manage Admins
+              </Link>
+              <Link
+                href="/admin/rewards"
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                  pathname === "/admin/rewards"
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Gift className="h-4 w-4" />
+                Rewards & Unlocks
+              </Link>
+              <Link
+                href="/admin/manage-unlock-fees"
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                  pathname === "/admin/manage-unlock-fees"
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Coins className="h-4 w-4" />
+                Manage Unlock Fees
               </Link>
             </nav>
           </div>

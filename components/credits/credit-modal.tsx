@@ -60,6 +60,8 @@ interface CreditBalance {
 interface CreditModalProps {
   trigger?: React.ReactNode;
   className?: string;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 type PaymentStatus = 
@@ -96,8 +98,15 @@ const PaymentStatusConfig: Record<PaymentStatus, { icon: React.ElementType; colo
   error: { icon: XCircle, color: "text-red-600", bgColor: "bg-red-50" },
 };
 
-export function CreditModal({ trigger, className }: CreditModalProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function CreditModal({ trigger, className, isOpen: controlledIsOpen, onOpenChange }: CreditModalProps) {
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
+  const setIsOpen = (open: boolean) => {
+    if (controlledIsOpen === undefined) {
+      setInternalIsOpen(open);
+    }
+    onOpenChange?.(open);
+  };
   const [balance, setBalance] = useState<CreditBalance | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [paymentState, setPaymentState] = useState<PaymentState>({ 
@@ -534,16 +543,21 @@ export function CreditModal({ trigger, className }: CreditModalProps) {
     );
   };
 
+  // Show default trigger button only in uncontrolled mode when no trigger provided
+  const showDefaultTrigger = !trigger && controlledIsOpen === undefined;
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button variant="outline" className={cn("gap-2", className)}>
-            <Coins className="h-4 w-4" />
-            <span>Buy Credits</span>
-          </Button>
-        )}
-      </DialogTrigger>
+      {(trigger || showDefaultTrigger) && (
+        <DialogTrigger asChild>
+          {trigger || (
+            <Button variant="outline" className={cn("gap-2", className)}>
+              <Coins className="h-4 w-4" />
+              <span>Buy Credits</span>
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

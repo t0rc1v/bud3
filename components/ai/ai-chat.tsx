@@ -25,6 +25,8 @@ import {
   ChevronDown,
   Sparkles,
   MessageSquare,
+  Coins,
+  AlertCircle,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -47,6 +49,8 @@ import {
   SearchResultsOutput,
   type ToolState,
 } from "@/components/ai-elements/tool";
+import { CreditModal } from "@/components/credits/credit-modal";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const TYPE_ICONS = {
   notes: FileText,
@@ -94,6 +98,8 @@ export function AIChat({
   const [textareaRows, setTextareaRows] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [creditError, setCreditError] = useState<{ message: string; remainingCredits?: number } | null>(null);
+  const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
   
   // Detect mobile device - use state + useEffect to avoid hydration mismatch
   useEffect(() => {
@@ -129,7 +135,7 @@ export function AIChat({
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [router, pathname, searchParams]);
 
-  const { messages, sendMessage, status, stop, setMessages } = useChat({
+  const { messages, sendMessage, status, stop, setMessages, error } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
       body: () => ({
@@ -137,6 +143,22 @@ export function AIChat({
       }),
     }),
     id: chatId || "default",
+    onError: (err) => {
+      // Check if it's a credit error (402 status)
+      if (err instanceof Error) {
+        try {
+          const errorData = JSON.parse(err.message);
+          if (errorData.type === 'INSUFFICIENT_CREDITS') {
+            setCreditError({
+              message: errorData.error || 'Insufficient credits',
+              remainingCredits: errorData.remainingCredits,
+            });
+          }
+        } catch {
+          // Not a JSON error, ignore
+        }
+      }
+    },
   });
 
   // Sync chatId state with URL when URL changes
@@ -883,6 +905,43 @@ export function AIChat({
                 </div>
               </div>
             )))}
+            {/* Depleted Credits Error */}
+            {creditError && (
+              <div className="flex justify-center">
+                <Alert variant="destructive" className="max-w-md">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Insufficient Credits</AlertTitle>
+                  <AlertDescription className="space-y-3">
+                    <p>{creditError.message}</p>
+                    {creditError.remainingCredits !== undefined && (
+                      <p className="text-sm">
+                        Current balance: <strong>{creditError.remainingCredits} credits</strong>
+                      </p>
+                    )}
+                    <CreditModal
+                      isOpen={isCreditModalOpen}
+                      onOpenChange={(open: boolean) => {
+                        setIsCreditModalOpen(open);
+                        if (!open) {
+                          // Clear credit error when modal closes
+                          setCreditError(null);
+                        }
+                      }}
+                    />
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={() => setIsCreditModalOpen(true)}
+                    >
+                      <Coins className="h-4 w-4" />
+                      Buy Credits
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+
             {(status === "submitted" || status === "streaming") && (
               <div className="flex items-center gap-2 text-muted-foreground text-sm">
                 {status === "submitted" ? (

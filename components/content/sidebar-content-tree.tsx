@@ -61,6 +61,7 @@ import { CreateResourceForm } from "@/components/admin/create-resource-form";
 import { EditGradeForm } from "@/components/admin/edit-grade-form";
 import { EditSubjectForm } from "@/components/admin/edit-subject-form";
 import { EditTopicForm } from "@/components/admin/edit-topic-form";
+import { EditResourceForm } from "@/components/admin/edit-resource-form";
 import {
   deleteGradeWithSession,
   deleteSubjectWithSession,
@@ -74,6 +75,7 @@ import type {
   SubjectWithTopics,
   TopicWithResources,
   Resource,
+  ResourceWithRelations,
   Grade,
   Subject,
   Topic,
@@ -160,6 +162,7 @@ export function SidebarContentTree({
   const [deleteCallback, setDeleteCallback] = useState<(() => Promise<void>) | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<{ id: string; type: string; data: unknown } | null>(null);
+  const [isLoadingEditResource, setIsLoadingEditResource] = useState(false);
 
   // Separate content by owner role
   const myGrades = useMemo(() => 
@@ -348,6 +351,23 @@ export function SidebarContentTree({
     setIsEditDialogOpen(false);
     setItemToEdit(null);
     router.refresh();
+  };
+
+  const handleEditResource = async (resource: Resource) => {
+    setItemToEdit({ id: resource.id, type: "resource", data: resource });
+    setIsEditDialogOpen(true);
+    setIsLoadingEditResource(true);
+    
+    try {
+      const fullResource = await getResourceById(resource.id);
+      if (fullResource) {
+        setItemToEdit({ id: resource.id, type: "resource", data: fullResource });
+      }
+    } catch (error) {
+      console.error("Failed to load resource for editing:", error);
+    } finally {
+      setIsLoadingEditResource(false);
+    }
   };
 
   // View resource
@@ -574,6 +594,7 @@ export function SidebarContentTree({
                     onEditGrade={enableCrud ? (g) => openEditDialog({ id: g.id, type: "grade", data: g }) : undefined}
                     onEditSubject={enableCrud ? (s) => openEditDialog({ id: s.id, type: "subject", data: s }) : undefined}
                     onEditTopic={enableCrud ? (t) => openEditDialog({ id: t.id, type: "topic", data: t }) : undefined}
+                    onEditResource={enableCrud ? handleEditResource : undefined}
                     userId={userId}
                     activeTab={activeTab}
                   />
@@ -615,7 +636,7 @@ export function SidebarContentTree({
 
         {/* Edit Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className={itemToEdit?.type === "resource" ? "sm:max-w-[600px] max-h-[90vh] overflow-y-auto" : "sm:max-w-[425px]"}>
             <DialogHeader>
               <DialogTitle>Edit {itemToEdit?.type}</DialogTitle>
             </DialogHeader>
@@ -638,6 +659,50 @@ export function SidebarContentTree({
                 subjects={allSubjects}
                 onSuccess={handleEditSuccess}
               />
+            )}
+            {itemToEdit?.type === "resource" && (
+              isLoadingEditResource ? (
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <div className="h-4 w-20 bg-muted rounded animate-pulse" />
+                    <div className="h-10 bg-muted rounded animate-pulse" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+                    <div className="h-24 bg-muted rounded animate-pulse" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+                      <div className="h-10 bg-muted rounded animate-pulse" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+                      <div className="h-10 bg-muted rounded animate-pulse" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-4 w-20 bg-muted rounded animate-pulse" />
+                    <div className="h-10 bg-muted rounded animate-pulse" />
+                  </div>
+                  <div className="flex justify-end gap-2 pt-4">
+                    <div className="h-10 w-24 bg-muted rounded animate-pulse" />
+                    <div className="h-10 w-24 bg-muted rounded animate-pulse" />
+                  </div>
+                </div>
+              ) : (
+                <EditResourceForm
+                  resource={itemToEdit.data as ResourceWithRelations}
+                  subjects={currentTabGrades.flatMap(g => g.subjects.map(s => ({ 
+                    id: s.id, 
+                    name: s.name, 
+                    grade: { id: g.id, title: g.title } 
+                  })))}
+                  topics={allTopics.map(t => ({ id: t.id, title: t.title, subjectId: t.subjectId }))}
+                  onSuccess={handleEditSuccess}
+                  onCancel={() => setIsEditDialogOpen(false)}
+                />
+              )
             )}
           </DialogContent>
         </Dialog>
@@ -702,6 +767,7 @@ interface GradeNodeProps {
   onEditGrade?: (grade: GradeWithFullHierarchy) => void;
   onEditSubject?: (subject: SubjectWithTopics) => void;
   onEditTopic?: (topic: TopicWithResources) => void;
+  onEditResource?: (resource: Resource) => void;
   userId: string;
   activeTab: ContentTab;
 }
@@ -723,6 +789,7 @@ function GradeNode({
   onEditGrade,
   onEditSubject,
   onEditTopic,
+  onEditResource,
   userId,
   activeTab,
 }: GradeNodeProps) {
@@ -839,6 +906,7 @@ function GradeNode({
               onDeleteResource={onDeleteResource}
               onEditSubject={onEditSubject}
               onEditTopic={onEditTopic}
+              onEditResource={onEditResource}
               userId={userId}
               activeTab={activeTab}
             />
@@ -863,6 +931,7 @@ interface SubjectNodeProps {
   onDeleteResource?: (id: string) => void;
   onEditSubject?: (subject: SubjectWithTopics) => void;
   onEditTopic?: (topic: TopicWithResources) => void;
+  onEditResource?: (resource: Resource) => void;
   userId: string;
   activeTab: ContentTab;
 }
@@ -880,6 +949,7 @@ function SubjectNode({
   onDeleteResource,
   onEditSubject,
   onEditTopic,
+  onEditResource,
   userId,
   activeTab,
 }: SubjectNodeProps) {
@@ -994,6 +1064,7 @@ function SubjectNode({
               onDeleteTopic={onDeleteTopic}
               onDeleteResource={onDeleteResource}
               onEditTopic={onEditTopic}
+              onEditResource={onEditResource}
               userId={userId}
               activeTab={activeTab}
             />
@@ -1014,6 +1085,7 @@ interface TopicNodeProps {
   onDeleteTopic?: (id: string) => void;
   onDeleteResource?: (id: string) => void;
   onEditTopic?: (topic: TopicWithResources) => void;
+  onEditResource?: (resource: Resource) => void;
   userId: string;
   activeTab: ContentTab;
 }
@@ -1027,6 +1099,7 @@ function TopicNode({
   onDeleteTopic,
   onDeleteResource,
   onEditTopic,
+  onEditResource,
   userId,
   activeTab,
 }: TopicNodeProps) {
@@ -1131,6 +1204,7 @@ function TopicNode({
               onView={() => onViewResource(resource)}
               onAddToChat={() => onAddToChat(resource)}
               onDelete={onDeleteResource}
+              onEdit={onEditResource}
               userId={userId}
               activeTab={activeTab}
             />
@@ -1147,6 +1221,7 @@ interface ResourceNodeProps {
   onView: () => void;
   onAddToChat: () => void;
   onDelete?: (id: string) => void;
+  onEdit?: (resource: Resource) => void | Promise<void>;
   userId: string;
   activeTab: ContentTab;
 }
@@ -1156,11 +1231,13 @@ function ResourceNode({
   onView,
   onAddToChat,
   onDelete,
+  onEdit,
   userId,
   activeTab,
 }: ResourceNodeProps) {
   const isOwner = resource.ownerId === userId;
   const canDelete = onDelete && isOwner && activeTab === "my";
+  const canEdit = onEdit && isOwner && activeTab === "my";
   const [isUnlocked, setIsUnlocked] = useState(!resource.isLocked);
 
   const handleUnlockSuccess = () => {
@@ -1220,6 +1297,12 @@ function ResourceNode({
               <Plus className="h-3 w-3 mr-2" />
               Add to Chat
             </DropdownMenuItem>
+            {canEdit && (
+              <DropdownMenuItem onClick={() => onEdit?.(resource)}>
+                <Edit className="h-3 w-3 mr-2" />
+                Edit
+              </DropdownMenuItem>
+            )}
             {canDelete && (
               <DropdownMenuItem
                 className="text-destructive"

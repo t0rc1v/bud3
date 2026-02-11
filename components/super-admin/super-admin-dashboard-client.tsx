@@ -557,16 +557,17 @@ export function SuperAdminDashboardClient({
       </div>
 
       {/* System Overview Stats */}
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-3 sm:gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
               <Users className="h-4 w-4 text-blue-500" />
-              Total Users
+              <span className="hidden sm:inline">Total Users</span>
+              <span className="sm:hidden">Users</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{initialStats.totalUsers}</div>
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold">{initialStats.totalUsers}</div>
             <p className="text-xs text-muted-foreground">
               {initialStats.totalRegulars} regulars, {initialStats.totalAdmins} admins
             </p>
@@ -574,130 +575,51 @@ export function SuperAdminDashboardClient({
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
               <GraduationCap className="h-4 w-4 text-green-500" />
               Grades
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{initialStats.totalGrades}</div>
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold">{initialStats.totalGrades}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-amber-500" />
               Subjects
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{initialStats.totalSubjects}</div>
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold">{initialStats.totalSubjects}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
               <FileText className="h-4 w-4 text-purple-500" />
               Resources
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{initialStats.totalResources}</div>
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold">{initialStats.totalResources}</div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2 text-green-700">
+            <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2 text-green-700">
               <DollarSign className="h-4 w-4 text-green-600" />
-              Total Revenue
+              Revenue
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-700">Ksh {revenueStats.totalRevenue.toLocaleString()}</div>
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-green-700">Ksh {revenueStats.totalRevenue.toLocaleString()}</div>
             <p className="text-xs text-green-600">
               {revenueStats.completedPurchases} completed purchases
             </p>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Quick Actions & Search */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex flex-wrap gap-2">
-          <Dialog open={isCreateGradeOpen} onOpenChange={setIsCreateGradeOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="h-9 sm:h-10 gap-1.5">
-                <Plus className="h-4 w-4" />
-                <span>Add Grade</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Create New Grade</DialogTitle>
-              </DialogHeader>
-              <CreateGradeForm onSuccess={handleCreateSuccess} />
-            </DialogContent>
-          </Dialog>
-          <Dialog open={isCreateSubjectOpen} onOpenChange={setIsCreateSubjectOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={grades.length === 0}>
-                <Plus className="h-4 w-4" />
-                <span>Add Subject</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Create New Subject</DialogTitle>
-              </DialogHeader>
-              <CreateSubjectForm grades={grades} onSuccess={handleCreateSuccess} />
-            </DialogContent>
-          </Dialog>
-          <Dialog open={isCreateTopicOpen} onOpenChange={setIsCreateTopicOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={allSubjects.length === 0}>
-                <Plus className="h-4 w-4" />
-                <span>Add Topic</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Create New Topic</DialogTitle>
-              </DialogHeader>
-              <CreateTopicForm subjects={allSubjects} onSuccess={handleCreateSuccess} />
-            </DialogContent>
-          </Dialog>
-          <Dialog open={isCreateResourceOpen} onOpenChange={setIsCreateResourceOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={allTopics.length === 0}>
-                <Plus className="h-4 w-4" />
-                <span>Add Resource</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Create New Resource</DialogTitle>
-              </DialogHeader>
-              <CreateResourceForm subjects={allSubjects} topics={allTopics} onSuccess={handleCreateSuccess} />
-            </DialogContent>
-          </Dialog>
-          <Button variant="outline" size="sm" onClick={expandAll} className="h-9 sm:h-10 gap-1.5">
-            <ChevronDownSquare className="h-4 w-4" />
-            <span>Expand</span>
-          </Button>
-          <Button variant="outline" size="sm" onClick={collapseAll} className="h-9 sm:h-10 gap-1.5">
-            <ChevronRightSquare className="h-4 w-4" />
-            <span>Collapse</span>
-          </Button>
-        </div>
-        <div className="relative w-full sm:w-auto sm:min-w-[300px]">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search content..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8"
-          />
-        </div>
       </div>
 
       {/* Content Tabs */}
@@ -720,8 +642,91 @@ export function SuperAdminDashboardClient({
           </TabsTrigger>
         </TabsList>
 
+        {/* Quick Actions & Search - Only show Add buttons on Public tab */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mt-6">
+          <div className="flex flex-wrap gap-2">
+            {activeTab === "super" && (
+              <>
+                <Dialog open={isCreateGradeOpen} onOpenChange={setIsCreateGradeOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="h-9 sm:h-10 gap-1.5">
+                      <Plus className="h-4 w-4" />
+                      <span>Add Grade</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Create New Grade</DialogTitle>
+                    </DialogHeader>
+                    <CreateGradeForm onSuccess={handleCreateSuccess} />
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={isCreateSubjectOpen} onOpenChange={setIsCreateSubjectOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={grades.length === 0}>
+                      <Plus className="h-4 w-4" />
+                      <span>Add Subject</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Create New Subject</DialogTitle>
+                    </DialogHeader>
+                    <CreateSubjectForm grades={grades} onSuccess={handleCreateSuccess} />
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={isCreateTopicOpen} onOpenChange={setIsCreateTopicOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={allSubjects.length === 0}>
+                      <Plus className="h-4 w-4" />
+                      <span>Add Topic</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Create New Topic</DialogTitle>
+                    </DialogHeader>
+                    <CreateTopicForm subjects={allSubjects} onSuccess={handleCreateSuccess} />
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={isCreateResourceOpen} onOpenChange={setIsCreateResourceOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={allTopics.length === 0}>
+                      <Plus className="h-4 w-4" />
+                      <span>Add Resource</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[600px]">
+                    <DialogHeader>
+                      <DialogTitle>Create New Resource</DialogTitle>
+                    </DialogHeader>
+                    <CreateResourceForm subjects={allSubjects} topics={allTopics} onSuccess={handleCreateSuccess} />
+                  </DialogContent>
+                </Dialog>
+              </>
+            )}
+            <Button variant="outline" size="sm" onClick={expandAll} className="h-9 sm:h-10 gap-1.5">
+              <ChevronDownSquare className="h-4 w-4" />
+              <span>Expand</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={collapseAll} className="h-9 sm:h-10 gap-1.5">
+              <ChevronRightSquare className="h-4 w-4" />
+              <span>Collapse</span>
+            </Button>
+          </div>
+          <div className="relative w-full sm:w-auto sm:min-w-[300px]">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search content..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+        </div>
+
         {/* Public Content Tab */}
-        <TabsContent value="super" className="space-y-4 mt-6">
+        <TabsContent value="super" className="space-y-4">
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-start gap-3">
             <Shield className="h-5 w-5 text-purple-600 mt-0.5" />
             <div>
@@ -1035,7 +1040,7 @@ export function SuperAdminDashboardClient({
         </TabsContent>
 
         {/* Admin Content Tab */}
-        <TabsContent value="admin" className="space-y-4 mt-6">
+        <TabsContent value="admin" className="space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
             <Building2 className="h-5 w-5 text-blue-600 mt-0.5" />
             <div>
@@ -1296,7 +1301,7 @@ export function SuperAdminDashboardClient({
         </TabsContent>
 
         {/* Regular User Content Tab */}
-        <TabsContent value="regular" className="space-y-4 mt-6">
+        <TabsContent value="regular" className="space-y-4">
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
             <User className="h-5 w-5 text-green-600 mt-0.5" />
             <div>

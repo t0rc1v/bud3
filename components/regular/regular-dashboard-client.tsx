@@ -62,13 +62,15 @@ import { CreateResourceForm } from "@/components/admin/create-resource-form";
 import { EditGradeForm } from "@/components/admin/edit-grade-form";
 import { EditSubjectForm } from "@/components/admin/edit-subject-form";
 import { EditTopicForm } from "@/components/admin/edit-topic-form";
-import { deleteGradeWithSession, deleteSubjectWithSession, deleteTopicWithSession, deleteResource } from "@/lib/actions/admin";
+import { EditResourceForm } from "@/components/admin/edit-resource-form";
+import { deleteGradeWithSession, deleteSubjectWithSession, deleteTopicWithSession, deleteResource, getResourceById } from "@/lib/actions/admin";
 import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import type {
   GradeWithFullHierarchy,
   SubjectWithTopics,
   TopicWithResources,
   Resource,
+  ResourceWithRelations,
   Grade,
   Subject,
   Topic,
@@ -114,6 +116,7 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
   // Edit dialog states
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<{ id: string; type: string; data: unknown } | null>(null);
+  const [isLoadingEditResource, setIsLoadingEditResource] = useState(false);
 
   // Viewing resource
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
@@ -339,7 +342,27 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
   const handleEditSuccess = () => {
     setIsEditDialogOpen(false);
     setItemToEdit(null);
+    setIsLoadingEditResource(false);
     router.refresh();
+  };
+
+  const handleEditResource = async (resource: Resource) => {
+    // Open modal immediately with loading state
+    setItemToEdit({ id: resource.id, type: "resource", data: resource });
+    setIsEditDialogOpen(true);
+    setIsLoadingEditResource(true);
+    
+    // Fetch full resource data with relations
+    try {
+      const fullResource = await getResourceById(resource.id);
+      if (fullResource) {
+        setItemToEdit({ id: resource.id, type: "resource", data: fullResource });
+      }
+    } catch (error) {
+      console.error("Failed to load resource for editing:", error);
+    } finally {
+      setIsLoadingEditResource(false);
+    }
   };
 
   // View resource
@@ -639,6 +662,7 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
                   onEditGrade={() => openEditDialog({ id: grade.id, type: "grade", data: grade })}
                   onEditSubject={(subject) => openEditDialog({ id: subject.id, type: "subject", data: subject })}
                   onEditTopic={(topic) => openEditDialog({ id: topic.id, type: "topic", data: topic })}
+                  onEditResource={handleEditResource}
                   onAddSubjectSuccess={() => router.refresh()}
                   onAddTopicSuccess={() => router.refresh()}
                   onAddResourceSuccess={() => router.refresh()}
@@ -717,6 +741,7 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
                   onDeleteTopic={() => {}}
                   onDeleteResource={() => {}}
                   onViewResource={handleViewResource}
+                  onEditResource={handleEditResource}
                   canDelete={false}
                   isAdminContent={true}
                   currentUserId={userId}
@@ -790,6 +815,7 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
                   onDeleteTopic={() => {}}
                   onDeleteResource={() => {}}
                   onViewResource={handleViewResource}
+                  onEditResource={handleEditResource}
                   canDelete={false}
                   isAdminContent={true}
                   currentUserId={userId}
@@ -828,7 +854,7 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className={itemToEdit?.type === "resource" ? "sm:max-w-[600px] max-h-[90vh] overflow-y-auto" : "sm:max-w-[425px]"}>
           <DialogHeader>
             <DialogTitle>Edit {itemToEdit?.type}</DialogTitle>
           </DialogHeader>
@@ -852,6 +878,43 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
               onSuccess={handleEditSuccess}
             />
           )}
+          {itemToEdit?.type === "resource" && (
+            isLoadingEditResource ? (
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <div className="h-4 w-20 bg-muted rounded animate-pulse" />
+                  <div className="h-10 w-full bg-muted rounded animate-pulse" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-4 w-20 bg-muted rounded animate-pulse" />
+                  <div className="h-10 w-full bg-muted rounded animate-pulse" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-4 w-20 bg-muted rounded animate-pulse" />
+                  <div className="h-10 w-full bg-muted rounded animate-pulse" />
+                </div>
+                <div className="h-10 w-full bg-muted rounded animate-pulse" />
+              </div>
+            ) : (
+              <EditResourceForm
+                resource={itemToEdit.data as ResourceWithRelations}
+                subjects={allSubjects.map((s) => ({
+                  ...s,
+                  grade: grades.find((g) => g.subjects.some((sub) => sub.id === s.id)) || {
+                    id: "",
+                    title: "Unknown",
+                  },
+                }))}
+                topics={allTopics}
+                onSuccess={handleEditSuccess}
+                onCancel={() => {
+                  setIsEditDialogOpen(false);
+                  setItemToEdit(null);
+                  setIsLoadingEditResource(false);
+                }}
+              />
+            )
+          )}
         </DialogContent>
       </Dialog>
     </div>
@@ -865,9 +928,10 @@ interface ResourceItemProps {
   currentUserId: string;
   onViewResource: (resource: Resource) => void;
   onDeleteResource: (resourceId: string) => void;
+  onEditResource?: (resource: Resource) => void;
 }
 
-function ResourceItem({ resource, canDelete, currentUserId, onViewResource, onDeleteResource }: ResourceItemProps) {
+function ResourceItem({ resource, canDelete, currentUserId, onViewResource, onDeleteResource, onEditResource }: ResourceItemProps) {
   const [isUnlocked, setIsUnlocked] = useState(!resource.isLocked);
   const [isChecking, setIsChecking] = useState(true);
 
@@ -975,6 +1039,10 @@ function ResourceItem({ resource, canDelete, currentUserId, onViewResource, onDe
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onEditResource?.(resource)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onDeleteResource(resource.id)} className="text-destructive">
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete
@@ -1004,6 +1072,7 @@ interface GradeCardProps {
   onEditGrade?: () => void;
   onEditSubject?: (subject: SubjectWithTopics) => void;
   onEditTopic?: (topic: TopicWithResources) => void;
+  onEditResource?: (resource: Resource) => void;
   onAddSubjectSuccess?: () => void;
   onAddTopicSuccess?: () => void;
   onAddResourceSuccess?: () => void;
@@ -1029,6 +1098,7 @@ function GradeCard({
   onEditGrade,
   onEditSubject,
   onEditTopic,
+  onEditResource,
   onAddSubjectSuccess,
   onAddTopicSuccess,
   onAddResourceSuccess,
@@ -1327,6 +1397,7 @@ function GradeCard({
                                     currentUserId={currentUserId}
                                     onViewResource={onViewResource}
                                     onDeleteResource={onDeleteResource}
+                                    onEditResource={onEditResource}
                                   />
                                 ))
                               )}

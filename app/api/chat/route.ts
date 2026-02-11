@@ -124,7 +124,7 @@ export async function POST(req: Request) {
 
   // Build system prompt with context
   let systemPrompt = `You are a helpful AI assistant for an educational platform called Bud. 
-You help teachers, students, and admins with their questions about educational content.
+You help regular users, students, and admins with their questions about educational content.
 
 Current date and time: ${currentDateTime}
 
@@ -133,19 +133,19 @@ You have access to the following tools. Use them strategically based on the user
 1. web_search - Use this for general web searches to find current information, articles, news, or facts. Best for general knowledge questions, current events, or research topics. Consider the current date when searching for time-sensitive information.
 2. youtube_search - Use this ONLY when the user specifically asks for video content, tutorials, or educational videos. Do not use for general information searches.
 3. research_materials - Use this when the user is looking for educational resources, lesson materials, or teaching content across multiple formats (videos, articles, PDFs). Best for "find resources for teaching X" or "lesson plan materials".
-4. fetch_memory - Use this to retrieve saved memories from the database. Use when the user asks about something they previously saved (e.g., "what did I save about...", "show my notes on...", "remember when I...").
+4. fetch_memory - Use this to retrieve saved memories from the database. Use when the user asks about something they previously saved (e.g. "what did I save about...", "show my notes on...", "remember when I...").
 5. save_memory - Use this to save important information to memory for future reference. Save things like: student results, lesson plans, important notes, preferences, or any data the user might want to recall later. Always confirm what you're saving with the user and include timestamps when relevant.
-6. server_actions - Use this to call specific backend functions that are exposed to you. This allows you to perform system operations like managing learners, grades, or resources when the user requests them.
+6. server_actions - Use this to call specific backend functions that are exposed to you. This allows you to perform system operations like managing regular users, grades, or resources when the user requests them.
 7. web_browse - Use this when the user provides a specific URL and asks you to read, summarize, or analyze its content. Works with web pages, PDFs, and documents.
 8. get_current_time - Use this to get the current date and time. Use when the user asks about scheduling, deadlines, or time-sensitive calculations.
-9. create_assignment - Use this to create assignments, homeworks, quizzes, or continuous assessment tests for TEACHERS/ADMINS. This generates a PRINTABLE DOCUMENT with an 'Export to PDF' button. Use this when:
-   - Teachers want to create paper-based assessments
+9. create_assignment - Use this to create assignments, homeworks, quizzes, or continuous assessment tests for ADMINS. This generates a PRINTABLE DOCUMENT with an 'Export to PDF' button. Use this when:
+   - Admins want to create paper-based assessments
    - Creating worksheets for classroom distribution
    - Preparing homework that students complete offline
    - Making continuous assessment tests (CATs)
    - Generating printable exams with answer keys
    
-10. create_quiz - Use this to create interactive quizzes for LEARNERS. This generates an INTERACTIVE QUIZ that students can take DIRECTLY IN THE APP. Use this when:
+10. create_quiz - Use this to create interactive quizzes for REGULAR USERS. This generates an INTERACTIVE QUIZ that students can take DIRECTLY IN THE APP. Use this when:
     - Students want to take online assessments
     - Creating practice tests for self-study
     - Building interactive learning activities
@@ -379,16 +379,16 @@ When responding:
         },
       }),
       server_actions: tool({
-        description: 'Call exposed server-side functions to perform system operations. Available actions include: get_grades (list all grades/levels), add_learner (add a learner to teacher\'s list), get_my_learners (list teacher\'s learners), create_resource (create educational resources), get_resources (list resources). Use this when the user requests operations that require backend data manipulation.',
+        description: 'Call exposed server-side functions to perform system operations. Available actions include: get_grades (list all grades/levels), add_regular (add a regular user to admin\'s list), get_my_regulars (list admin\'s regular users), create_resource (create educational resources), get_resources (list resources). Use this when the user requests operations that require backend data manipulation.',
         inputSchema: z.object({
-          action: z.enum(['get_grades', 'add_learner', 'get_my_learners', 'create_resource', 'get_resources', 'get_subjects', 'get_topics']),
+          action: z.enum(['get_grades', 'add_regular', 'get_my_regulars', 'create_resource', 'get_resources', 'get_subjects', 'get_topics']),
           params: z.any().optional(),
         }),
         execute: async ({ action, params = {} }) => {
           try {
             switch (action) {
               case 'get_grades': {
-                const { getGrades } = await import('@/lib/actions/teacher');
+                const { getGrades } = await import('@/lib/actions/admin');
                 const grades = await getGrades();
                 return {
                   success: true,
@@ -403,8 +403,8 @@ When responding:
                 };
               }
               
-              case 'add_learner': {
-                const { addMyLearner } = await import('@/lib/actions/teacher');
+              case 'add_regular': {
+                const { addMyLearner } = await import('@/lib/actions/admin');
                 const { email, gradeId, metadata } = params;
                 if (!email || !gradeId) {
                   return {
@@ -415,21 +415,21 @@ When responding:
                 await addMyLearner(userId, email as string, gradeId as string, metadata as Record<string, unknown>);
                 return {
                   success: true,
-                  action: 'add_learner',
-                  message: `Learner with email ${email} added successfully`,
+                  action: 'add_regular',
+                  message: `Regular user with email ${email} added successfully`,
                 };
               }
               
-              case 'get_my_learners': {
-                const { getMyLearners } = await import('@/lib/actions/teacher');
-                const learners = await getMyLearners(userId);
+              case 'get_my_regulars': {
+                const { getMyLearners } = await import('@/lib/actions/admin');
+                const regulars = await getMyLearners(userId);
                 return {
                   success: true,
-                  action: 'get_my_learners',
-                  data: learners.map(l => ({
+                  action: 'get_my_regulars',
+                  data: regulars.map(l => ({
                     id: l.id,
-                    learnerId: l.learnerId,
-                    email: l.learnerEmail,
+                    regularId: l.regularId,
+                    email: l.regularEmail,
                     gradeId: l.gradeId,
                     gradeTitle: l.grade?.title,
                     metadata: l.metadata,
@@ -438,12 +438,21 @@ When responding:
               }
               
               case 'create_resource': {
-                const { createResource } = await import('@/lib/actions/teacher');
+                const { createResource } = await import('@/lib/actions/admin');
+                const { getUserByClerkId } = await import('@/lib/actions/auth');
                 const { subjectId, topicId, title, description, type, url, thumbnailUrl, metadata } = params;
                 if (!subjectId || !topicId || !title || !description || !type || !url) {
                   return {
                     success: false,
                     error: 'Missing required parameters: subjectId, topicId, title, description, type, and url are required',
+                  };
+                }
+                // Get user info for ownership
+                const user = await getUserByClerkId(userId);
+                if (!user) {
+                  return {
+                    success: false,
+                    error: 'User not found',
                   };
                 }
                 await createResource({
@@ -455,6 +464,9 @@ When responding:
                   url: url as string,
                   thumbnailUrl: thumbnailUrl as string | undefined,
                   metadata: metadata as Record<string, unknown> | undefined,
+                  ownerId: user.id,
+                  ownerRole: user.role,
+                  visibility: "admin_and_regulars", // Default visibility for resources created via chat
                 });
                 return {
                   success: true,
@@ -464,7 +476,7 @@ When responding:
               }
               
               case 'get_resources': {
-                const { getResources } = await import('@/lib/actions/teacher');
+                const { getResources } = await import('@/lib/actions/admin');
                 const resources = await getResources();
                 return {
                   success: true,
@@ -482,7 +494,7 @@ When responding:
               }
               
               case 'get_subjects': {
-                const { getSubjects } = await import('@/lib/actions/teacher');
+                const { getSubjects } = await import('@/lib/actions/admin');
                 const subjects = await getSubjects();
                 return {
                   success: true,
@@ -497,7 +509,7 @@ When responding:
               }
               
               case 'get_topics': {
-                const { getTopics } = await import('@/lib/actions/teacher');
+                const { getTopics } = await import('@/lib/actions/admin');
                 const topics = await getTopics();
                 return {
                   success: true,
@@ -623,7 +635,7 @@ When responding:
           totalMarks: z.number().describe('Total marks/points for the entire assessment'),
           timeLimit: z.number().optional().describe('Time limit in minutes (if applicable)'),
           dueDate: z.string().optional().describe('Due date for submission (e.g., "2025-02-15")'),
-          includeAnswerKey: z.boolean().optional().describe('Whether to include an answer key (default: true for teachers)'),
+          includeAnswerKey: z.boolean().optional().describe('Whether to include an answer key (default: true for admins)'),
         }),
         execute: async ({ title, subject, grade, type, instructions, questions, totalMarks, timeLimit, dueDate, includeAnswerKey = true }) => {
           try {

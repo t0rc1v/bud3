@@ -4,7 +4,8 @@ import { relations } from 'drizzle-orm';
 
 export const levelEnum = pgEnum("level", ["elementary", "middle_school", "junior_high", "high_school", "higher_education"]);
 export const resourceTypeEnum = pgEnum('resource_type', ["notes", "video", "audio", "image"]);
-export const userRoleEnum = pgEnum('user_role_enum', ["learner", "teacher", "admin", "super_admin"]);
+export const userRoleEnum = pgEnum('user_role_enum', ["regular", "admin", "super_admin"]);
+export const userVerificationEnum = pgEnum('user_verification_enum', ["pending", "approved", "rejected"]);
 
 const createdAt = timestamp("created_at", { withTimezone: true })
 	.notNull()
@@ -17,13 +18,23 @@ const updatedAt = timestamp("updated_at", { withTimezone: true })
 
 export const user = pgTable("user", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: varchar("user_id", { length: 255 }).notNull().unique(),
+  clerkId: varchar("clerk_id", { length: 255 }).notNull().unique(),
   email: varchar("email", { length: 255 }).notNull().unique(),
-  role: userRoleEnum("role").default("learner").notNull(),
+  role: userRoleEnum("role").default("regular").notNull(),
   onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
+  // Institution fields for admin accounts
+  institutionName: varchar("institution_name", { length: 255 }),
+  institutionType: varchar("institution_type", { length: 100 }),
+  // Verification status for admin accounts
+  verificationStatus: userVerificationEnum("verification_status").default("pending"),
+  verifiedAt: timestamp('verified_at', { withTimezone: true }),
+  verifiedBy: uuid('verified_by'),
   createdAt,
   updatedAt,
 });
+
+// Content visibility enum - shared across all content types
+export const contentVisibilityEnum = pgEnum('content_visibility_enum', ["public", "admin_only", "admin_and_regulars", "regular_only"]);
 
 export const grade = pgTable("grade", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -32,6 +43,10 @@ export const grade = pgTable("grade", {
   order: integer('order').notNull(),
   color: varchar('color', { length: 100 }).notNull(),
   level: levelEnum('level').notNull(),
+  // Ownership fields
+  ownerId: uuid('owner_id').references(() => user.id, { onDelete: 'cascade' }),
+  ownerRole: userRoleEnum('owner_role').notNull().default("regular"),
+  visibility: contentVisibilityEnum('visibility').notNull().default("regular_only"),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt,
   updatedAt,
@@ -43,6 +58,10 @@ export const subject = pgTable("subject", {
   name: varchar('name', { length: 100 }).notNull(),
   icon: varchar('icon', { length: 50 }).notNull(),
   color: varchar('color', { length: 100 }).notNull(),
+  // Ownership fields
+  ownerId: uuid('owner_id').references(() => user.id, { onDelete: 'cascade' }),
+  ownerRole: userRoleEnum('owner_role').notNull().default("regular"),
+  visibility: contentVisibilityEnum('visibility').notNull().default("regular_only"),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt,
   updatedAt,
@@ -53,10 +72,16 @@ export const topic = pgTable("topic", {
   subjectId: uuid('subject_id').notNull().references(() => subject.id, { onDelete: 'cascade' }),
   title: varchar('title', { length: 255 }).notNull(),
   order: integer('order').notNull(),
+  // Ownership fields
+  ownerId: uuid('owner_id').references(() => user.id, { onDelete: 'cascade' }),
+  ownerRole: userRoleEnum('owner_role').notNull().default("regular"),
+  visibility: contentVisibilityEnum('visibility').notNull().default("regular_only"),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt,
   updatedAt,
 });
+
+export const resourceVisibilityEnum = pgEnum('resource_visibility_enum', ["public", "admin_only", "admin_and_regulars", "regular_only"]);
 
 export const resource = pgTable("resource", {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -68,29 +93,34 @@ export const resource = pgTable("resource", {
   url: text('url').notNull(),
   thumbnailUrl: text('thumbnail_url'),
   uploadthingKey: text("uploadthing_key"),
+  // Ownership and visibility fields
+  ownerId: uuid('owner_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  ownerRole: userRoleEnum('owner_role').notNull().default("regular"),
+  visibility: resourceVisibilityEnum('visibility').notNull().default("regular_only"),
   metadata: jsonb('metadata'),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt,
   updatedAt,
 });
 
-export const myLearners = pgTable("my_learners", {
+export const adminRegulars = pgTable("admin_regulars", {
   id: uuid('id').defaultRandom().primaryKey(),
-  teacherId: uuid('teacher_id')
+  adminId: uuid('admin_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
-  learnerId: uuid('learner_id')
+  regularId: uuid('regular_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
-  learnerEmail: varchar('learner_email', { length: 255 }).notNull(),
+  regularEmail: varchar('regular_email', { length: 255 }).notNull(),
   gradeId: uuid('grade_id')
-    .notNull()
     .references(() => grade.id, { onDelete: 'restrict' }),
   metadata: jsonb('metadata'),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt,
   updatedAt,
-});
+}, (table) => ({
+  uniqueAdminRegular: { columns: [table.adminId, table.regularId] },
+}));
 
 // Roles table for role-based permissions (managed by super-admin)
 export const role = pgTable("role", {
@@ -151,8 +181,8 @@ export const userRoles = pgTable("user_roles", {
 
 // Relations
 export const userRelations = relations(user, ({ many }) => ({
-  teacherLearners: many(myLearners, { relationName: "teacher" }),
-  learnerEntries: many(myLearners, { relationName: "learner" }),
+  adminRegulars: many(adminRegulars, { relationName: "admin" }),
+  regularEntries: many(adminRegulars, { relationName: "regular" }),
   permissions: many(userPermission),
   roles: many(userRoles),
   grantedPermissions: many(userPermission, { relationName: "permissionGranter" }),
@@ -161,7 +191,7 @@ export const userRelations = relations(user, ({ many }) => ({
 
 export const gradeRelations = relations(grade, ({ many }) => ({
   subjects: many(subject),
-  myLearners: many(myLearners),
+  adminRegulars: many(adminRegulars),
 }));
 
 export const subjectRelations = relations(subject, ({ one, many }) => ({
@@ -190,21 +220,25 @@ export const resourceRelations = relations(resource, ({ one }) => ({
     fields: [resource.topicId],
     references: [topic.id],
   }),
+  owner: one(user, {
+    fields: [resource.ownerId],
+    references: [user.id],
+  }),
 }));
 
-export const myLearnersRelations = relations(myLearners, ({ one }) => ({
-  teacher: one(user, {
-    fields: [myLearners.teacherId],
+export const adminRegularsRelations = relations(adminRegulars, ({ one }) => ({
+  admin: one(user, {
+    fields: [adminRegulars.adminId],
     references: [user.id],
-    relationName: "teacher",
+    relationName: "admin",
   }),
-  learner: one(user, {
-    fields: [myLearners.learnerId],
+  regular: one(user, {
+    fields: [adminRegulars.regularId],
     references: [user.id],
-    relationName: "learner",
+    relationName: "regular",
   }),
   grade: one(grade, {
-    fields: [myLearners.gradeId],
+    fields: [adminRegulars.gradeId],
     references: [grade.id],
   }),
 }));
@@ -258,7 +292,7 @@ export const chat = pgTable("chat", {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: varchar('user_id', { length: 255 })
     .notNull()
-    .references(() => user.userId, { onDelete: 'cascade' }),
+    .references(() => user.clerkId, { onDelete: 'cascade' }),
   title: varchar('title', { length: 255 }).notNull(),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt,
@@ -281,7 +315,7 @@ export const aiMemory = pgTable("ai_memory", {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: varchar('user_id', { length: 255 })
     .notNull()
-    .references(() => user.userId, { onDelete: 'cascade' }),
+    .references(() => user.clerkId, { onDelete: 'cascade' }),
   title: varchar('title', { length: 255 }).notNull(),
   category: varchar('category', { length: 100 }),
   content: jsonb('content').notNull(), // structured data
@@ -295,7 +329,7 @@ export const aiMemory = pgTable("ai_memory", {
 export const chatRelations = relations(chat, ({ one, many }) => ({
   user: one(user, {
     fields: [chat.userId],
-    references: [user.userId],
+    references: [user.clerkId],
   }),
   messages: many(chatMessage),
 }));
@@ -310,7 +344,7 @@ export const chatMessageRelations = relations(chatMessage, ({ one }) => ({
 export const aiMemoryRelations = relations(aiMemory, ({ one }) => ({
   user: one(user, {
     fields: [aiMemory.userId],
-    references: [user.userId],
+    references: [user.clerkId],
   }),
 }));
 
@@ -329,7 +363,7 @@ export const userCredit = pgTable("user_credit", {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: varchar('user_id', { length: 255 })
     .notNull()
-    .references(() => user.userId, { onDelete: 'cascade' }),
+    .references(() => user.clerkId, { onDelete: 'cascade' }),
   balance: integer('balance').notNull().default(0),
   totalPurchased: integer('total_purchased').notNull().default(0),
   totalUsed: integer('total_used').notNull().default(0),
@@ -353,7 +387,7 @@ export const creditTransaction = pgTable("credit_transaction", {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: varchar('user_id', { length: 255 })
     .notNull()
-    .references(() => user.userId, { onDelete: 'cascade' }),
+    .references(() => user.clerkId, { onDelete: 'cascade' }),
   type: transactionTypeEnum('type').notNull(),
   amount: integer('amount').notNull(), // positive for credits added, negative for credits used
   balanceAfter: integer('balance_after').notNull(),
@@ -381,7 +415,7 @@ export const creditPurchase = pgTable("credit_purchase", {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: varchar('user_id', { length: 255 })
     .notNull()
-    .references(() => user.userId, { onDelete: 'cascade' }),
+    .references(() => user.clerkId, { onDelete: 'cascade' }),
   mpesaReceiptNumber: varchar('mpesa_receipt_number', { length: 50 }),
   checkoutRequestId: varchar('checkout_request_id', { length: 100 }),
   merchantRequestId: varchar('merchant_request_id', { length: 100 }),
@@ -430,7 +464,7 @@ export const unlockedContent = pgTable("unlocked_content", {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: varchar('user_id', { length: 255 })
     .notNull()
-    .references(() => user.userId, { onDelete: 'cascade' }),
+    .references(() => user.clerkId, { onDelete: 'cascade' }),
   unlockFeeId: uuid('unlock_fee_id')
     .notNull()
     .references(() => unlockFee.id, { onDelete: 'cascade' }),
@@ -448,7 +482,7 @@ export const unlockedContent = pgTable("unlocked_content", {
 export const userCreditRelations = relations(userCredit, ({ one, many }) => ({
   user: one(user, {
     fields: [userCredit.userId],
-    references: [user.userId],
+    references: [user.clerkId],
   }),
   transactions: many(creditTransaction),
 }));
@@ -456,14 +490,14 @@ export const userCreditRelations = relations(userCredit, ({ one, many }) => ({
 export const creditTransactionRelations = relations(creditTransaction, ({ one }) => ({
   user: one(user, {
     fields: [creditTransaction.userId],
-    references: [user.userId],
+    references: [user.clerkId],
   }),
 }));
 
 export const creditPurchaseRelations = relations(creditPurchase, ({ one }) => ({
   user: one(user, {
     fields: [creditPurchase.userId],
-    references: [user.userId],
+    references: [user.clerkId],
   }),
 }));
 
@@ -486,7 +520,7 @@ export const unlockFeeRelations = relations(unlockFee, ({ one, many }) => ({
 export const unlockedContentRelations = relations(unlockedContent, ({ one }) => ({
   user: one(user, {
     fields: [unlockedContent.userId],
-    references: [user.userId],
+    references: [user.clerkId],
   }),
   unlockFee: one(unlockFee, {
     fields: [unlockedContent.unlockFeeId],
@@ -499,7 +533,7 @@ export const aiAssignment = pgTable("ai_assignment", {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: varchar('user_id', { length: 255 })
     .notNull()
-    .references(() => user.userId, { onDelete: 'cascade' }),
+    .references(() => user.clerkId, { onDelete: 'cascade' }),
   chatId: uuid('chat_id')
     .references(() => chat.id, { onDelete: 'cascade' }),
   title: varchar('title', { length: 255 }).notNull(),
@@ -523,7 +557,7 @@ export const aiQuiz = pgTable("ai_quiz", {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: varchar('user_id', { length: 255 })
     .notNull()
-    .references(() => user.userId, { onDelete: 'cascade' }),
+    .references(() => user.clerkId, { onDelete: 'cascade' }),
   chatId: uuid('chat_id')
     .references(() => chat.id, { onDelete: 'cascade' }),
   title: varchar('title', { length: 255 }).notNull(),
@@ -549,7 +583,7 @@ export const aiQuizAttempt = pgTable("ai_quiz_attempt", {
     .references(() => aiQuiz.id, { onDelete: 'cascade' }),
   userId: varchar('user_id', { length: 255 })
     .notNull()
-    .references(() => user.userId, { onDelete: 'cascade' }),
+    .references(() => user.clerkId, { onDelete: 'cascade' }),
   answers: jsonb('answers').notNull(), // user's submitted answers
   score: integer('score').notNull(), // earned marks
   totalMarks: integer('total_marks').notNull(),
@@ -564,7 +598,7 @@ export const aiQuizAttempt = pgTable("ai_quiz_attempt", {
 export const aiAssignmentRelations = relations(aiAssignment, ({ one }) => ({
   user: one(user, {
     fields: [aiAssignment.userId],
-    references: [user.userId],
+    references: [user.clerkId],
   }),
   chat: one(chat, {
     fields: [aiAssignment.chatId],
@@ -575,7 +609,7 @@ export const aiAssignmentRelations = relations(aiAssignment, ({ one }) => ({
 export const aiQuizRelations = relations(aiQuiz, ({ one, many }) => ({
   user: one(user, {
     fields: [aiQuiz.userId],
-    references: [user.userId],
+    references: [user.clerkId],
   }),
   chat: one(chat, {
     fields: [aiQuiz.chatId],
@@ -591,6 +625,6 @@ export const aiQuizAttemptRelations = relations(aiQuizAttempt, ({ one }) => ({
   }),
   user: one(user, {
     fields: [aiQuizAttempt.userId],
-    references: [user.userId],
+    references: [user.clerkId],
   }),
 }));

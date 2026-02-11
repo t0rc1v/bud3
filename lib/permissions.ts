@@ -62,19 +62,14 @@ export const ContentPermissions = {
 
 // User-related permissions
 export const UserPermissions = {
-  // Learners
-  LEARNERS_READ: "users:learners:read",
-  LEARNERS_CREATE: "users:learners:create",
-  LEARNERS_UPDATE: "users:learners:update",
-  LEARNERS_DELETE: "users:learners:delete",
-  LEARNERS_MANAGE: "users:learners:manage",
-  
-  // Teachers
-  TEACHERS_READ: "users:teachers:read",
-  TEACHERS_CREATE: "users:teachers:create",
-  TEACHERS_UPDATE: "users:teachers:update",
-  TEACHERS_DELETE: "users:teachers:delete",
-  TEACHERS_MANAGE: "users:teachers:manage",
+  // Regular users (formerly learners)
+  REGULARS_READ: "users:regulars:read",
+  REGULARS_CREATE: "users:regulars:create",
+  REGULARS_UPDATE: "users:regulars:update",
+  REGULARS_DELETE: "users:regulars:delete",
+  REGULARS_MANAGE: "users:regulars:manage",
+  REGULARS_ADD: "users:regulars:add", // Add regulars to admin
+  REGULARS_REMOVE: "users:regulars:remove", // Remove regulars from admin
   
   // General user operations
   USERS_READ: "users:read",
@@ -187,6 +182,68 @@ export const PermissionGroups = {
     ContentPermissions.RESOURCES_UPDATE,
   ],
   
+  // Regular user permissions - manage own content including grades
+  REGULAR_USER: [
+    // Grades - full management of their own grades
+    ContentPermissions.GRADES_READ,
+    ContentPermissions.GRADES_CREATE,
+    ContentPermissions.GRADES_UPDATE,
+    ContentPermissions.GRADES_DELETE,
+    // Subjects - full management
+    ContentPermissions.SUBJECTS_READ,
+    ContentPermissions.SUBJECTS_CREATE,
+    ContentPermissions.SUBJECTS_UPDATE,
+    ContentPermissions.SUBJECTS_DELETE,
+    // Topics - full management
+    ContentPermissions.TOPICS_READ,
+    ContentPermissions.TOPICS_CREATE,
+    ContentPermissions.TOPICS_UPDATE,
+    ContentPermissions.TOPICS_DELETE,
+    // Resources - full management
+    ContentPermissions.RESOURCES_READ,
+    ContentPermissions.RESOURCES_CREATE,
+    ContentPermissions.RESOURCES_UPDATE,
+    ContentPermissions.RESOURCES_DELETE,
+    UserPermissions.REGULARS_READ,
+    FinancePermissions.CREDITS_PURCHASE,
+  ],
+  
+  // Admin user permissions - can manage all their own content including grades
+  ADMIN_USER: [
+    // Grades - full management
+    ContentPermissions.GRADES_READ,
+    ContentPermissions.GRADES_CREATE,
+    ContentPermissions.GRADES_UPDATE,
+    ContentPermissions.GRADES_DELETE,
+    // Subjects - full management
+    ContentPermissions.SUBJECTS_READ,
+    ContentPermissions.SUBJECTS_CREATE,
+    ContentPermissions.SUBJECTS_UPDATE,
+    ContentPermissions.SUBJECTS_DELETE,
+    // Topics - full management
+    ContentPermissions.TOPICS_READ,
+    ContentPermissions.TOPICS_CREATE,
+    ContentPermissions.TOPICS_UPDATE,
+    ContentPermissions.TOPICS_DELETE,
+    // Resources - full management
+    ContentPermissions.RESOURCES_READ,
+    ContentPermissions.RESOURCES_CREATE,
+    ContentPermissions.RESOURCES_UPDATE,
+    ContentPermissions.RESOURCES_DELETE,
+    // User management
+    UserPermissions.REGULARS_READ,
+    UserPermissions.REGULARS_CREATE,
+    UserPermissions.REGULARS_ADD,
+    UserPermissions.REGULARS_REMOVE,
+    UserPermissions.REGULARS_MANAGE,
+    AdminPermissions.ADMINS_READ,
+    // Finance and rewards
+    FinancePermissions.CREDITS_GIFT,
+    FinancePermissions.UNLOCK_FEE_MANAGE,
+    RewardPermissions.CREDIT_REWARD,
+    RewardPermissions.CONTENT_UNLOCK,
+  ],
+  
   // User management
   USERS_FULL: Object.values(UserPermissions),
   
@@ -210,8 +267,8 @@ export const PermissionGroups = {
     ContentPermissions.RESOURCES_READ,
     ContentPermissions.RESOURCES_CREATE,
     ContentPermissions.RESOURCES_UPDATE,
-    UserPermissions.LEARNERS_READ,
-    UserPermissions.TEACHERS_READ,
+    UserPermissions.REGULARS_READ,
+    AdminPermissions.ADMINS_READ,
     AnalyticsPermissions.ANALYTICS_VIEW,
   ],
 };
@@ -248,19 +305,16 @@ export const PermissionDescriptions: Record<Permission, { label: string; descrip
   [ContentPermissions.CONTENT_PUBLISH]: { label: "Publish Content", description: "Make content visible to users", category: "Content - Bulk Operations" },
   [ContentPermissions.CONTENT_UNPUBLISH]: { label: "Unpublish Content", description: "Hide content from users", category: "Content - Bulk Operations" },
   
-  // Users - Learners
-  [UserPermissions.LEARNERS_READ]: { label: "View Learners", description: "View learner profiles and data", category: "Users - Learners" },
-  [UserPermissions.LEARNERS_CREATE]: { label: "Create Learners", description: "Add new learner accounts", category: "Users - Learners" },
-  [UserPermissions.LEARNERS_UPDATE]: { label: "Edit Learners", description: "Modify learner information", category: "Users - Learners" },
-  [UserPermissions.LEARNERS_DELETE]: { label: "Delete Learners", description: "Remove learner accounts", category: "Users - Learners" },
-  [UserPermissions.LEARNERS_MANAGE]: { label: "Manage Learners", description: "Full learner management access", category: "Users - Learners" },
+  // Users - Regulars (formerly Learners)
+  [UserPermissions.REGULARS_READ]: { label: "View Regulars", description: "View regular user profiles and data", category: "Users - Regulars" },
+  [UserPermissions.REGULARS_CREATE]: { label: "Create Regulars", description: "Add new regular user accounts", category: "Users - Regulars" },
+  [UserPermissions.REGULARS_UPDATE]: { label: "Edit Regulars", description: "Modify regular user information", category: "Users - Regulars" },
+  [UserPermissions.REGULARS_DELETE]: { label: "Delete Regulars", description: "Remove regular user accounts", category: "Users - Regulars" },
+  [UserPermissions.REGULARS_MANAGE]: { label: "Manage Regulars", description: "Full regular user management access", category: "Users - Regulars" },
+  [UserPermissions.REGULARS_ADD]: { label: "Add Regulars", description: "Add regular users to your institution", category: "Users - Regulars" },
+  [UserPermissions.REGULARS_REMOVE]: { label: "Remove Regulars", description: "Remove regular users from your institution", category: "Users - Regulars" },
   
-  // Users - Teachers
-  [UserPermissions.TEACHERS_READ]: { label: "View Teachers", description: "View teacher profiles", category: "Users - Teachers" },
-  [UserPermissions.TEACHERS_CREATE]: { label: "Create Teachers", description: "Add new teacher accounts", category: "Users - Teachers" },
-  [UserPermissions.TEACHERS_UPDATE]: { label: "Edit Teachers", description: "Modify teacher information", category: "Users - Teachers" },
-  [UserPermissions.TEACHERS_DELETE]: { label: "Delete Teachers", description: "Remove teacher accounts", category: "Users - Teachers" },
-  [UserPermissions.TEACHERS_MANAGE]: { label: "Manage Teachers", description: "Full teacher management access", category: "Users - Teachers" },
+
   
   // Users - General
   [UserPermissions.USERS_READ]: { label: "View All Users", description: "Access all user accounts", category: "Users - General" },

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getGradesFullHierarchy } from "@/lib/actions/teacher";
+import { getGradesFullHierarchy } from "@/lib/actions/admin";
 import { hasUserUnlockedContent, getUnlockFeeByResource } from "@/lib/actions/credits";
 import { DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
 

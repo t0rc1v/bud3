@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { resource, unlockFee, user } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { getResources } from "@/lib/actions/teacher";
+import { getResources } from "@/lib/actions/admin";
 import { DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
 
 // This endpoint initializes unlock fees for all resources that don't have one
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
 
     // Check if user is admin or super_admin
     const currentUser = await db.query.user.findFirst({
-      where: eq(user.userId, userId),
+      where: eq(user.clerkId, userId),
     });
 
     if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "super_admin")) {

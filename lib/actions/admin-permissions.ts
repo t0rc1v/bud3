@@ -22,7 +22,7 @@ export interface AdminBase {
   id: string;
   userId: string;
   email: string;
-  role: "learner" | "teacher" | "admin" | "super_admin";
+  role: "regular" | "admin" | "super_admin";
   onboardingCompleted: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -237,7 +237,7 @@ export async function getAllAdmins(): Promise<AdminWithPermissions[]> {
 
       return {
         id: adminUser.id,
-        userId: adminUser.userId,
+        userId: adminUser.clerkId,
         email: adminUser.email,
         role: adminUser.role,
         onboardingCompleted: adminUser.onboardingCompleted,
@@ -252,20 +252,6 @@ export async function getAllAdmins(): Promise<AdminWithPermissions[]> {
 
   return adminsWithPermissions;
 }
-
-// Helper type for building admin data
-export type BuildAdminResult = {
-  id: string;
-  userId: string;
-  email: string;
-  role: "learner" | "teacher" | "admin" | "super_admin";
-  onboardingCompleted: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  directPermissions: string[];
-  assignedRoles: RoleWithPermissions[];
-  allPermissions: string[];
-};
 
 export async function getAdminById(id: string): Promise<AdminWithPermissions | null> {
   const adminUser = await db
@@ -313,7 +299,7 @@ export async function getAdminById(id: string): Promise<AdminWithPermissions | n
 
   const result: AdminWithPermissions = {
     id: admin.id,
-    userId: admin.userId,
+    userId: admin.clerkId,
     email: admin.email,
     role: admin.role,
     onboardingCompleted: admin.onboardingCompleted,
@@ -404,11 +390,11 @@ export async function deleteAdmin(
     // Delete user role assignments
     await db.delete(userRoles).where(eq(userRoles.userId, adminId));
 
-    // Delete the user (or update role back to learner)
+    // Delete the user (or update role back to regular)
     await db
       .update(user)
       .set({
-        role: "learner",
+        role: "regular",
         updatedAt: new Date(),
       })
       .where(eq(user.id, adminId));
@@ -530,17 +516,24 @@ export async function checkUserPermission(
 ): Promise<boolean> {
   // Super admin always has all permissions
   const userData = await db.query.user.findFirst({
-    where: eq(user.userId, userId),
+    where: eq(user.clerkId, userId),
   });
 
   if (userData?.role === "super_admin") {
     return true;
   }
 
+  if (!userData) {
+    return false;
+  }
+
+  // Use the database user ID (UUID) for permission queries, not the Clerk ID
+  const dbUserId = userData.id;
+
   // Check direct permissions
   const directPerm = await db.query.userPermission.findFirst({
     where: and(
-      eq(userPermission.userId, userId),
+      eq(userPermission.userId, dbUserId),
       eq(userPermission.permission, permission),
       eq(userPermission.isActive, true)
     ),
@@ -552,7 +545,7 @@ export async function checkUserPermission(
 
   // Check role-based permissions
   const userRoleRecords = await db.query.userRoles.findMany({
-    where: eq(userRoles.userId, userId),
+    where: eq(userRoles.userId, dbUserId),
     with: {
       role: {
         with: {
@@ -654,5 +647,67 @@ export async function promoteUserToAdmin(
   } catch (error) {
     console.error("Error promoting user to admin:", error);
     return { success: false, error: "Failed to promote user to admin" };
+  }
+}
+
+// ============== ENSURE ADMIN PERMISSIONS ==============
+
+import { PermissionGroups } from "@/lib/permissions";
+
+/**
+ * Ensures an admin user has all the default ADMIN_USER permissions
+ * This should be called when an admin user is created or when they log in
+ */
+export async function ensureAdminPermissions(
+  clerkUserId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Get the user from database
+    const userData = await db.query.user.findFirst({
+      where: eq(user.clerkId, clerkUserId),
+    });
+
+    if (!userData) {
+      return { success: false, error: "User not found" };
+    }
+
+    // Only admins and super admins should have these permissions
+    if (userData.role !== "admin" && userData.role !== "super_admin") {
+      return { success: false, error: "User is not an admin" };
+    }
+
+    const dbUserId = userData.id;
+
+    // Get the default admin permissions from the permission groups
+    const defaultAdminPermissions = PermissionGroups.ADMIN_USER;
+
+    // Check which permissions the user already has
+    const existingPermissions = await db.query.userPermission.findMany({
+      where: eq(userPermission.userId, dbUserId),
+    });
+
+    const existingPermissionSet = new Set(existingPermissions.map(p => p.permission));
+
+    // Add any missing permissions
+    const permissionsToAdd = defaultAdminPermissions.filter(
+      perm => !existingPermissionSet.has(perm)
+    );
+
+    if (permissionsToAdd.length > 0) {
+      // Insert missing permissions
+      await db.insert(userPermission).values(
+        permissionsToAdd.map(permission => ({
+          userId: dbUserId,
+          permission: permission,
+          grantedBy: dbUserId, // Self-granted for default permissions
+          isActive: true,
+        }))
+      );
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error ensuring admin permissions:", error);
+    return { success: false, error: "Failed to ensure admin permissions" };
   }
 }

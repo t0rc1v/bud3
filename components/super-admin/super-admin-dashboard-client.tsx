@@ -1,0 +1,1561 @@
+"use client";
+
+import { useState, useMemo, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { cn } from "@/lib/utils";
+import {
+  Crown,
+  Users,
+  GraduationCap,
+  BookOpen,
+  FileText,
+  Plus,
+  Search,
+  ChevronDown,
+  ChevronRight,
+  Trash2,
+  Gift,
+  Unlock,
+  Lock,
+  DollarSign,
+  User,
+  Shield,
+  Building2,
+  MoreVertical,
+  Edit,
+  ExternalLink,
+  Eye,
+  Library,
+  ChevronDownSquare,
+  ChevronRightSquare,
+  FolderOpen,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CreateGradeForm } from "@/components/admin/create-grade-form";
+import { CreateSubjectForm } from "@/components/admin/create-subject-form";
+import { CreateTopicForm } from "@/components/admin/create-topic-form";
+import { CreateResourceForm } from "@/components/admin/create-resource-form";
+import { EditGradeForm } from "@/components/admin/edit-grade-form";
+import { EditSubjectForm } from "@/components/admin/edit-subject-form";
+import { EditTopicForm } from "@/components/admin/edit-topic-form";
+import {
+  deleteGradeWithSession,
+  deleteSubjectWithSession,
+  deleteTopicWithSession,
+  deleteResource,
+  SystemStats,
+  getResourceById,
+} from "@/lib/actions/admin";
+import { ResourceViewer, ResourceViewerSkeleton } from "@/components/admin/resource-viewer";
+import type {
+  GradeWithFullHierarchy,
+  SubjectWithTopics,
+  TopicWithResources,
+  Resource,
+  ResourceWithRelations,
+  User as UserType,
+  Grade,
+  Subject,
+  Topic,
+} from "@/lib/types";
+import Link from "next/link";
+
+interface SuperAdminDashboardClientProps {
+  initialGrades: GradeWithFullHierarchy[];
+  initialUsers: UserType[];
+  initialStats: SystemStats;
+}
+
+export function SuperAdminDashboardClient({
+  initialGrades,
+  initialUsers: _initialUsers, // eslint-disable-line @typescript-eslint/no-unused-vars
+  initialStats,
+}: SuperAdminDashboardClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [grades, setGrades] = useState<GradeWithFullHierarchy[]>(initialGrades);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("super");
+  const [revenueStats, setRevenueStats] = useState({
+    totalRevenue: 0,
+    totalPurchases: 0,
+    completedPurchases: 0,
+  });
+
+  // Sync grades when initialGrades changes (after revalidation)
+  useEffect(() => {
+    setGrades(initialGrades);
+  }, [initialGrades]);
+
+  // Dialog states
+  const [isCreateGradeOpen, setIsCreateGradeOpen] = useState(false);
+  const [isCreateSubjectOpen, setIsCreateSubjectOpen] = useState(false);
+  const [isCreateTopicOpen, setIsCreateTopicOpen] = useState(false);
+  const [isCreateResourceOpen, setIsCreateResourceOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ id: string; type: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteCallback, setDeleteCallback] = useState<(() => Promise<void>) | null>(null);
+
+  // Edit dialog states
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [itemToEdit, setItemToEdit] = useState<{ id: string; type: string; data: unknown } | null>(null);
+
+  // Resource viewer state
+  const [selectedResource, setSelectedResource] = useState<ResourceWithRelations | null>(null);
+  const [isLoadingResource, setIsLoadingResource] = useState(false);
+  const [openResourceInEditMode, setOpenResourceInEditMode] = useState(false);
+
+  // Expansion states
+  const [expandedGrades, setExpandedGrades] = useState<Set<string>>(new Set());
+  const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
+  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
+
+  // Load revenue stats
+  useEffect(() => {
+    const loadRevenueStats = async () => {
+      try {
+        const response = await fetch("/api/admin/revenue-stats");
+        if (response.ok) {
+          const data = await response.json();
+          setRevenueStats(data);
+        }
+      } catch (error) {
+        console.error("Failed to load revenue stats:", error);
+      }
+    };
+    loadRevenueStats();
+  }, []);
+
+  // Handle viewResource query param from file tree dropdown
+  useEffect(() => {
+    const viewResourceId = searchParams.get("viewResource");
+    if (viewResourceId && grades.length > 0) {
+      const loadResource = async () => {
+        setIsLoadingResource(true);
+        try {
+          const resource = await getResourceById(viewResourceId);
+          if (resource) {
+            setSelectedResource(resource);
+          }
+        } catch (error) {
+          console.error("Failed to load resource:", error);
+        } finally {
+          setIsLoadingResource(false);
+        }
+      };
+      loadResource();
+    }
+  }, [searchParams, grades]);
+
+  // Separate content by owner role
+  const superAdminGrades = useMemo(() => 
+    grades.filter((g) => g.ownerRole === "super_admin"),
+    [grades]
+  );
+  
+  const adminGrades = useMemo(() => 
+    grades.filter((g) => g.ownerRole === "admin"),
+    [grades]
+  );
+
+  const regularGrades = useMemo(() => 
+    grades.filter((g) => g.ownerRole === "regular"),
+    [grades]
+  );
+
+  // Stats calculation
+  const superAdminStats = useMemo(() => {
+    const subjects = superAdminGrades.flatMap((g) => g.subjects || []);
+    const topics = subjects.flatMap((s) => s.topics || []);
+    const resources = topics.flatMap((t) => t.resources || []);
+    return {
+      grades: superAdminGrades.length,
+      subjects: subjects.length,
+      topics: topics.length,
+      resources: resources.length,
+    };
+  }, [superAdminGrades]);
+
+  const adminStats = useMemo(() => {
+    const subjects = adminGrades.flatMap((g) => g.subjects || []);
+    const topics = subjects.flatMap((s) => s.topics || []);
+    const resources = topics.flatMap((t) => t.resources || []);
+    return {
+      grades: adminGrades.length,
+      subjects: subjects.length,
+      topics: topics.length,
+      resources: resources.length,
+    };
+  }, [adminGrades]);
+
+  const regularStats = useMemo(() => {
+    const subjects = regularGrades.flatMap((g) => g.subjects || []);
+    const topics = subjects.flatMap((s) => s.topics || []);
+    const resources = topics.flatMap((t) => t.resources || []);
+    return {
+      grades: regularGrades.length,
+      subjects: subjects.length,
+      topics: topics.length,
+      resources: resources.length,
+    };
+  }, [regularGrades]);
+
+  // Get all subjects and topics for forms
+  const allSubjects = useMemo(() => grades.flatMap((g) => g.subjects || []), [grades]);
+  const allTopics = useMemo(() => allSubjects.flatMap((s) => s.topics || []), [allSubjects]);
+
+  // Filter grades based on search
+  const filterGrades = (gradesToFilter: GradeWithFullHierarchy[]) => {
+    if (!searchQuery) return gradesToFilter;
+    const query = searchQuery.toLowerCase();
+    return gradesToFilter.filter(g => 
+      g.title.toLowerCase().includes(query) ||
+      g.subjects?.some((s: SubjectWithTopics) => 
+        s.name.toLowerCase().includes(query) ||
+        s.topics?.some((t: TopicWithResources) => 
+          t.title.toLowerCase().includes(query)
+        )
+      )
+    );
+  };
+
+  const filteredSuperAdminGrades = filterGrades(superAdminGrades);
+  const filteredAdminGrades = filterGrades(adminGrades);
+  const filteredRegularGrades = filterGrades(regularGrades);
+
+  const toggleGrade = (gradeId: string) => {
+    const newExpanded = new Set(expandedGrades);
+    if (newExpanded.has(gradeId)) {
+      newExpanded.delete(gradeId);
+    } else {
+      newExpanded.add(gradeId);
+    }
+    setExpandedGrades(newExpanded);
+  };
+
+  const toggleSubject = (subjectId: string) => {
+    const newExpanded = new Set(expandedSubjects);
+    if (newExpanded.has(subjectId)) {
+      newExpanded.delete(subjectId);
+    } else {
+      newExpanded.add(subjectId);
+    }
+    setExpandedSubjects(newExpanded);
+  };
+
+  const toggleTopic = (topicId: string) => {
+    const newExpanded = new Set(expandedTopics);
+    if (newExpanded.has(topicId)) {
+      newExpanded.delete(topicId);
+    } else {
+      newExpanded.add(topicId);
+    }
+    setExpandedTopics(newExpanded);
+  };
+
+  const expandAll = () => {
+    const allGradeIds = grades.map((g) => g.id);
+    const allSubjectIds = grades.flatMap((g) => g.subjects?.map((s) => s.id) || []);
+    const allTopicIds = grades.flatMap((g) => 
+      g.subjects?.flatMap((s) => s.topics?.map((t) => t.id) || []) || []
+    );
+    setExpandedGrades(new Set(allGradeIds));
+    setExpandedSubjects(new Set(allSubjectIds));
+    setExpandedTopics(new Set(allTopicIds));
+  };
+
+  const collapseAll = () => {
+    setExpandedGrades(new Set());
+    setExpandedSubjects(new Set());
+    setExpandedTopics(new Set());
+  };
+
+  const getItemName = (id: string, type: string): string => {
+    switch (type) {
+      case "grade": {
+        const grade = grades.find(g => g.id === id);
+        return grade?.title || "Unknown Grade";
+      }
+      case "subject": {
+        const subjects = grades.flatMap(g => g.subjects || []);
+        const subject = subjects.find(s => s.id === id);
+        return subject?.name || "Unknown Subject";
+      }
+      case "topic": {
+        const subjects = grades.flatMap(g => g.subjects || []);
+        const topics = subjects.flatMap(s => s.topics || []);
+        const topic = topics.find(t => t.id === id);
+        return topic?.title || "Unknown Topic";
+      }
+      case "resource": {
+        const subjects = grades.flatMap(g => g.subjects || []);
+        const topics = subjects.flatMap(s => s.topics || []);
+        const resources = topics.flatMap(t => t.resources || []);
+        const resource = resources.find(r => r.id === id);
+        return resource?.title || "Unknown Resource";
+      }
+      default:
+        return "Unknown Item";
+    }
+  };
+
+  const openDeleteDialog = (id: string, type: string, deleteFn: () => Promise<void>) => {
+    const name = getItemName(id, type);
+    setItemToDelete({ id, type, name });
+    setDeleteCallback(() => deleteFn);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteCallback) return;
+    
+    setIsDeleting(true);
+    try {
+      await deleteCallback();
+      setIsDeleteDialogOpen(false);
+      setItemToDelete(null);
+      setDeleteCallback(null);
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to delete item:", error);
+      alert("Failed to delete item. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // View resource
+  const handleViewResource = async (resource: Resource, editMode = false) => {
+    setIsLoadingResource(true);
+    setOpenResourceInEditMode(editMode);
+    try {
+      const fullResource = await getResourceById(resource.id);
+      if (fullResource) {
+        setSelectedResource(fullResource);
+      }
+    } finally {
+      setIsLoadingResource(false);
+    }
+  };
+
+  const handleEditResource = async (resource: Resource) => {
+    await handleViewResource(resource, true);
+  };
+
+  // Edit handlers for grades, subjects, topics
+  const openEditDialog = (item: { id: string; type: string; data: unknown }) => {
+    setItemToEdit(item);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setIsEditDialogOpen(false);
+    setItemToEdit(null);
+    router.refresh();
+  };
+
+  const handleCreateSuccess = () => {
+    setIsCreateGradeOpen(false);
+    setIsCreateSubjectOpen(false);
+    setIsCreateTopicOpen(false);
+    setIsCreateResourceOpen(false);
+    router.refresh();
+  };
+
+  const handleBackFromViewer = () => {
+    setSelectedResource(null);
+    setOpenResourceInEditMode(false);
+  };
+
+  const handleDeleteGrade = async (gradeId: string) => {
+    openDeleteDialog(gradeId, "grade", async () => {
+      await deleteGradeWithSession(gradeId);
+    });
+  };
+
+  const handleDeleteSubject = async (subjectId: string) => {
+    openDeleteDialog(subjectId, "subject", async () => {
+      await deleteSubjectWithSession(subjectId);
+    });
+  };
+
+  const handleDeleteTopic = async (topicId: string) => {
+    openDeleteDialog(topicId, "topic", async () => {
+      await deleteTopicWithSession(topicId);
+    });
+  };
+
+  const handleDeleteResource = async (resourceId: string) => {
+    openDeleteDialog(resourceId, "resource", async () => {
+      await deleteResource(resourceId);
+    });
+  };
+
+  if (isLoadingResource) {
+    return <ResourceViewerSkeleton />;
+  }
+
+  if (selectedResource) {
+    return (
+      <ResourceViewer
+        resource={selectedResource}
+        onBack={handleBackFromViewer}
+        subjects={allSubjects.map((s) => ({
+          ...s,
+          grade: grades.find((g) => g.subjects.some((sub) => sub.id === s.id)) || {
+            id: "",
+            title: "Unknown",
+          },
+        }))}
+        topics={allTopics}
+        initialEditMode={openResourceInEditMode}
+      />
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6" suppressHydrationWarning>
+      {/* Header */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-600">
+            <Crown className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">
+              Super Admin Dashboard
+            </h2>
+            <p className="text-muted-foreground">
+              System-wide management and configuration
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* Super Admin Content Card */}
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:shadow-md",
+            activeTab === "super" && "ring-2 ring-purple-500 ring-offset-2"
+          )}
+          onClick={() => setActiveTab("super")}
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Shield className="h-4 w-4 text-purple-500" />
+              Public Content
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{superAdminStats.grades}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {superAdminStats.subjects} subjects, {superAdminStats.resources} resources
+            </p>
+            <p className="text-xs text-purple-600 mt-1">
+              {activeTab === "super" ? "Currently viewing" : "Click to view"}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Admin Content Card */}
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:shadow-md",
+            activeTab === "admin" && "ring-2 ring-blue-500 ring-offset-2"
+          )}
+          onClick={() => setActiveTab("admin")}
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-blue-500" />
+              Admin Content
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{adminStats.grades}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {adminStats.subjects} subjects, {adminStats.resources} resources
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              {activeTab === "admin" ? "Currently viewing" : "Click to view"}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Regular Users Content Card */}
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:shadow-md",
+            activeTab === "regular" && "ring-2 ring-green-500 ring-offset-2"
+          )}
+          onClick={() => setActiveTab("regular")}
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <User className="h-4 w-4 text-green-500" />
+              Regular User Content
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{regularStats.grades}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {regularStats.subjects} subjects, {regularStats.resources} resources
+            </p>
+            <p className="text-xs text-green-600 mt-1">
+              {activeTab === "regular" ? "Currently viewing" : "Click to view"}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* System Overview Stats */}
+      <div className="grid gap-4 md:grid-cols-5">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Users className="h-4 w-4 text-blue-500" />
+              Total Users
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{initialStats.totalUsers}</div>
+            <p className="text-xs text-muted-foreground">
+              {initialStats.totalRegulars} regulars, {initialStats.totalAdmins} admins
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <GraduationCap className="h-4 w-4 text-green-500" />
+              Grades
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{initialStats.totalGrades}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-amber-500" />
+              Subjects
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{initialStats.totalSubjects}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <FileText className="h-4 w-4 text-purple-500" />
+              Resources
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{initialStats.totalResources}</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2 text-green-700">
+              <DollarSign className="h-4 w-4 text-green-600" />
+              Total Revenue
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-700">Ksh {revenueStats.totalRevenue.toLocaleString()}</div>
+            <p className="text-xs text-green-600">
+              {revenueStats.completedPurchases} completed purchases
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions & Search */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="flex flex-wrap gap-2">
+          <Dialog open={isCreateGradeOpen} onOpenChange={setIsCreateGradeOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="h-9 sm:h-10 gap-1.5">
+                <Plus className="h-4 w-4" />
+                <span>Add Grade</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Create New Grade</DialogTitle>
+              </DialogHeader>
+              <CreateGradeForm onSuccess={handleCreateSuccess} />
+            </DialogContent>
+          </Dialog>
+          <Dialog open={isCreateSubjectOpen} onOpenChange={setIsCreateSubjectOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={grades.length === 0}>
+                <Plus className="h-4 w-4" />
+                <span>Add Subject</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Create New Subject</DialogTitle>
+              </DialogHeader>
+              <CreateSubjectForm grades={grades} onSuccess={handleCreateSuccess} />
+            </DialogContent>
+          </Dialog>
+          <Dialog open={isCreateTopicOpen} onOpenChange={setIsCreateTopicOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={allSubjects.length === 0}>
+                <Plus className="h-4 w-4" />
+                <span>Add Topic</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Create New Topic</DialogTitle>
+              </DialogHeader>
+              <CreateTopicForm subjects={allSubjects} onSuccess={handleCreateSuccess} />
+            </DialogContent>
+          </Dialog>
+          <Dialog open={isCreateResourceOpen} onOpenChange={setIsCreateResourceOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={allTopics.length === 0}>
+                <Plus className="h-4 w-4" />
+                <span>Add Resource</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>Create New Resource</DialogTitle>
+              </DialogHeader>
+              <CreateResourceForm subjects={allSubjects} topics={allTopics} onSuccess={handleCreateSuccess} />
+            </DialogContent>
+          </Dialog>
+          <Button variant="outline" size="sm" onClick={expandAll} className="h-9 sm:h-10 gap-1.5">
+            <ChevronDownSquare className="h-4 w-4" />
+            <span>Expand</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={collapseAll} className="h-9 sm:h-10 gap-1.5">
+            <ChevronRightSquare className="h-4 w-4" />
+            <span>Collapse</span>
+          </Button>
+        </div>
+        <div className="relative w-full sm:w-auto sm:min-w-[300px]">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search content..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+      </div>
+
+      {/* Content Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 max-w-md">
+          <TabsTrigger value="super" className="flex items-center gap-2">
+            <Shield className="h-4 w-4 text-purple-500" />
+            Public
+            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800">{superAdminStats.grades}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="admin" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-blue-500" />
+            Admin
+            <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-800">{adminStats.grades}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="regular" className="flex items-center gap-2">
+            <User className="h-4 w-4 text-green-500" />
+            Regular
+            <Badge variant="secondary" className="ml-1 bg-green-100 text-green-800">{regularStats.grades}</Badge>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Public Content Tab */}
+        <TabsContent value="super" className="space-y-4 mt-6">
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-start gap-3">
+            <Shield className="h-5 w-5 text-purple-600 mt-0.5" />
+            <div>
+              <p className="font-medium text-purple-800">Public Platform Content</p>
+              <p className="text-sm text-purple-700">
+                Content created by super admins is visible to all users. This forms the foundation of the learning curriculum.
+              </p>
+            </div>
+          </div>
+
+          {filteredSuperAdminGrades.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Shield className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-medium">No public content yet</p>
+                <p className="text-sm text-muted-foreground">
+                  Create grades, subjects, and resources that will be available to all users
+                </p>
+                <Button className="mt-4" onClick={() => setIsCreateGradeOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Grade
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredSuperAdminGrades.map((grade: GradeWithFullHierarchy) => (
+              <Card key={grade.id} className="overflow-hidden border-purple-200">
+                {/* Grade Header */}
+                <div 
+                  className="flex items-center justify-between p-4 bg-purple-50/50 cursor-pointer hover:bg-purple-50"
+                  onClick={() => toggleGrade(grade.id)}
+                >
+                  <div className="flex items-center gap-3">
+                    {expandedGrades.has(grade.id) ? (
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <div 
+                      className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
+                      style={{ backgroundColor: grade.color }}
+                    >
+                      {grade.gradeNumber}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-lg">{grade.title}</span>
+                      <Badge variant="outline" className="ml-2 bg-purple-100 text-purple-800 border-purple-300">
+                        Public
+                      </Badge>
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      ({grade.subjects?.length || 0} subjects)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Subject
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                          <DialogTitle>Add Subject to {grade.title}</DialogTitle>
+                        </DialogHeader>
+                        <CreateSubjectForm grades={[grade]} onSuccess={handleCreateSuccess} />
+                      </DialogContent>
+                    </Dialog>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEditDialog({ id: grade.id, type: "grade", data: grade })}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Grade
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => handleDeleteGrade(grade.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Grade
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+
+                {/* Subjects */}
+                {expandedGrades.has(grade.id) && (
+                  <div className="border-t">
+                    {grade.subjects?.length === 0 ? (
+                      <div className="p-4 pl-12 text-sm text-muted-foreground">
+                        No subjects yet. Add your first subject.
+                      </div>
+                    ) : (
+                      grade.subjects?.map((subject: SubjectWithTopics) => (
+                        <div key={subject.id}>
+                          {/* Subject Header */}
+                          <div 
+                            className="flex items-center justify-between p-3 pl-8 border-b cursor-pointer hover:bg-purple-50/30"
+                            onClick={() => toggleSubject(subject.id)}
+                          >
+                            <div className="flex items-center gap-3">
+                              {expandedSubjects.has(subject.id) ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )}
+                              <span className="text-2xl">{subject.icon}</span>
+                              <span className="font-medium">{subject.name}</span>
+                              <span className="text-sm text-muted-foreground">
+                                ({subject.topics?.length || 0} topics)
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+                                      <Plus className="h-4 w-4 mr-1" />
+                                      Add Topic
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="sm:max-w-[425px]">
+                                    <DialogHeader>
+                                      <DialogTitle>Add Topic to {subject.name}</DialogTitle>
+                                    </DialogHeader>
+                                    <CreateTopicForm subjects={[subject]} onSuccess={handleCreateSuccess} />
+                                  </DialogContent>
+                                </Dialog>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                  <Button variant="ghost" size="icon">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => openEditDialog({ id: subject.id, type: "subject", data: subject })}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit Subject
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => handleDeleteSubject(subject.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete Subject
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+
+                          {/* Topics */}
+                          {expandedSubjects.has(subject.id) && (
+                            <div>
+                              {subject.topics?.length === 0 ? (
+                                <div className="p-3 pl-16 text-sm text-muted-foreground border-b">
+                                  No topics yet. Add your first topic.
+                                </div>
+                              ) : (
+                                subject.topics?.map((topic: TopicWithResources) => (
+                                  <div key={topic.id} className="border-b last:border-b-0">
+                                    {/* Topic Header */}
+                                    <div 
+                                      className="flex items-center justify-between p-3 pl-12 cursor-pointer hover:bg-purple-50/20"
+                                      onClick={() => toggleTopic(topic.id)}
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        {expandedTopics.has(topic.id) ? (
+                                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                        ) : (
+                                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                        <FileText className="h-4 w-4 text-purple-500" />
+                                        <span className="font-medium">{topic.title}</span>
+                                        <span className="text-sm text-muted-foreground">
+                                          ({topic.resources?.length || 0} resources)
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Dialog>
+                                          <DialogTrigger asChild>
+                                            <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+                                              <Plus className="h-4 w-4 mr-1" />
+                                              Add Resource
+                                            </Button>
+                                          </DialogTrigger>
+                                          <DialogContent className="sm:max-w-[425px]">
+                                            <DialogHeader>
+                                              <DialogTitle>Add Resource to {topic.title}</DialogTitle>
+                                            </DialogHeader>
+                                            <CreateResourceForm subjects={[subject]} topics={[topic]} onSuccess={handleCreateSuccess} />
+                                          </DialogContent>
+                                        </Dialog>
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                            <Button variant="ghost" size="icon">
+                                              <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => openEditDialog({ id: topic.id, type: "topic", data: topic })}>
+                                              <Edit className="h-4 w-4 mr-2" />
+                                              Edit Topic
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                              className="text-destructive"
+                                              onClick={() => handleDeleteTopic(topic.id)}
+                                            >
+                                              <Trash2 className="h-4 w-4 mr-2" />
+                                              Delete Topic
+                                            </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
+                                      </div>
+                                    </div>
+
+                                    {/* Resources */}
+                                    {expandedTopics.has(topic.id) && (
+                                      <div className="pl-16">
+                                        {topic.resources?.length === 0 ? (
+                                          <div className="p-2 text-sm text-muted-foreground">
+                                            No resources yet.
+                                          </div>
+                                        ) : (
+                                          topic.resources?.map((resource: Resource) => (
+                                            <div 
+                                              key={resource.id}
+                                              className="flex items-center justify-between p-2 hover:bg-purple-50/10 rounded"
+                                            >
+                                              <div className="flex items-center gap-3">
+                                                <Library className="h-4 w-4 text-muted-foreground" />
+                                                <span className="text-sm">{resource.title}</span>
+                                                <span className="text-xs text-muted-foreground capitalize">
+                                                  ({resource.type})
+                                                </span>
+                                              </div>
+                                              <div className="flex items-center gap-1">
+                                                <Button 
+                                                  variant="ghost" 
+                                                  size="sm"
+                                                  onClick={() => handleViewResource(resource)}
+                                                >
+                                                  <Eye className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => window.open(resource.url, "_blank")}
+                                                >
+                                                  <ExternalLink className="h-4 w-4" />
+                                                </Button>
+                                                <DropdownMenu>
+                                                  <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="sm">
+                                                      <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                  </DropdownMenuTrigger>
+                                                  <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => handleViewResource(resource)}>
+                                                      <Eye className="h-4 w-4 mr-2" />
+                                                      View
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleEditResource(resource)}>
+                                                      <Edit className="h-4 w-4 mr-2" />
+                                                      Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                      className="text-destructive"
+                                                      onClick={() => handleDeleteResource(resource.id)}
+                                                    >
+                                                      <Trash2 className="h-4 w-4 mr-2" />
+                                                      Delete
+                                                    </DropdownMenuItem>
+                                                  </DropdownMenuContent>
+                                                </DropdownMenu>
+                                              </div>
+                                            </div>
+                                          ))
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </Card>
+            ))
+          )}
+        </TabsContent>
+
+        {/* Admin Content Tab */}
+        <TabsContent value="admin" className="space-y-4 mt-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+            <Building2 className="h-5 w-5 text-blue-600 mt-0.5" />
+            <div>
+              <p className="font-medium text-blue-800">Admin Content</p>
+              <p className="text-sm text-blue-700">
+                Content created by admin users for their institutions. You can view and manage all admin content.
+              </p>
+            </div>
+          </div>
+
+          {filteredAdminGrades.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-medium">No admin content yet</p>
+                <p className="text-sm text-muted-foreground">
+                  Admins will create content for their institutions
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredAdminGrades.map((grade: GradeWithFullHierarchy) => (
+              <Card key={grade.id} className="overflow-hidden border-blue-200">
+                {/* Grade Header */}
+                <div 
+                  className="flex items-center justify-between p-4 bg-blue-50/50 cursor-pointer hover:bg-blue-50"
+                  onClick={() => toggleGrade(grade.id)}
+                >
+                  <div className="flex items-center gap-3">
+                    {expandedGrades.has(grade.id) ? (
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <div 
+                      className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
+                      style={{ backgroundColor: grade.color }}
+                    >
+                      {grade.gradeNumber}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-lg">{grade.title}</span>
+                      <Badge variant="outline" className="ml-2 bg-blue-100 text-blue-800 border-blue-300">
+                        Admin
+                      </Badge>
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      ({grade.subjects?.length || 0} subjects)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEditDialog({ id: grade.id, type: "grade", data: grade })}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Grade
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => handleDeleteGrade(grade.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Grade
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+
+                {/* Subjects */}
+                {expandedGrades.has(grade.id) && (
+                  <div className="border-t">
+                    {grade.subjects?.length === 0 ? (
+                      <div className="p-4 pl-12 text-sm text-muted-foreground">
+                        No subjects yet.
+                      </div>
+                    ) : (
+                      grade.subjects?.map((subject: SubjectWithTopics) => (
+                        <div key={subject.id}>
+                          {/* Subject Header */}
+                          <div 
+                            className="flex items-center justify-between p-3 pl-8 border-b cursor-pointer hover:bg-blue-50/30"
+                            onClick={() => toggleSubject(subject.id)}
+                          >
+                            <div className="flex items-center gap-3">
+                              {expandedSubjects.has(subject.id) ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )}
+                              <span className="text-2xl">{subject.icon}</span>
+                              <span className="font-medium">{subject.name}</span>
+                              <span className="text-sm text-muted-foreground">
+                                ({subject.topics?.length || 0} topics)
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                  <Button variant="ghost" size="icon">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => openEditDialog({ id: subject.id, type: "subject", data: subject })}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit Subject
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => handleDeleteSubject(subject.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete Subject
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+
+                          {/* Topics */}
+                          {expandedSubjects.has(subject.id) && (
+                            <div>
+                              {subject.topics?.length === 0 ? (
+                                <div className="p-3 pl-16 text-sm text-muted-foreground border-b">
+                                  No topics available.
+                                </div>
+                              ) : (
+                                subject.topics?.map((topic: TopicWithResources) => (
+                                  <div key={topic.id} className="border-b last:border-b-0">
+                                    {/* Topic Header */}
+                                    <div 
+                                      className="flex items-center justify-between p-3 pl-12 cursor-pointer hover:bg-blue-50/20"
+                                      onClick={() => toggleTopic(topic.id)}
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        {expandedTopics.has(topic.id) ? (
+                                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                        ) : (
+                                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                        <FolderOpen className="h-4 w-4 text-blue-500" />
+                                        <span className="font-medium">{topic.title}</span>
+                                        <span className="text-sm text-muted-foreground">
+                                          ({topic.resources?.length || 0} resources)
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                            <Button variant="ghost" size="icon">
+                                              <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => openEditDialog({ id: topic.id, type: "topic", data: topic })}>
+                                              <Edit className="h-4 w-4 mr-2" />
+                                              Edit Topic
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                              className="text-destructive"
+                                              onClick={() => handleDeleteTopic(topic.id)}
+                                            >
+                                              <Trash2 className="h-4 w-4 mr-2" />
+                                              Delete Topic
+                                            </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
+                                      </div>
+                                    </div>
+
+                                    {/* Resources */}
+                                    {expandedTopics.has(topic.id) && (
+                                      <div className="pl-16">
+                                        {topic.resources?.length === 0 ? (
+                                          <div className="p-2 text-sm text-muted-foreground">
+                                            No resources available.
+                                          </div>
+                                        ) : (
+                                          topic.resources?.map((resource: Resource) => (
+                                            <div 
+                                              key={resource.id}
+                                              className="flex items-center justify-between p-2 hover:bg-blue-50/10 rounded"
+                                            >
+                                              <div className="flex items-center gap-3">
+                                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                                <span className="text-sm">{resource.title}</span>
+                                                <span className="text-xs text-muted-foreground capitalize">
+                                                  ({resource.type})
+                                                </span>
+                                              </div>
+                                              <div className="flex items-center gap-1">
+                                                <Button 
+                                                  variant="ghost" 
+                                                  size="sm"
+                                                  onClick={() => handleViewResource(resource)}
+                                                >
+                                                  <Eye className="h-4 w-4" />
+                                                </Button>
+                                                <DropdownMenu>
+                                                  <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="sm">
+                                                      <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                  </DropdownMenuTrigger>
+                                                  <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => handleViewResource(resource)}>
+                                                      <Eye className="h-4 w-4 mr-2" />
+                                                      View
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                      className="text-destructive"
+                                                      onClick={() => handleDeleteResource(resource.id)}
+                                                    >
+                                                      <Trash2 className="h-4 w-4 mr-2" />
+                                                      Delete
+                                                    </DropdownMenuItem>
+                                                  </DropdownMenuContent>
+                                                </DropdownMenu>
+                                              </div>
+                                            </div>
+                                          ))
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </Card>
+            ))
+          )}
+        </TabsContent>
+
+        {/* Regular User Content Tab */}
+        <TabsContent value="regular" className="space-y-4 mt-6">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+            <User className="h-5 w-5 text-green-600 mt-0.5" />
+            <div>
+              <p className="font-medium text-green-800">Regular User Content</p>
+              <p className="text-sm text-green-700">
+                Personal content created by regular users. You can view and manage all user content.
+              </p>
+            </div>
+          </div>
+
+          {filteredRegularGrades.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <User className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-medium">No regular user content yet</p>
+                <p className="text-sm text-muted-foreground">
+                  Regular users will create their personal content
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredRegularGrades.map((grade: GradeWithFullHierarchy) => (
+              <Card key={grade.id} className="overflow-hidden border-green-200">
+                {/* Grade Header */}
+                <div 
+                  className="flex items-center justify-between p-4 bg-green-50/50 cursor-pointer hover:bg-green-50"
+                  onClick={() => toggleGrade(grade.id)}
+                >
+                  <div className="flex items-center gap-3">
+                    {expandedGrades.has(grade.id) ? (
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <div 
+                      className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
+                      style={{ backgroundColor: grade.color }}
+                    >
+                      {grade.gradeNumber}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-lg">{grade.title}</span>
+                      <Badge variant="outline" className="ml-2 bg-green-100 text-green-800 border-green-300">
+                        Regular
+                      </Badge>
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      ({grade.subjects?.length || 0} subjects)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEditDialog({ id: grade.id, type: "grade", data: grade })}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Grade
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => handleDeleteGrade(grade.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Grade
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+
+                {/* Subjects */}
+                {expandedGrades.has(grade.id) && (
+                  <div className="border-t">
+                    {grade.subjects?.length === 0 ? (
+                      <div className="p-4 pl-12 text-sm text-muted-foreground">
+                        No subjects yet.
+                      </div>
+                    ) : (
+                      grade.subjects?.map((subject: SubjectWithTopics) => (
+                        <div key={subject.id}>
+                          {/* Subject Header */}
+                          <div 
+                            className="flex items-center justify-between p-3 pl-8 border-b cursor-pointer hover:bg-green-50/30"
+                            onClick={() => toggleSubject(subject.id)}
+                          >
+                            <div className="flex items-center gap-3">
+                              {expandedSubjects.has(subject.id) ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )}
+                              <span className="text-2xl">{subject.icon}</span>
+                              <span className="font-medium">{subject.name}</span>
+                              <span className="text-sm text-muted-foreground">
+                                ({subject.topics?.length || 0} topics)
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                  <Button variant="ghost" size="icon">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => openEditDialog({ id: subject.id, type: "subject", data: subject })}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit Subject
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => handleDeleteSubject(subject.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete Subject
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+
+                          {/* Topics */}
+                          {expandedSubjects.has(subject.id) && (
+                            <div>
+                              {subject.topics?.length === 0 ? (
+                                <div className="p-3 pl-16 text-sm text-muted-foreground border-b">
+                                  No topics available.
+                                </div>
+                              ) : (
+                                subject.topics?.map((topic: TopicWithResources) => (
+                                  <div key={topic.id} className="border-b last:border-b-0">
+                                    {/* Topic Header */}
+                                    <div 
+                                      className="flex items-center justify-between p-3 pl-12 cursor-pointer hover:bg-green-50/20"
+                                      onClick={() => toggleTopic(topic.id)}
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        {expandedTopics.has(topic.id) ? (
+                                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                        ) : (
+                                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                        <FolderOpen className="h-4 w-4 text-green-500" />
+                                        <span className="font-medium">{topic.title}</span>
+                                        <span className="text-sm text-muted-foreground">
+                                          ({topic.resources?.length || 0} resources)
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                            <Button variant="ghost" size="icon">
+                                              <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => openEditDialog({ id: topic.id, type: "topic", data: topic })}>
+                                              <Edit className="h-4 w-4 mr-2" />
+                                              Edit Topic
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                              className="text-destructive"
+                                              onClick={() => handleDeleteTopic(topic.id)}
+                                            >
+                                              <Trash2 className="h-4 w-4 mr-2" />
+                                              Delete Topic
+                                            </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
+                                      </div>
+                                    </div>
+
+                                    {/* Resources */}
+                                    {expandedTopics.has(topic.id) && (
+                                      <div className="pl-16">
+                                        {topic.resources?.length === 0 ? (
+                                          <div className="p-2 text-sm text-muted-foreground">
+                                            No resources available.
+                                          </div>
+                                        ) : (
+                                          topic.resources?.map((resource: Resource) => (
+                                            <div 
+                                              key={resource.id}
+                                              className="flex items-center justify-between p-2 hover:bg-green-50/10 rounded"
+                                            >
+                                              <div className="flex items-center gap-3">
+                                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                                <span className="text-sm">{resource.title}</span>
+                                                <span className="text-xs text-muted-foreground capitalize">
+                                                  ({resource.type})
+                                                </span>
+                                              </div>
+                                              <div className="flex items-center gap-1">
+                                                <Button 
+                                                  variant="ghost" 
+                                                  size="sm"
+                                                  onClick={() => handleViewResource(resource)}
+                                                >
+                                                  <Eye className="h-4 w-4" />
+                                                </Button>
+                                                <DropdownMenu>
+                                                  <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="sm">
+                                                      <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                  </DropdownMenuTrigger>
+                                                  <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => handleViewResource(resource)}>
+                                                      <Eye className="h-4 w-4 mr-2" />
+                                                      View
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                      className="text-destructive"
+                                                      onClick={() => handleDeleteResource(resource.id)}
+                                                    >
+                                                      <Trash2 className="h-4 w-4 mr-2" />
+                                                      Delete
+                                                    </DropdownMenuItem>
+                                                  </DropdownMenuContent>
+                                                </DropdownMenu>
+                                              </div>
+                                            </div>
+                                          ))
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </Card>
+            ))
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the {itemToDelete?.type} &ldquo;{itemToDelete?.name}&rdquo;.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setItemToDelete(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit {itemToEdit?.type}</DialogTitle>
+          </DialogHeader>
+          {itemToEdit?.type === "grade" && (
+            <EditGradeForm 
+              grade={itemToEdit.data as Grade} 
+              onSuccess={handleEditSuccess}
+            />
+          )}
+          {itemToEdit?.type === "subject" && (
+            <EditSubjectForm 
+              subject={itemToEdit.data as Subject}
+              grades={grades}
+              onSuccess={handleEditSuccess}
+            />
+          )}
+          {itemToEdit?.type === "topic" && (
+            <EditTopicForm 
+              topic={itemToEdit.data as Topic}
+              subjects={allSubjects}
+              onSuccess={handleEditSuccess}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+

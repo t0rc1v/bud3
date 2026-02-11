@@ -19,6 +19,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Plus,
   ChevronRight,
   ChevronDown,
@@ -31,6 +41,8 @@ import {
   Loader2,
   AlertCircle,
   Eye,
+  Trash2,
+  Pencil,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -41,14 +53,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
-  getGrades,
-  getSubjects,
-  getTopics,
-  getResources,
+  getGradesForUser,
+  getSubjectsForUser,
+  getTopicsForUser,
+  getResourcesForUser,
   createSubject,
   createTopic,
   createResource,
+  deleteGradeWithSession,
+  deleteSubjectWithSession,
+  deleteTopicWithSession,
+  deleteResource,
 } from "@/lib/actions/admin";
+import type { UserRole } from "@/lib/types";
 import type {
   Grade,
   Subject,
@@ -59,10 +76,15 @@ import type {
   TopicWithResources,
   SubjectWithTopicsAndGrade,
   TopicWithResourcesAndSubject,
+  ResourceWithRelations,
 } from "@/lib/types";
 import { CreateSubjectForm } from "./create-subject-form";
 import { CreateTopicForm } from "./create-topic-form";
 import { CreateResourceForm } from "./create-resource-form";
+import { EditGradeForm } from "./edit-grade-form";
+import { EditSubjectForm } from "./edit-subject-form";
+import { EditTopicForm } from "./edit-topic-form";
+import { EditResourceForm } from "./edit-resource-form";
 
 export type TreeItemType = "grade" | "subject" | "topic" | "resource";
 
@@ -87,6 +109,10 @@ interface TreeNodeProps {
   allTopics: TopicWithResourcesAndSubject[];
   onViewResource?: (item: TreeItemData) => void;
   onAddResourceToChat?: (item: TreeItemData) => void;
+  currentUserId: string;
+  currentUserRole: UserRole;
+  onDelete?: (item: TreeItemData) => void;
+  onEdit?: (item: TreeItemData) => void;
 }
 
 const getItemIcon = (type: TreeItemType) => {
@@ -116,6 +142,10 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   allTopics,
   onViewResource,
   onAddResourceToChat,
+  currentUserId,
+  currentUserRole,
+  onDelete,
+  onEdit,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -123,6 +153,10 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   const isExpanded = expandedItems.has(item.id);
   const isSelected = selectedItem === item.id;
   const hasChildren = (item.children?.length ?? 0) > 0 || (item.childCount ?? 0) > 0;
+
+  // Check if current user owns this item (for management permissions)
+  // Super-admin can manage all content regardless of ownership
+  const isOwner = item.data.ownerId === currentUserId || currentUserRole === "super_admin";
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -158,6 +192,9 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   };
 
   const getAddButton = () => {
+    // Only show add buttons for owned content (not for public/super_admin content viewed by admin)
+    if (!isOwner) return null;
+    
     if (item.type === "grade") {
       const gradeSubjects = allSubjects.filter(
         (s) => s.gradeId === item.id
@@ -178,7 +215,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
             <DialogHeader>
               <DialogTitle>Add Subject</DialogTitle>
             </DialogHeader>
-            <CreateSubjectForm grades={[{ ...item.data, subjects: [] } as GradeWithSubjects]} />
+            <CreateSubjectForm grades={[{ ...item.data, subjects: [] } as GradeWithSubjects]} onSuccess={onRefresh} />
           </DialogContent>
         </Dialog>
       );
@@ -206,6 +243,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
             </DialogHeader>
             <CreateTopicForm
               subjects={[{ ...item.data, topics: [], grade: {} as Grade } as unknown as SubjectWithTopics]}
+              onSuccess={onRefresh}
             />
           </DialogContent>
         </Dialog>
@@ -232,6 +270,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
             <CreateResourceForm
               subjects={allSubjects as unknown as SubjectWithTopics[]}
               topics={[{ ...item.data, resources: [], subject: {} as Subject } as unknown as TopicWithResources]}
+              onSuccess={onRefresh}
             />
           </DialogContent>
         </Dialog>
@@ -299,7 +338,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {/* Resource-specific actions for all resource items - admin has access to all */}
+              {/* Resource-specific actions for all resource items */}
               {item.type === "resource" && (
                 <DropdownMenuItem onClick={handleViewResource}>
                   <Eye className="h-4 w-4 mr-2" />
@@ -317,25 +356,34 @@ const TreeNode: React.FC<TreeNodeProps> = ({
                   Add to Chat
                 </DropdownMenuItem>
               )}
-              {/* Separator between resource actions and edit/delete */}
-              {item.type === "resource" && (
-                <DropdownMenuSeparator />
+              {/* Management actions - only for owners */}
+              {isOwner && (
+                <>
+                  {/* Separator between resource actions and edit/delete */}
+                  {item.type === "resource" && (
+                    <DropdownMenuSeparator />
+                  )}
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit?.(item);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete?.(item);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </>
               )}
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-              >
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-              >
-                Delete
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -357,6 +405,10 @@ const TreeNode: React.FC<TreeNodeProps> = ({
               allTopics={allTopics}
               onViewResource={onViewResource}
               onAddResourceToChat={onAddResourceToChat}
+              currentUserId={currentUserId}
+              currentUserRole={currentUserRole}
+              onDelete={onDelete}
+              onEdit={onEdit}
             />
           ))}
         </div>
@@ -371,6 +423,8 @@ interface AdminFileTreeProps {
   isOpen?: boolean;
   onViewResource?: (item: TreeItemData) => void;
   onAddResourceToChat?: (item: TreeItemData) => void;
+  userId: string;
+  userRole: UserRole;
 }
 
 export function AdminFileTree({ 
@@ -379,6 +433,8 @@ export function AdminFileTree({
   isOpen = true,
   onViewResource,
   onAddResourceToChat,
+  userId,
+  userRole,
 }: AdminFileTreeProps) {
   const [treeData, setTreeData] = useState<TreeItemData[]>([]);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
@@ -389,6 +445,13 @@ export function AdminFileTree({
   const [allSubjects, setAllSubjects] = useState<SubjectWithTopicsAndGrade[]>([]);
   const [allTopics, setAllTopics] = useState<TopicWithResourcesAndSubject[]>([]);
   const [allResources, setAllResources] = useState<Resource[]>([]);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<TreeItemData | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Edit dialog states
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [itemToEdit, setItemToEdit] = useState<TreeItemData | null>(null);
 
   const buildTreeData = useCallback(
     (
@@ -453,18 +516,18 @@ export function AdminFileTree({
       setError(null);
 
       const [gradesData, subjectsData, topicsData, resourcesData] = await Promise.all([
-        getGrades(),
-        getSubjects(),
-        getTopics(),
-        getResources(),
+        getGradesForUser(userId, userRole),
+        getSubjectsForUser(userId, userRole),
+        getTopicsForUser(userId, userRole),
+        getResourcesForUser(userId, userRole),
       ]);
 
       // All subjects and topics are valid since we're fetching all
       const validSubjects = subjectsData;
       const validTopics = topicsData;
 
-      setAllSubjects(validSubjects);
-      setAllTopics(validTopics);
+      setAllSubjects(validSubjects as unknown as SubjectWithTopicsAndGrade[]);
+      setAllTopics(validTopics as unknown as TopicWithResourcesAndSubject[]);
       setAllResources(resourcesData);
 
       const tree = buildTreeData(gradesData, validSubjects as unknown as SubjectWithTopics[], validTopics as unknown as TopicWithResources[], resourcesData);
@@ -475,7 +538,7 @@ export function AdminFileTree({
     } finally {
       setIsLoading(false);
     }
-  }, [buildTreeData]);
+  }, [buildTreeData, userId, userRole]);
 
   useEffect(() => {
     // Only load data when sidebar is open
@@ -536,6 +599,56 @@ export function AdminFileTree({
     },
     [treeData, onItemSelect, buildBreadcrumb]
   );
+
+  const handleDelete = async () => {
+    if (!itemToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      switch (itemToDelete.type) {
+        case "grade":
+          await deleteGradeWithSession(itemToDelete.id);
+          break;
+        case "subject":
+          await deleteSubjectWithSession(itemToDelete.id);
+          break;
+        case "topic":
+          await deleteTopicWithSession(itemToDelete.id);
+          break;
+        case "resource":
+          await deleteResource(itemToDelete.id);
+          break;
+      }
+      await fetchData();
+      if (selectedItem === itemToDelete.id) {
+        setSelectedItem(null);
+        setBreadcrumb([]);
+      }
+      setIsDeleteDialogOpen(false);
+      setItemToDelete(null);
+    } catch (error) {
+      console.error("Error deleting item:", error);
+      alert("Failed to delete item. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const openDeleteDialog = (item: TreeItemData) => {
+    setItemToDelete(item);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const openEditDialog = (item: TreeItemData) => {
+    setItemToEdit(item);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setIsEditDialogOpen(false);
+    setItemToEdit(null);
+    fetchData();
+  };
 
   const expandAll = () => {
     const collectIds = (items: TreeItemData[]): string[] => {
@@ -710,6 +823,10 @@ export function AdminFileTree({
                 allTopics={allTopics}
                 onViewResource={onViewResource}
                 onAddResourceToChat={onAddResourceToChat}
+                currentUserId={userId}
+                currentUserRole={userRole}
+                onDelete={openDeleteDialog}
+                onEdit={openEditDialog}
               />
             ))
           )}
@@ -723,6 +840,69 @@ export function AdminFileTree({
         </span>
         <span>{expandedItems.size} expanded</span>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the {itemToDelete?.type} &ldquo;{itemToDelete?.name}&rdquo;.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setItemToDelete(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit {itemToEdit?.type}</DialogTitle>
+          </DialogHeader>
+          {itemToEdit?.type === "grade" && (
+            <EditGradeForm 
+              grade={itemToEdit.data as Grade} 
+              onSuccess={handleEditSuccess}
+            />
+          )}
+          {itemToEdit?.type === "subject" && (
+            <EditSubjectForm 
+              subject={itemToEdit.data as Subject}
+              grades={allSubjects as unknown as GradeWithSubjects[]}
+              onSuccess={handleEditSuccess}
+            />
+          )}
+          {itemToEdit?.type === "topic" && (
+            <EditTopicForm 
+              topic={itemToEdit.data as Topic}
+              subjects={allSubjects as unknown as SubjectWithTopics[]}
+              onSuccess={handleEditSuccess}
+            />
+          )}
+          {itemToEdit?.type === "resource" && (
+            <EditResourceForm 
+              resource={itemToEdit.data as unknown as ResourceWithRelations}
+              subjects={allSubjects.map(s => ({ id: s.id, name: s.name, grade: { id: s.gradeId, title: "Grade" } }))}
+              topics={allTopics.map(t => ({ id: t.id, title: t.title, subjectId: t.subjectId }))}
+              onSuccess={handleEditSuccess}
+              onCancel={() => setIsEditDialogOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

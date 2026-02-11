@@ -15,6 +15,7 @@ import {
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { CREDIT_PRICING, DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
+import { sendCreditGiftEmail, sendResourceUnlockEmail } from "@/lib/email";
 
 // ============== USER CREDIT MANAGEMENT ==============
 
@@ -98,7 +99,7 @@ export async function createCreditTransaction(data: TransactionData) {
     .set(updateData)
     .where(eq(userCredit.userId, data.userId));
 
-  revalidatePath("/learner");
+  revalidatePath("/regular");
   revalidatePath("/api/credits");
 
   return transaction;
@@ -391,7 +392,7 @@ export async function giftCredits(
   }
 
   const transaction = await addCredits(
-    targetUser.userId,
+    targetUser.clerkId,
     amount,
     "gift",
     `Gifted ${amount} credits by admin`,
@@ -402,12 +403,31 @@ export async function giftCredits(
     }
   );
 
+  // Get admin name for email
+  const adminUser = await db.query.user.findFirst({
+    where: eq(user.clerkId, adminUserId),
+  });
+  const senderName = adminUser?.institutionName || adminUser?.email || "Admin";
+
+  // Send email notification
+  try {
+    await sendCreditGiftEmail({
+      recipientEmail: targetUserEmail,
+      amount,
+      senderName,
+      message: reason,
+    });
+  } catch (emailError) {
+    console.error("Failed to send credit gift email:", emailError);
+    // Don't throw - email failure shouldn't break the gift operation
+  }
+
   revalidatePath("/admin/manage-credits");
 
   return {
     success: true,
     transaction,
-    userId: targetUser.userId,
+    userId: targetUser.clerkId,
     email: targetUser.email,
   };
 }
@@ -600,8 +620,33 @@ export async function unlockContentForUser(params: UnlockContentForUserParams) {
     })
     .returning();
 
+  // Get recipient email and admin name for notification
+  const recipient = await db.query.user.findFirst({
+    where: eq(user.clerkId, userId),
+  });
+  
+  const unlockedByUser = await db.query.user.findFirst({
+    where: eq(user.clerkId, unlockedBy),
+  });
+  
+  const senderName = unlockedByUser?.institutionName || unlockedByUser?.email || "Admin";
+
+  // Send email notification for resource unlocks only (not topics/subjects)
+  if (recipient?.email && contentType === "resource") {
+    try {
+      await sendResourceUnlockEmail({
+        recipientEmail: recipient.email,
+        resourceName: contentName,
+        senderName,
+      });
+    } catch (emailError) {
+      console.error("Failed to send resource unlock email:", emailError);
+      // Don't throw - email failure shouldn't break the unlock operation
+    }
+  }
+
   revalidatePath("/admin/rewards");
-  revalidatePath("/learner");
+  revalidatePath("/regular");
 
   return {
     success: true,

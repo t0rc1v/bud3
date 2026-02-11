@@ -16,10 +16,11 @@ import type { TreeItemData, ResourceData } from "@/components/content/content-fi
 interface ContentLayoutClientProps {
   children: ReactNode;
   userId: string | null;
-  userRole: "teacher" | "learner";
+  dbUserId?: string | null;
+  userRole: "admin" | "regular";
 }
 
-export function ContentLayoutClient({ children, userId, userRole }: ContentLayoutClientProps) {
+export function ContentLayoutClient({ children, userId, dbUserId, userRole }: ContentLayoutClientProps) {
   const isMobile = useIsMobile();
   const [isClient, setIsClient] = useState(false);
   // Default to closed on mobile, open on desktop (for SSR consistency)
@@ -35,7 +36,7 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
     return () => clearTimeout(timeoutId);
   }, []);
 
-  const title = userRole === "teacher" ? "Teacher" : "Learner";
+  const title = userRole === "admin" ? "Institution Admin" : "Student";
 
   // Handle add resource to chat from file tree dropdown
   const handleAddResourceToChat = useCallback((item: TreeItemData) => {
@@ -83,10 +84,11 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
                   <p className="text-xs text-muted-foreground">Browse content</p>
                 </div>
                 <div className="flex-1 overflow-auto">
-                  <ContentFileTree 
-                    userRole={userRole} 
-                    isOpen={true} 
+                  <ContentFileTree
+                    userRole={userRole}
+                    isOpen={true}
                     onAddResourceToChat={handleAddResourceToChat}
+                    userId={dbUserId || undefined}
                   />
                 </div>
               </div>
@@ -156,10 +158,11 @@ export function ContentLayoutClient({ children, userId, userRole }: ContentLayou
           </h2>
         </div>
         <div className="flex-1 overflow-auto">
-          <ContentFileTree 
-            userRole={userRole} 
-            isOpen={leftSidebarOpen} 
+          <ContentFileTree
+            userRole={userRole}
+            isOpen={leftSidebarOpen}
             onAddResourceToChat={handleAddResourceToChat}
+            userId={dbUserId || undefined}
           />
         </div>
       </div>

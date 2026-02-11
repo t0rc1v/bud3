@@ -12,6 +12,10 @@ export default function OnboardingPage() {
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Institution fields for admin role
+  const [institutionName, setInstitutionName] = useState("");
+  const [institutionType, setInstitutionType] = useState("");
 
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
@@ -25,15 +29,29 @@ export default function OnboardingPage() {
     setError(null);
 
     try {
-      await updateUserRole(user.id, selectedRole);
+      // For admin role, validate institution fields
+      if (selectedRole === "admin") {
+        if (!institutionName.trim()) {
+          setError("Institution name is required for admin accounts");
+          setIsLoading(false);
+          return;
+        }
+      }
 
-      // Redirect based on role
-      if (selectedRole === "teacher") {
-        router.push("/teacher");
-      } else if (selectedRole === "learner") {
-        router.push("/learner");
-      } else if (selectedRole === "admin") {
+      await updateUserRole(
+        user.id, 
+        selectedRole, 
+        selectedRole === "admin" ? {
+          institutionName: institutionName.trim(),
+          institutionType: institutionType.trim() || undefined,
+        } : undefined
+      );
+
+      // Redirect based on role (no verification needed)
+      if (selectedRole === "admin" || selectedRole === "super_admin") {
         router.push("/admin");
+      } else if (selectedRole === "regular") {
+        router.push("/regular");
       }
     } catch (err) {
       setError("Failed to set role. Please try again.");
@@ -72,10 +90,11 @@ export default function OnboardingPage() {
         </div>
 
         <div className="space-y-4 mb-8">
+          {/* Institution/Admin Option */}
           <button
-            onClick={() => handleRoleSelect("teacher")}
+            onClick={() => handleRoleSelect("admin")}
             className={`w-full p-6 rounded-xl border-2 transition-all duration-200 text-left ${
-              selectedRole === "teacher"
+              selectedRole === "admin"
                 ? "border-blue-500 bg-blue-50"
                 : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
             }`}
@@ -83,20 +102,21 @@ export default function OnboardingPage() {
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 text-lg">Teacher</h3>
-                <p className="text-sm text-gray-600">Create content and manage learners</p>
+                <h3 className="font-semibold text-gray-900 text-lg">Institution / Organization</h3>
+                <p className="text-sm text-gray-600">Create content and manage regular users</p>
               </div>
             </div>
           </button>
 
+          {/* Regular User Option */}
           <button
-            onClick={() => handleRoleSelect("learner")}
+            onClick={() => handleRoleSelect("regular")}
             className={`w-full p-6 rounded-xl border-2 transition-all duration-200 text-left ${
-              selectedRole === "learner"
+              selectedRole === "regular"
                 ? "border-green-500 bg-green-50"
                 : "border-gray-200 hover:border-green-300 hover:bg-gray-50"
             }`}
@@ -108,12 +128,58 @@ export default function OnboardingPage() {
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 text-lg">Learner</h3>
-                <p className="text-sm text-gray-600">Access courses and track progress</p>
+                <h3 className="font-semibold text-gray-900 text-lg">Individual User</h3>
+                <p className="text-sm text-gray-600">Access resources and use AI learning tools</p>
               </div>
             </div>
           </button>
         </div>
+
+        {/* Institution Details Form - Only show for admin role */}
+        {selectedRole === "admin" && (
+          <div className="mb-8 space-y-4">
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h4 className="font-semibold text-blue-900 mb-3">Institution Details</h4>
+              <p className="text-sm text-blue-700 mb-4">
+                Your account will require verification before you can start adding regular users.
+              </p>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Institution Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={institutionName}
+                    onChange={(e) => setInstitutionName(e.target.value)}
+                    placeholder="e.g., ABC High School"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Institution Type
+                  </label>
+                  <select
+                    value={institutionType}
+                    onChange={(e) => setInstitutionType(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select type...</option>
+                    <option value="school">School (K-12)</option>
+                    <option value="university">University / College</option>
+                    <option value="private_tutor">Private Tutoring</option>
+                    <option value="corporate">Corporate Training</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -135,9 +201,7 @@ export default function OnboardingPage() {
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               Setting up...
             </span>
-          ) : (
-            "Continue"
-          )}
+          ) : "Continue"}
         </button>
       </div>
     </div>

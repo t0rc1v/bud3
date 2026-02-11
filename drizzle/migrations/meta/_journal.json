@@ -5,50 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1770288090891,
-      "tag": "0000_mighty_nekra",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1770303575675,
-      "tag": "0001_ambitious_edwin_jarvis",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1770616118561,
-      "tag": "0002_loose_paper_doll",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1770649739560,
-      "tag": "0003_fuzzy_justice",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1770659074450,
-      "tag": "0004_wide_puppet_master",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1770662702737,
-      "tag": "0005_solid_nicolaos",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1770705031278,
-      "tag": "0006_optimal_killraven",
+      "when": 1770794581000,
+      "tag": "0000_true_cardiac",
       "breakpoints": true
     }
   ]

@@ -20,7 +20,7 @@ export async function POST(req: Request) {
 
     // Check if user is super_admin or has credit_reward permission
     const currentUser = await db.query.user.findFirst({
-      where: eq(user.userId, userId),
+      where: eq(user.clerkId, userId),
     });
 
     const isSuperAdmin = currentUser?.role === "super_admin";
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
 
     // Unlock content
     const result = await unlockContentForUser({
-      userId: targetUser.userId,
+      userId: targetUser.clerkId,
       resourceId,
       topicId,
       subjectId,

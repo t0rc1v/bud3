@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getGradesFullHierarchy } from "@/lib/actions/teacher";
+import { getGradesFullHierarchy } from "@/lib/actions/admin";
 
 export async function GET(req: Request) {
   try {

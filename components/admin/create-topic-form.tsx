@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { createTopic } from "@/lib/actions/admin";
+import { getUserByClerkId } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +24,7 @@ interface CreateTopicFormProps {
 
 export function CreateTopicForm({ subjects, onSuccess }: CreateTopicFormProps) {
   const router = useRouter();
+  const { user: clerkUser } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     subjectId: subjects[0]?.id ?? "",
@@ -33,7 +36,22 @@ export function CreateTopicForm({ subjects, onSuccess }: CreateTopicFormProps) {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await createTopic(formData);
+      if (!clerkUser) {
+        throw new Error("User not authenticated");
+      }
+      
+      // Get user info from database
+      const user = await getUserByClerkId(clerkUser.id);
+      if (!user) {
+        throw new Error("User not found");
+      }
+      
+      await createTopic({
+        ...formData,
+        ownerId: user.id,
+        ownerRole: user.role,
+        visibility: "admin_and_regulars",
+      });
       router.refresh();
       setFormData({
         subjectId: subjects[0]?.id ?? "",

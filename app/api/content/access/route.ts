@@ -40,7 +40,7 @@ export async function GET(req: Request) {
     // Check if there's an unlock fee for this resource
     // All resources require unlock fee by default in our system
     const currentUser = await db.query.user.findFirst({
-      where: eq(user.userId, userId),
+      where: eq(user.clerkId, userId),
     });
 
     if (!currentUser) {

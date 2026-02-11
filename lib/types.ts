@@ -26,7 +26,7 @@ export interface SubjectWithTopicsAndGrade extends Subject {
 }
 
 export interface GradeWithSubjects extends Grade {
-  subjects: Subject[];
+  subjects: SubjectWithTopics[];
 }
 
 export interface GradeWithFullHierarchy extends Grade {
@@ -39,7 +39,10 @@ export interface ResourceWithRelations extends Resource {
 }
 
 export type ResourceType = "notes" | "video" | "audio" | "image";
-export type UserRole = "learner" | "teacher" | "admin" | "super_admin";
+export type UserRole = "regular" | "admin" | "super_admin";
+export type UserVerificationStatus = "pending" | "approved" | "rejected";
+export type ResourceVisibility = "public" | "admin_only" | "admin_and_regulars" | "regular_only";
+export type ContentVisibility = "public" | "admin_only" | "admin_and_regulars" | "regular_only";
 export type Level = "elementary" | "middle_school" | "junior_high" | "high_school" | "higher_education";
 
 export interface CreateGradeInput {
@@ -48,6 +51,10 @@ export interface CreateGradeInput {
   order: number;
   color: string;
   level: Level;
+  // Ownership fields
+  ownerId: string;
+  ownerRole: UserRole;
+  visibility: ContentVisibility;
 }
 
 export interface UpdateGradeInput extends Partial<CreateGradeInput> {
@@ -59,6 +66,10 @@ export interface CreateSubjectInput {
   name: string;
   icon: string;
   color: string;
+  // Ownership fields
+  ownerId: string;
+  ownerRole: UserRole;
+  visibility: ContentVisibility;
 }
 
 export interface UpdateSubjectInput extends Partial<CreateSubjectInput> {
@@ -69,6 +80,10 @@ export interface CreateTopicInput {
   subjectId: string;
   title: string;
   order: number;
+  // Ownership fields
+  ownerId: string;
+  ownerRole: UserRole;
+  visibility: ContentVisibility;
 }
 
 export interface UpdateTopicInput extends Partial<CreateTopicInput> {
@@ -85,6 +100,10 @@ export interface CreateResourceInput {
   thumbnailUrl?: string;
   uploadthingKey?: string;
   metadata?: Record<string, unknown>;
+  // Ownership and visibility fields
+  ownerId: string;
+  ownerRole: UserRole;
+  visibility: ResourceVisibility;
 }
 
 export interface UpdateResourceInput extends Partial<Omit<CreateResourceInput, "topicId" | "uploadthingKey"> & {

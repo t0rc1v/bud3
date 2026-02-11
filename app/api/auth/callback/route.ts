@@ -22,13 +22,13 @@ export async function GET() {
     redirect("/onboarding");
   }
 
-  // Redirect based on role
-  if (user.role === "teacher") {
-    redirect("/teacher/dashboard");
-  } else if (user.role === "learner") {
-    redirect("/learner/dashboard");
-  } else if (user.role === "admin" || user.role === "super_admin") {
+  // Redirect based on role (no verification needed)
+  if (user.role === "super_admin") {
+    redirect("/super-admin");
+  } else if (user.role === "admin") {
     redirect("/admin");
+  } else if (user.role === "regular") {
+    redirect("/regular/dashboard");
   }
 
   // Fallback

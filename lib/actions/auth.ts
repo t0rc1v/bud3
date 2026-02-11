@@ -4,11 +4,11 @@ import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import type { User, UserRole } from "@/lib/types";
+import type { User, UserRole, UserVerificationStatus } from "@/lib/types";
 
 export async function getUserByClerkId(clerkId: string): Promise<User | null> {
   const result = await db.query.user.findFirst({
-    where: eq(user.userId, clerkId),
+    where: eq(user.clerkId, clerkId),
   });
   return result ?? null;
 }
@@ -23,14 +23,16 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 export async function createUser(
   clerkId: string,
   email: string,
-  role: UserRole = "learner"
+  role: UserRole = "regular"
 ): Promise<User> {
   const [newUser] = await db
     .insert(user)
     .values({
-      userId: clerkId,
+      clerkId: clerkId,
       email,
       role,
+      // All users are approved immediately (no verification needed)
+      verificationStatus: "approved",
     })
     .returning();
 
@@ -52,22 +54,34 @@ export async function getOrCreateUser(
     return { user: existingUser, isNew: false };
   }
 
-  const newUser = await createUser(clerkId, email, role || "learner");
+  const newUser = await createUser(clerkId, email, role || "regular");
   return { user: newUser, isNew: true };
 }
 
 export async function updateUserRole(
   clerkId: string,
-  role: UserRole
+  role: UserRole,
+  institutionData?: { institutionName?: string; institutionType?: string }
 ): Promise<User> {
+  const updateData: Partial<typeof user.$inferInsert> = {
+    role,
+    onboardingCompleted: true,
+    updatedAt: new Date(),
+  };
+
+  // All users are auto-approved (no verification needed)
+  updateData.verificationStatus = "approved";
+  
+  // Store institution data for admin users
+  if (role === "admin" && institutionData) {
+    updateData.institutionName = institutionData.institutionName;
+    updateData.institutionType = institutionData.institutionType;
+  }
+
   const [updatedUser] = await db
     .update(user)
-    .set({
-      role,
-      onboardingCompleted: true,
-      updatedAt: new Date(),
-    })
-    .where(eq(user.userId, clerkId))
+    .set(updateData)
+    .where(eq(user.clerkId, clerkId))
     .returning();
 
   if (!updatedUser) {
@@ -87,7 +101,7 @@ export async function hasUserCompletedOnboarding(clerkId: string): Promise<boole
 }
 
 export async function deleteUser(clerkId: string): Promise<void> {
-  await db.delete(user).where(eq(user.userId, clerkId));
+  await db.delete(user).where(eq(user.clerkId, clerkId));
 }
 
 export async function checkSuperAdminExists(): Promise<boolean> {
@@ -99,15 +113,19 @@ export async function checkSuperAdminExists(): Promise<boolean> {
 
 export async function createAdminUser(
   clerkId: string,
-  email: string
+  email: string,
+  institutionData?: { institutionName?: string; institutionType?: string }
 ): Promise<User> {
   const [newAdmin] = await db
     .insert(user)
     .values({
-      userId: clerkId,
+      clerkId: clerkId,
       email,
       role: "admin",
+      verificationStatus: "approved",
       onboardingCompleted: true,
+      institutionName: institutionData?.institutionName,
+      institutionType: institutionData?.institutionType,
     })
     .returning();
 

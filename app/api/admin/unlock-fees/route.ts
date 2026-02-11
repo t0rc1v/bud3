@@ -1,34 +1,51 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { unlockFee, resource, topic, subject, grade } from "@/lib/db/schema";
 import { checkUserPermission } from "@/lib/actions/admin-permissions";
-import { ContentPermissions } from "@/lib/permissions";
+import { getUserByClerkId } from "@/lib/actions/auth";
+import { FinancePermissions } from "@/lib/permissions";
 
 /**
  * GET /api/admin/unlock-fees
  * Get all unlock fees with content details
+ * Query params:
+ * - filter=my-content: Return only fees for content owned by the current user
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const { userId } = await auth();
+    const { userId: clerkId } = await auth();
     
-    if (!userId) {
+    if (!clerkId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    // Check permission - use RESOURCES_UPDATE for managing resource unlock fees
-    const hasPermission = await checkUserPermission(userId, ContentPermissions.RESOURCES_UPDATE);
+    // Check permission - use UNLOCK_FEE_MANAGE for managing unlock fees
+    const hasPermission = await checkUserPermission(clerkId, FinancePermissions.UNLOCK_FEE_MANAGE);
     if (!hasPermission) {
       return NextResponse.json(
         { error: "Forbidden - You don't have permission to manage unlock fees" },
         { status: 403 }
       );
     }
+
+    // Get the current user to check role and get db user id
+    const currentUser = await getUserByClerkId(clerkId);
+    if (!currentUser) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check for filter query param
+    const { searchParams } = new URL(request.url);
+    const filter = searchParams.get("filter");
+    const isMyContentOnly = filter === "my-content";
 
     // Get all unlock fees with related content
     const fees = await db.query.unlockFee.findMany({
@@ -64,6 +81,15 @@ export async function GET() {
       },
     });
 
+    // If filtering by my-content and user is not super_admin, filter the results
+    if (isMyContentOnly && currentUser.role !== "super_admin") {
+      const myFees = fees.filter((fee) => {
+        const ownerId = fee.resource?.ownerId || fee.topic?.ownerId || fee.subject?.ownerId;
+        return ownerId === currentUser.id;
+      });
+      return NextResponse.json({ fees: myFees });
+    }
+
     return NextResponse.json({ fees });
 
   } catch (error) {
@@ -78,24 +104,35 @@ export async function GET() {
 /**
  * PUT /api/admin/unlock-fees
  * Update an unlock fee
+ * Admins can only update fees for their own content
+ * Super admins can update any fee
  */
 export async function PUT(req: Request) {
   try {
-    const { userId } = await auth();
+    const { userId: clerkId } = await auth();
     
-    if (!userId) {
+    if (!clerkId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    // Check permission - use RESOURCES_UPDATE for managing resource unlock fees
-    const hasPermission = await checkUserPermission(userId, ContentPermissions.RESOURCES_UPDATE);
+    // Check permission - use UNLOCK_FEE_MANAGE for managing unlock fees
+    const hasPermission = await checkUserPermission(clerkId, FinancePermissions.UNLOCK_FEE_MANAGE);
     if (!hasPermission) {
       return NextResponse.json(
         { error: "Forbidden - You don't have permission to manage unlock fees" },
         { status: 403 }
+      );
+    }
+
+    // Get the current user
+    const currentUser = await getUserByClerkId(clerkId);
+    if (!currentUser) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
       );
     }
 
@@ -115,6 +152,37 @@ export async function PUT(req: Request) {
         { error: "Fee amount must be at least 1 Ksh" },
         { status: 400 }
       );
+    }
+
+    // Get the unlock fee to check ownership
+    const existingFee = await db.query.unlockFee.findFirst({
+      where: eq(unlockFee.id, feeId),
+      with: {
+        resource: true,
+        topic: true,
+        subject: true,
+      },
+    });
+
+    if (!existingFee) {
+      return NextResponse.json(
+        { error: "Unlock fee not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check ownership - admins can only update their own content fees
+    if (currentUser.role !== "super_admin") {
+      const ownerId = existingFee.resource?.ownerId || 
+                      existingFee.topic?.ownerId || 
+                      existingFee.subject?.ownerId;
+      
+      if (ownerId !== currentUser.id) {
+        return NextResponse.json(
+          { error: "Forbidden - You can only update unlock fees for your own content" },
+          { status: 403 }
+        );
+      }
     }
 
     // Update the unlock fee
@@ -147,17 +215,17 @@ export async function PUT(req: Request) {
  */
 export async function POST(req: Request) {
   try {
-    const { userId } = await auth();
+    const { userId: clerkId } = await auth();
     
-    if (!userId) {
+    if (!clerkId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    // Check if user is admin or has content management permission
-    const hasPermission = await checkUserPermission(userId, ContentPermissions.RESOURCES_UPDATE);
+    // Check if user has permission to manage unlock fees
+    const hasPermission = await checkUserPermission(clerkId, FinancePermissions.UNLOCK_FEE_MANAGE);
     if (!hasPermission) {
       return NextResponse.json(
         { error: "Forbidden - You don't have permission to create unlock fees" },

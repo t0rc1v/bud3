@@ -124,7 +124,7 @@ export function ContentLockCard({
         {!hasEnoughCredits && (
           <p className="text-xs text-center text-muted-foreground">
             You need {creditsRequired - userCredits} more credits. 
-            <a href="/learner/dashboard" className="text-yellow-600 hover:underline ml-1">
+            <a href="/regular/dashboard" className="text-yellow-600 hover:underline ml-1">
               Buy Credits
             </a>
           </p>

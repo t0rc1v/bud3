@@ -1,52 +1,251 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getGradesFullHierarchy } from "@/lib/actions/teacher";
+import { getGradesFullHierarchy } from "@/lib/actions/admin";
 import { hasUserUnlockedContent, getUnlockFeeByResource } from "@/lib/actions/credits";
+import { getUserByClerkId } from "@/lib/actions/auth";
+import { getRegularAdminIds } from "@/lib/actions/admin";
 import { DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
+import type { GradeWithFullHierarchy, SubjectWithTopics, TopicWithResources, Resource } from "@/lib/types";
+import type { UserRole } from "@/lib/types";
+
+/**
+ * Check if user can access content based on ownership rules:
+ * - Super-admin content: visible to all (view-only for non-owners)
+ * - Admin content: visible to the admin + their regulars only (not other admins)
+ * - Regular content: visible to themselves only
+ * - Regular users with multiple admins: can view content from ALL their admins
+ */
+function canAccessContent(
+  contentOwnerId: string | null,
+  contentOwnerRole: UserRole,
+  contentVisibility: string,
+  userId: string,
+  userRole: UserRole,
+  userAdminIds: string[]
+): boolean {
+  // Super-admin can access everything
+  if (userRole === "super_admin") return true;
+
+  // Owner can always access their own content
+  if (contentOwnerId === userId) return true;
+
+  // Super-admin content is viewable by everyone
+  if (contentOwnerRole === "super_admin") return true;
+
+  // Check based on content owner role
+  if (contentOwnerRole === "admin") {
+    // Admin content: only visible to admin + their regulars
+    if (userRole === "admin") {
+      // Admins can only see their own content, not other admins'
+      return contentOwnerId === userId;
+    }
+    if (userRole === "regular") {
+      // Regular can see if they belong to this admin
+      return contentOwnerId !== null && userAdminIds.includes(contentOwnerId);
+    }
+    return false;
+  }
+
+  if (contentOwnerRole === "regular") {
+    // Regular content: only visible to themselves
+    return contentOwnerId === userId;
+  }
+
+  // For content without a clear owner role, check visibility settings
+  // BUT still enforce that admins can only see their own content
+  switch (contentVisibility) {
+    case "public":
+      return true;
+    case "admin_only":
+      // For admin_only visibility, only the owner admin should see it
+      // NOT other admins
+      if (userRole === "admin") {
+        return contentOwnerId === userId;
+      }
+      return userRole === "super_admin" as UserRole;
+    case "admin_and_regulars":
+      if (userRole === "admin") {
+        // Admins can only see their own admin_and_regulars content
+        return contentOwnerId === userId;
+      }
+      if (userRole === "regular" && contentOwnerId !== null) {
+        return contentOwnerId === userId || userAdminIds.includes(contentOwnerId);
+      }
+      return userRole === "super_admin" as UserRole;
+    case "regular_only":
+      if (userRole === "regular" && contentOwnerId !== null) {
+        return contentOwnerId === userId || userAdminIds.includes(contentOwnerId);
+      }
+      return false;
+    default:
+      // Default: if ownerRole is not set, only allow if user is the owner
+      return contentOwnerId === userId;
+  }
+}
+
+/**
+ * Filter resources based on ownership
+ */
+function filterResources(
+  resources: Resource[],
+  userId: string,
+  userRole: UserRole,
+  userAdminIds: string[]
+): Resource[] {
+  return resources.filter((resource) =>
+    canAccessContent(
+      resource.ownerId,
+      resource.ownerRole,
+      resource.visibility,
+      userId,
+      userRole,
+      userAdminIds
+    )
+  );
+}
+
+/**
+ * Filter topics based on ownership (and their resources)
+ */
+function filterTopics(
+  topics: TopicWithResources[],
+  userId: string,
+  userRole: UserRole,
+  userAdminIds: string[]
+): TopicWithResources[] {
+  return topics
+    .filter((topic) =>
+      canAccessContent(
+        topic.ownerId,
+        topic.ownerRole,
+        topic.visibility,
+        userId,
+        userRole,
+        userAdminIds
+      )
+    )
+    .map((topic) => ({
+      ...topic,
+      resources: filterResources(topic.resources || [], userId, userRole, userAdminIds),
+    }));
+}
+
+/**
+ * Filter subjects based on ownership (and their topics)
+ */
+function filterSubjects(
+  subjects: SubjectWithTopics[],
+  userId: string,
+  userRole: UserRole,
+  userAdminIds: string[]
+): SubjectWithTopics[] {
+  return subjects
+    .filter((subject) =>
+      canAccessContent(
+        subject.ownerId,
+        subject.ownerRole,
+        subject.visibility,
+        userId,
+        userRole,
+        userAdminIds
+      )
+    )
+    .map((subject) => ({
+      ...subject,
+      topics: filterTopics(subject.topics || [], userId, userRole, userAdminIds),
+    }));
+}
+
+/**
+ * Filter grades based on ownership (and their subjects)
+ */
+function filterGrades(
+  grades: GradeWithFullHierarchy[],
+  userId: string,
+  userRole: UserRole,
+  userAdminIds: string[]
+): GradeWithFullHierarchy[] {
+  return grades
+    .filter((grade) =>
+      canAccessContent(
+        grade.ownerId,
+        grade.ownerRole,
+        grade.visibility,
+        userId,
+        userRole,
+        userAdminIds
+      )
+    )
+    .map((grade) => ({
+      ...grade,
+      subjects: filterSubjects(grade.subjects || [], userId, userRole, userAdminIds),
+    }));
+}
 
 /**
  * GET /api/content/hierarchy-with-unlock-status
  * Returns content hierarchy with unlock status for the current user
- * Works for both learners and teachers
+ * Respects content ownership: super-admin content is public, admin content is for admin + their regulars, regular content is private
  */
 export async function GET(req: Request) {
   try {
-    const { userId } = await auth();
-    
-    if (!userId) {
+    const { userId: clerkId } = await auth();
+
+    if (!clerkId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
+    // Get user details from database
+    const user = await getUserByClerkId(clerkId);
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    const userRole = user.role as UserRole;
+    const userDbId = user.id;
+
+    // Get admin IDs for regular users (supports multiple admins)
+    const userAdminIds = userRole === "regular" ? await getRegularAdminIds(userDbId) : [];
+
     const grades = await getGradesFullHierarchy();
+
+    // Filter grades based on ownership
+    const filteredGrades = filterGrades(grades, userDbId, userRole, userAdminIds);
 
     // Check unlock status for each resource
     const gradesWithUnlockStatus = await Promise.all(
-      grades.map(async (grade) => ({
+      filteredGrades.map(async (grade) => ({
         id: grade.id,
         title: grade.title,
+        ownerId: grade.ownerId,
         subjects: await Promise.all(
           (grade.subjects || []).map(async (subject) => ({
             id: subject.id,
             name: subject.name,
+            ownerId: subject.ownerId,
             topics: await Promise.all(
               (subject.topics || []).map(async (topic) => ({
                 id: topic.id,
                 title: topic.title,
+                ownerId: topic.ownerId,
                 resources: await Promise.all(
                   (topic.resources || []).map(async (resource) => {
                     // Get unlock fee for this resource
                     const unlockFee = await getUnlockFeeByResource(resource.id);
-                    
+
                     // Use default values if no unlock fee exists
                     const feeAmount = unlockFee?.feeAmount || DEFAULT_CREDIT_CONFIG.defaultUnlockFeeKes;
 
                     // Check if user has unlocked this resource
                     let isUnlocked = false;
                     if (unlockFee) {
-                      isUnlocked = await hasUserUnlockedContent(userId, unlockFee.id);
+                      isUnlocked = await hasUserUnlockedContent(clerkId, unlockFee.id);
                     }
 
                     return {
@@ -57,6 +256,7 @@ export async function GET(req: Request) {
                       description: resource.description,
                       unlockFee: feeAmount,
                       isUnlocked,
+                      ownerId: resource.ownerId,
                     };
                   })
                 ),

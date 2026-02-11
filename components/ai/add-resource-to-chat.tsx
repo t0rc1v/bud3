@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, FileText, Video, Headphones, Image as ImageIcon, Check, Lock, Unlock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getResources } from "@/lib/actions/teacher";
+import { getResources } from "@/lib/actions/admin";
 import { hasUserUnlockedContent, getUnlockFeeByResource } from "@/lib/actions/credits";
 import type { ResourceWithRelations } from "@/lib/types";
 
@@ -150,7 +150,7 @@ export function AddResourceToChat({
               <span className="block mt-2 text-yellow-600">
                 <Lock className="h-4 w-4 inline mr-1" />
                 {lockedCount} resources are locked and not shown. 
-                <a href="/learner/dashboard" className="underline">Unlock them first</a>.
+                <a href="/regular/dashboard" className="underline">Unlock them first</a>.
               </span>
             )}
           </DialogDescription>
@@ -175,7 +175,7 @@ export function AddResourceToChat({
                     <Lock className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No unlocked resources available</p>
                     <p className="text-sm mt-2">
-                      <a href="/learner/dashboard" className="text-primary underline">
+                      <a href="/regular/dashboard" className="text-primary underline">
                         Go to dashboard to unlock content
                       </a>
                     </p>

@@ -17,14 +17,19 @@ export default async function AdminLayout({
 
   const user = await getUserByClerkId(userId);
 
-  // Allow both admin and super_admin to access admin pages
-  if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
+  // Only admin role can access admin pages (super_admin has separate dashboard)
+  if (!user || user.role !== "admin") {
+    // Redirect super_admin to their own dashboard
+    if (user?.role === "super_admin") {
+      redirect("/super-admin");
+    }
     redirect("/");
   }
 
   return (
     <AdminLayoutClient 
-      userId={userId} 
+      userId={user.clerkId}
+      dbUserId={user.id}
       userRole={user.role}
     >
       {children}

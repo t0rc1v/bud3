@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { createResource } from "@/lib/actions/admin";
+import { getUserByClerkId } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +44,7 @@ const ALLOWED_CONTENT = {
 
 export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResourceFormProps) {
   const router = useRouter();
+  const { user: clerkUser } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<{ name: string; url: string } | null>(null);
@@ -56,6 +59,13 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
     uploadthingKey: "",
   });
 
+  // Sync subjectId when subjects prop changes
+  useEffect(() => {
+    if (subjects.length > 0 && !formData.subjectId) {
+      setFormData(prev => ({ ...prev, subjectId: subjects[0].id, topicId: "" }));
+    }
+  }, [subjects]);
+
   const filteredTopics = topics.filter(
     (topic) => topic.subjectId === formData.subjectId
   );
@@ -64,9 +74,22 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
     e.preventDefault();
     setIsLoading(true);
     try {
+      if (!clerkUser) {
+        throw new Error("User not authenticated");
+      }
+      
+      // Get user info from database
+      const user = await getUserByClerkId(clerkUser.id);
+      if (!user) {
+        throw new Error("User not found");
+      }
+      
       await createResource({
         ...formData,
         uploadthingKey: formData.uploadthingKey || "",
+        ownerId: user.id,
+        ownerRole: user.role,
+        visibility: "admin_and_regulars", // Default visibility for admin-created resources
       });
       router.refresh();
       setFormData({

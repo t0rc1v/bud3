@@ -38,7 +38,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       user: {
-        userId: foundUser.userId,
+        userId: foundUser.clerkId,
         email: foundUser.email,
         name: foundUser.email.split('@')[0], // Simple name extraction
         role: foundUser.role,

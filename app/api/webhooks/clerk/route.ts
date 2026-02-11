@@ -76,7 +76,7 @@ export async function POST(req: Request) {
 
     // Check for role in metadata (for manually created admins/super admins)
     const metadataRole = public_metadata?.role as UserRole | undefined
-    const role: UserRole = metadataRole || 'learner'
+    const role: UserRole = metadataRole || 'regular'
 
     try {
       const { user, isNew } = await getOrCreateUser(id, primaryEmail, role)

@@ -1254,12 +1254,12 @@ function ResourceNode({
       
       <span 
         className="text-[11px] flex-1 truncate cursor-pointer"
-        onClick={isUnlocked ? onView : undefined}
+        onClick={isUnlocked || isOwner ? onView : undefined}
       >
         {resource.title}
       </span>
       
-      {resource.isLocked && !isUnlocked ? (
+      {resource.isLocked && !isUnlocked && !isOwner ? (
         <ResourceUnlockModal
           resourceId={resource.id}
           resourceTitle={resource.title}

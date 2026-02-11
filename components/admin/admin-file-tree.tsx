@@ -205,7 +205,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-6 w-6 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity"
               onClick={(e) => e.stopPropagation()}
             >
               <Plus className="h-3 w-3" />
@@ -231,7 +231,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-6 w-6 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity"
               onClick={(e) => e.stopPropagation()}
             >
               <Plus className="h-3 w-3" />
@@ -257,7 +257,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-6 w-6 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity"
               onClick={(e) => e.stopPropagation()}
             >
               <Plus className="h-3 w-3" />
@@ -331,7 +331,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="h-6 w-6 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity"
                 onClick={(e) => e.stopPropagation()}
               >
                 <MoreHorizontal className="h-3 w-3" />

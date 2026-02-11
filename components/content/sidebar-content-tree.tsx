@@ -770,7 +770,7 @@ function GradeNode({
         </span>
         
         {canManage && (
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          <div className="flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity flex-shrink-0">
             <Dialog open={isAddSubjectOpen} onOpenChange={setIsAddSubjectOpen}>
               <DialogTrigger asChild>
                 <Button
@@ -929,7 +929,7 @@ function SubjectNode({
         </span>
         
         {canManage && (
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          <div className="flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity flex-shrink-0">
             <Dialog open={isAddTopicOpen} onOpenChange={setIsAddTopicOpen}>
               <DialogTrigger asChild>
                 <Button
@@ -1069,7 +1069,7 @@ function TopicNode({
         </span>
         
         {canManage && (
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          <div className="flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity flex-shrink-0">
             <Dialog open={isAddResourceOpen} onOpenChange={setIsAddResourceOpen}>
               <DialogTrigger asChild>
                 <Button
@@ -1201,12 +1201,12 @@ function ResourceNode({
           onUnlockSuccess={handleUnlockSuccess}
         />
       ) : (
-        <DropdownMenu>
+            <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+              className="h-4 w-4 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity flex-shrink-0"
             >
               <MoreVertical className="h-2.5 w-2.5" />
             </Button>

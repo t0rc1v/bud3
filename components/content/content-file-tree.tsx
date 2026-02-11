@@ -775,7 +775,7 @@ export function ContentFileTree({
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className={itemToEdit?.type === "resource" ? "sm:max-w-[600px] max-h-[90vh] overflow-y-auto" : "sm:max-w-[425px]"}>
           <DialogHeader>
             <DialogTitle>Edit {itemToEdit?.type}</DialogTitle>
           </DialogHeader>

@@ -65,6 +65,7 @@ import { CreateResourceForm } from "@/components/admin/create-resource-form";
 import { EditGradeForm } from "@/components/admin/edit-grade-form";
 import { EditSubjectForm } from "@/components/admin/edit-subject-form";
 import { EditTopicForm } from "@/components/admin/edit-topic-form";
+import { EditResourceForm } from "@/components/admin/edit-resource-form";
 import {
   deleteGradeWithSession,
   deleteSubjectWithSession,
@@ -128,6 +129,7 @@ export function UnifiedAdminPageClient({
   // Edit dialog states
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<{ id: string; type: string; data: unknown } | null>(null);
+  const [isLoadingEditResource, setIsLoadingEditResource] = useState(false);
 
   // Delete dialog states
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -361,7 +363,22 @@ export function UnifiedAdminPageClient({
   };
 
   const handleEditResource = async (resource: Resource) => {
-    await handleViewResource(resource, true);
+    // Open modal immediately with loading state
+    setItemToEdit({ id: resource.id, type: "resource", data: resource });
+    setIsEditDialogOpen(true);
+    setIsLoadingEditResource(true);
+    
+    // Fetch full resource data with relations
+    try {
+      const fullResource = await getResourceById(resource.id);
+      if (fullResource) {
+        setItemToEdit({ id: resource.id, type: "resource", data: fullResource });
+      }
+    } catch (error) {
+      console.error("Failed to load resource for editing:", error);
+    } finally {
+      setIsLoadingEditResource(false);
+    }
   };
 
   // Edit handlers for grades, subjects, topics
@@ -1092,7 +1109,7 @@ export function UnifiedAdminPageClient({
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className={itemToEdit?.type === "resource" ? "sm:max-w-[600px] max-h-[90vh] overflow-y-auto" : "sm:max-w-[425px]"}>
           <DialogHeader>
             <DialogTitle>Edit {itemToEdit?.type}</DialogTitle>
           </DialogHeader>
@@ -1115,6 +1132,46 @@ export function UnifiedAdminPageClient({
               subjects={allSubjects}
               onSuccess={handleEditSuccess}
             />
+          )}
+          {itemToEdit?.type === "resource" && (
+            isLoadingEditResource ? (
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <div className="h-4 w-20 bg-muted rounded animate-pulse" />
+                  <div className="h-10 bg-muted rounded animate-pulse" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+                  <div className="h-24 bg-muted rounded animate-pulse" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+                    <div className="h-10 bg-muted rounded animate-pulse" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+                    <div className="h-10 bg-muted rounded animate-pulse" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-4 w-20 bg-muted rounded animate-pulse" />
+                  <div className="h-10 bg-muted rounded animate-pulse" />
+                </div>
+                <div className="flex justify-end gap-2 pt-4">
+                  <div className="h-10 w-24 bg-muted rounded animate-pulse" />
+                  <div className="h-10 w-24 bg-muted rounded animate-pulse" />
+                </div>
+              </div>
+            ) : (
+              <EditResourceForm 
+                resource={itemToEdit.data as ResourceWithRelations}
+                subjects={allSubjects.map(s => ({ id: s.id, name: s.name, grade: { id: s.gradeId, title: "Grade" } }))}
+                topics={allTopics.map(t => ({ id: t.id, title: t.title, subjectId: t.subjectId }))}
+                onSuccess={handleEditSuccess}
+                onCancel={() => setIsEditDialogOpen(false)}
+              />
+            )
           )}
         </DialogContent>
       </Dialog>

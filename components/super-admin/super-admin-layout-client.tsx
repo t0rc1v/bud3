@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { AdminFileTree } from "@/components/admin/admin-file-tree";
+import { SidebarContentTree } from "@/components/content/sidebar-content-tree";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
@@ -12,16 +12,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
 import { UserButton } from "@clerk/nextjs";
-import type { TreeItemData } from "@/components/admin/admin-file-tree";
 import type { Resource } from "@/lib/types";
+import type { GradeWithFullHierarchy } from "@/lib/types";
 
 interface SuperAdminLayoutClientProps {
   children: ReactNode;
   userId: string;
   dbUserId?: string;
+  initialGrades: GradeWithFullHierarchy[];
 }
 
-export function SuperAdminLayoutClient({ children, userId, dbUserId }: SuperAdminLayoutClientProps) {
+export function SuperAdminLayoutClient({ children, userId, dbUserId, initialGrades }: SuperAdminLayoutClientProps) {
   const isMobile = useIsMobile();
   const [isClient, setIsClient] = useState(false);
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(!isMobile);
@@ -35,29 +36,27 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId }: SuperAdmi
 
   const pathname = usePathname();
 
-  const handleViewResource = useCallback((item: TreeItemData) => {
-    if (item.type === "resource") {
-      console.log("Viewing resource from file tree:", item.id);
-    }
+  const handleResourceSelect = useCallback((resource: Resource) => {
+    // Navigate with viewResource query param
+    const params = new URLSearchParams(window.location.search);
+    params.set("viewResource", resource.id);
+    window.history.pushState({}, "", `${window.location.pathname}?${params.toString()}`);
   }, []);
 
-  const handleAddResourceToChat = useCallback((item: TreeItemData) => {
-    if (item.type === "resource") {
-      const resourceData = item.data as Resource;
-      const resource: ChatResource = {
-        id: resourceData.id,
-        title: resourceData.title,
-        description: resourceData.description || "",
-        url: resourceData.url || "",
-        type: (resourceData.type as "notes" | "video" | "audio" | "image") || "notes",
-      };
-      
-      if (!rightSidebarOpen) {
-        setRightSidebarOpen(true);
-      }
-      
-      setResourceToAddToChat(resource);
+  const handleAddResourceToChat = useCallback((resource: Resource) => {
+    const chatResource: ChatResource = {
+      id: resource.id,
+      title: resource.title,
+      description: resource.description || "",
+      url: resource.url || "",
+      type: (resource.type as "notes" | "video" | "audio" | "image") || "notes",
+    };
+    
+    if (!rightSidebarOpen) {
+      setRightSidebarOpen(true);
     }
+    
+    setResourceToAddToChat(chatResource);
   }, [rightSidebarOpen]);
 
   const showMobile = isClient && isMobile;
@@ -83,12 +82,14 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId }: SuperAdmi
                   <p className="text-xs text-muted-foreground">Browse all content</p>
                 </div>
                 <div className="flex-1 overflow-auto">
-                  <AdminFileTree
-                    isOpen={true}
-                    onViewResource={handleViewResource}
-                    onAddResourceToChat={handleAddResourceToChat}
+                  <SidebarContentTree
+                    initialGrades={initialGrades}
                     userId={dbUserId || userId}
                     userRole="super_admin"
+                    onResourceSelect={handleResourceSelect}
+                    onAddResourceToChat={handleAddResourceToChat}
+                    enableCrud={true}
+                    className="h-full"
                   />
                 </div>
                 {/* Super Admin Navigation */}
@@ -213,12 +214,14 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId }: SuperAdmi
           </h2>
         </div>
         <div className="flex-1 overflow-auto">
-          <AdminFileTree
-            isOpen={leftSidebarOpen}
-            onViewResource={handleViewResource}
-            onAddResourceToChat={handleAddResourceToChat}
+          <SidebarContentTree
+            initialGrades={initialGrades}
             userId={dbUserId || userId}
             userRole="super_admin"
+            onResourceSelect={handleResourceSelect}
+            onAddResourceToChat={handleAddResourceToChat}
+            enableCrud={true}
+            className="h-full"
           />
         </div>
         

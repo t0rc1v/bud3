@@ -98,6 +98,9 @@ export const resource = pgTable("resource", {
   ownerRole: userRoleEnum('owner_role').notNull().default("regular"),
   visibility: resourceVisibilityEnum('visibility').notNull().default("regular_only"),
   metadata: jsonb('metadata'),
+  // Lock and pricing fields
+  isLocked: boolean('is_locked').default(false).notNull(),
+  unlockFee: integer('unlock_fee').default(0).notNull(), // Fee in KES (0 means free)
   isActive: boolean('is_active').default(true).notNull(),
   createdAt,
   updatedAt,

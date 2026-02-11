@@ -24,6 +24,9 @@ import {
   User,
   Users,
   Shield,
+  Lock,
+  Unlock,
+  CreditCard,
 } from "lucide-react";
 import { ResourceViewer, ResourceViewerSkeleton } from "./resource-viewer";
 import { getResourceById } from "@/lib/actions/admin";
@@ -811,11 +814,21 @@ export function UnifiedAdminPageClient({
                                             className="flex items-center justify-between p-2 hover:bg-muted/20 rounded"
                                           >
                                             <div className="flex items-center gap-3">
-                                              <Library className="h-4 w-4 text-muted-foreground" />
+                                              {resource.isLocked ? (
+                                                <Lock className="h-4 w-4 text-yellow-600" />
+                                              ) : (
+                                                <Unlock className="h-4 w-4 text-green-600" />
+                                              )}
                                               <span className="text-sm">{resource.title}</span>
                                               <span className="text-xs text-muted-foreground capitalize">
                                                 ({resource.type})
                                               </span>
+                                              {resource.isLocked && (
+                                                <span className="text-xs text-yellow-600 font-medium flex items-center gap-1">
+                                                  <CreditCard className="h-3 w-3" />
+                                                  Ksh {resource.unlockFee}
+                                                </span>
+                                              )}
                                             </div>
                                             <div className="flex items-center gap-1">
                                               <Button 

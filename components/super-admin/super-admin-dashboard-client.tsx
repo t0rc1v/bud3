@@ -29,6 +29,7 @@ import {
   ChevronDownSquare,
   ChevronRightSquare,
   FolderOpen,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -940,11 +941,21 @@ export function SuperAdminDashboardClient({
                                               className="flex items-center justify-between p-2 hover:bg-purple-50/10 rounded"
                                             >
                                               <div className="flex items-center gap-3">
-                                                <Library className="h-4 w-4 text-muted-foreground" />
+                                                {resource.isLocked ? (
+                                                  <Lock className="h-4 w-4 text-yellow-600" />
+                                                ) : (
+                                                  <Unlock className="h-4 w-4 text-green-600" />
+                                                )}
                                                 <span className="text-sm">{resource.title}</span>
                                                 <span className="text-xs text-muted-foreground capitalize">
                                                   ({resource.type})
                                                 </span>
+                                                {resource.isLocked && (
+                                                  <span className="text-xs text-yellow-600 font-medium flex items-center gap-1">
+                                                    <CreditCard className="h-3 w-3" />
+                                                    Ksh {resource.unlockFee}
+                                                  </span>
+                                                )}
                                               </div>
                                               <div className="flex items-center gap-1">
                                                 <Button 
@@ -1198,11 +1209,21 @@ export function SuperAdminDashboardClient({
                                               className="flex items-center justify-between p-2 hover:bg-blue-50/10 rounded"
                                             >
                                               <div className="flex items-center gap-3">
-                                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                                {resource.isLocked ? (
+                                                  <Lock className="h-4 w-4 text-yellow-600" />
+                                                ) : (
+                                                  <Unlock className="h-4 w-4 text-green-600" />
+                                                )}
                                                 <span className="text-sm">{resource.title}</span>
                                                 <span className="text-xs text-muted-foreground capitalize">
                                                   ({resource.type})
                                                 </span>
+                                                {resource.isLocked && (
+                                                  <span className="text-xs text-yellow-600 font-medium flex items-center gap-1">
+                                                    <CreditCard className="h-3 w-3" />
+                                                    Ksh {resource.unlockFee}
+                                                  </span>
+                                                )}
                                               </div>
                                               <div className="flex items-center gap-1">
                                                 <Button 
@@ -1445,11 +1466,21 @@ export function SuperAdminDashboardClient({
                                               className="flex items-center justify-between p-2 hover:bg-green-50/10 rounded"
                                             >
                                               <div className="flex items-center gap-3">
-                                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                                {resource.isLocked ? (
+                                                  <Lock className="h-4 w-4 text-yellow-600" />
+                                                ) : (
+                                                  <Unlock className="h-4 w-4 text-green-600" />
+                                                )}
                                                 <span className="text-sm">{resource.title}</span>
                                                 <span className="text-xs text-muted-foreground capitalize">
                                                   ({resource.type})
                                                 </span>
+                                                {resource.isLocked && (
+                                                  <span className="text-xs text-yellow-600 font-medium flex items-center gap-1">
+                                                    <CreditCard className="h-3 w-3" />
+                                                    Ksh {resource.unlockFee}
+                                                  </span>
+                                                )}
                                               </div>
                                               <div className="flex items-center gap-1">
                                                 <Button 

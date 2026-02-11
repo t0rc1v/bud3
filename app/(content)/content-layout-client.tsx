@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { ContentFileTree } from "@/components/content/content-file-tree";
+import { SidebarContentTree } from "@/components/content/sidebar-content-tree";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
@@ -11,16 +11,19 @@ import { useState, useEffect, useCallback } from "react";
 import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
 import { UserButton } from "@clerk/nextjs";
 import { CreditBadge, CreditModal } from "@/components/credits/credit-modal";
-import type { TreeItemData, ResourceData } from "@/components/content/content-file-tree";
+import type { Resource } from "@/lib/types";
+import type { GradeWithFullHierarchy } from "@/lib/types";
 
 interface ContentLayoutClientProps {
   children: ReactNode;
   userId: string | null;
   dbUserId?: string | null;
   userRole: "admin" | "regular";
+  initialGrades: GradeWithFullHierarchy[];
+  adminIds?: string[];
 }
 
-export function ContentLayoutClient({ children, userId, dbUserId, userRole }: ContentLayoutClientProps) {
+export function ContentLayoutClient({ children, userId, dbUserId, userRole, initialGrades, adminIds = [] }: ContentLayoutClientProps) {
   const isMobile = useIsMobile();
   const [isClient, setIsClient] = useState(false);
   // Default to closed on mobile, open on desktop (for SSR consistency)
@@ -38,26 +41,31 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole }: Co
 
   const title = userRole === "admin" ? "Institution Admin" : "Student";
 
-  // Handle add resource to chat from file tree dropdown
-  const handleAddResourceToChat = useCallback((item: TreeItemData) => {
-    if (item.type === "resource") {
-      const resourceData = item.data as ResourceData;
-      const resource: ChatResource = {
-        id: resourceData.id,
-        title: resourceData.title,
-        description: resourceData.description || "",
-        url: resourceData.url || "",
-        type: (resourceData.type as "notes" | "video" | "audio" | "image") || "notes",
-      };
-      
-      // Open chat sidebar if closed
-      if (!rightSidebarOpen) {
-        setRightSidebarOpen(true);
-      }
-      
-      // Store resource to be added when chat opens
-      setResourceToAddToChat(resource);
+  // Handle resource selection from sidebar
+  const handleResourceSelect = useCallback((resource: Resource) => {
+    // Navigate with viewResource query param
+    const params = new URLSearchParams(window.location.search);
+    params.set("viewResource", resource.id);
+    window.history.pushState({}, "", `${window.location.pathname}?${params.toString()}`);
+  }, []);
+
+  // Handle add resource to chat from sidebar
+  const handleAddResourceToChat = useCallback((resource: Resource) => {
+    const chatResource: ChatResource = {
+      id: resource.id,
+      title: resource.title,
+      description: resource.description || "",
+      url: resource.url || "",
+      type: (resource.type as "notes" | "video" | "audio" | "image") || "notes",
+    };
+    
+    // Open chat sidebar if closed
+    if (!rightSidebarOpen) {
+      setRightSidebarOpen(true);
     }
+    
+    // Store resource to be added when chat opens
+    setResourceToAddToChat(chatResource);
   }, [rightSidebarOpen]);
 
   // Prevent hydration mismatch by rendering desktop layout until client-side hydration is complete
@@ -84,11 +92,15 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole }: Co
                   <p className="text-xs text-muted-foreground">Browse content</p>
                 </div>
                 <div className="flex-1 overflow-auto">
-                  <ContentFileTree
+                  <SidebarContentTree
+                    initialGrades={initialGrades}
+                    userId={dbUserId || userId || ""}
                     userRole={userRole}
-                    isOpen={true}
+                    adminIds={adminIds}
+                    onResourceSelect={handleResourceSelect}
                     onAddResourceToChat={handleAddResourceToChat}
-                    userId={dbUserId || undefined}
+                    enableCrud={true}
+                    className="h-full"
                   />
                 </div>
               </div>
@@ -158,11 +170,15 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole }: Co
           </h2>
         </div>
         <div className="flex-1 overflow-auto">
-          <ContentFileTree
+          <SidebarContentTree
+            initialGrades={initialGrades}
+            userId={dbUserId || userId || ""}
             userRole={userRole}
-            isOpen={leftSidebarOpen}
+            adminIds={adminIds}
+            onResourceSelect={handleResourceSelect}
             onAddResourceToChat={handleAddResourceToChat}
-            userId={dbUserId || undefined}
+            enableCrud={true}
+            className="h-full"
           />
         </div>
       </div>

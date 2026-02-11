@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { AdminFileTree } from "@/components/admin/admin-file-tree";
+import { SidebarContentTree } from "@/components/content/sidebar-content-tree";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
@@ -12,17 +12,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
 import { UserButton } from "@clerk/nextjs";
-import type { TreeItemData } from "@/components/admin/admin-file-tree";
 import type { Resource } from "@/lib/types";
+import type { GradeWithFullHierarchy } from "@/lib/types";
 
 interface AdminLayoutClientProps {
   children: ReactNode;
   userId: string | null;
   dbUserId?: string | null;
   userRole?: "admin" | "super_admin";
+  initialGrades: GradeWithFullHierarchy[];
 }
 
-export function AdminLayoutClient({ children, userId, dbUserId, userRole }: AdminLayoutClientProps) {
+export function AdminLayoutClient({ children, userId, dbUserId, userRole, initialGrades }: AdminLayoutClientProps) {
   const isMobile = useIsMobile();
   const [isClient, setIsClient] = useState(false);
   // Default to closed on mobile, open on desktop (for SSR consistency)
@@ -40,35 +41,31 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole }: Admi
 
   const pathname = usePathname();
 
-  // Handle view resource from file tree dropdown
-  const handleViewResource = useCallback((item: TreeItemData) => {
-    if (item.type === "resource") {
-      // The file tree component already navigates with the viewResource query param
-      // This callback is for any additional handling if needed
-      console.log("Viewing resource from file tree:", item.id);
-    }
+  // Handle resource selection from sidebar
+  const handleResourceSelect = useCallback((resource: Resource) => {
+    // Navigate with viewResource query param
+    const params = new URLSearchParams(window.location.search);
+    params.set("viewResource", resource.id);
+    window.history.pushState({}, "", `${window.location.pathname}?${params.toString()}`);
   }, []);
 
-  // Handle add resource to chat from file tree dropdown
-  const handleAddResourceToChat = useCallback((item: TreeItemData) => {
-    if (item.type === "resource") {
-      const resourceData = item.data as Resource;
-      const resource: ChatResource = {
-        id: resourceData.id,
-        title: resourceData.title,
-        description: resourceData.description || "",
-        url: resourceData.url || "",
-        type: (resourceData.type as "notes" | "video" | "audio" | "image") || "notes",
-      };
-      
-      // Open chat sidebar if closed
-      if (!rightSidebarOpen) {
-        setRightSidebarOpen(true);
-      }
-      
-      // Store resource to be added when chat opens
-      setResourceToAddToChat(resource);
+  // Handle add resource to chat from sidebar
+  const handleAddResourceToChat = useCallback((resource: Resource) => {
+    const chatResource: ChatResource = {
+      id: resource.id,
+      title: resource.title,
+      description: resource.description || "",
+      url: resource.url || "",
+      type: (resource.type as "notes" | "video" | "audio" | "image") || "notes",
+    };
+    
+    // Open chat sidebar if closed
+    if (!rightSidebarOpen) {
+      setRightSidebarOpen(true);
     }
+    
+    // Store resource to be added when chat opens
+    setResourceToAddToChat(chatResource);
   }, [rightSidebarOpen]);
 
   // Prevent hydration mismatch by rendering desktop layout until client-side hydration is complete
@@ -96,12 +93,14 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole }: Admi
                 </div>
                 <div className="flex-1 overflow-auto">
                   {dbUserId && (
-                    <AdminFileTree
-                      isOpen={true}
-                      onViewResource={handleViewResource}
-                      onAddResourceToChat={handleAddResourceToChat}
+                    <SidebarContentTree
+                      initialGrades={initialGrades}
                       userId={dbUserId}
-                      userRole={userRole || "admin"}
+                      userRole="admin"
+                      onResourceSelect={handleResourceSelect}
+                      onAddResourceToChat={handleAddResourceToChat}
+                      enableCrud={true}
+                      className="h-full"
                     />
                   )}
                 </div>
@@ -206,12 +205,14 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole }: Admi
         </div>
         <div className="flex-1 overflow-auto">
           {dbUserId && (
-            <AdminFileTree
-              isOpen={leftSidebarOpen}
-              onViewResource={handleViewResource}
-              onAddResourceToChat={handleAddResourceToChat}
+            <SidebarContentTree
+              initialGrades={initialGrades}
               userId={dbUserId}
-              userRole={userRole || "admin"}
+              userRole="admin"
+              onResourceSelect={handleResourceSelect}
+              onAddResourceToChat={handleAddResourceToChat}
+              enableCrud={true}
+              className="h-full"
             />
           )}
         </div>

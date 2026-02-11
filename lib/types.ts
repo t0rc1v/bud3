@@ -104,11 +104,16 @@ export interface CreateResourceInput {
   ownerId: string;
   ownerRole: UserRole;
   visibility: ResourceVisibility;
+  // Lock and pricing fields
+  isLocked?: boolean;
+  unlockFee?: number;
 }
 
 export interface UpdateResourceInput extends Partial<Omit<CreateResourceInput, "topicId" | "uploadthingKey"> & {
   topicId?: string;
   uploadthingKey?: string | null;
+  isLocked?: boolean;
+  unlockFee?: number;
 }> {
   id: string;
 }

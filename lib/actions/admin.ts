@@ -919,6 +919,8 @@ export async function createResource(input: CreateResourceInput): Promise<void> 
     ownerId: input.ownerId,
     ownerRole: input.ownerRole,
     visibility: input.visibility,
+    isLocked: input.isLocked ?? false,
+    unlockFee: input.unlockFee ?? 0,
     isActive: true,
     createdAt: new Date(),
   });
@@ -935,6 +937,46 @@ export async function updateResource(input: UpdateResourceInput): Promise<void> 
       updatedAt: new Date(),
     })
     .where(eq(resource.id, id));
+  revalidatePath("/admin");
+  revalidatePath("/regular");
+}
+
+// New function to update resource lock status and fee
+export async function updateResourceLockStatus(
+  resourceId: string,
+  isLocked: boolean,
+  unlockFee: number,
+  userId: string,
+  userRole: UserRole
+): Promise<void> {
+  // Check ownership
+  const existingResource = await db.query.resource.findFirst({
+    where: eq(resource.id, resourceId),
+  });
+
+  if (!existingResource) {
+    throw new Error("Resource not found");
+  }
+
+  const canModify = await canModifyContent(
+    existingResource.ownerId,
+    userId,
+    userRole
+  );
+
+  if (!canModify) {
+    throw new Error("You don't have permission to modify this resource");
+  }
+
+  await db
+    .update(resource)
+    .set({
+      isLocked,
+      unlockFee,
+      updatedAt: new Date(),
+    })
+    .where(eq(resource.id, resourceId));
+
   revalidatePath("/admin");
   revalidatePath("/regular");
 }

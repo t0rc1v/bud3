@@ -23,6 +23,9 @@ import {
   User,
   Shield,
   Edit,
+  Lock,
+  Unlock,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,6 +63,7 @@ import { EditGradeForm } from "@/components/admin/edit-grade-form";
 import { EditSubjectForm } from "@/components/admin/edit-subject-form";
 import { EditTopicForm } from "@/components/admin/edit-topic-form";
 import { deleteGradeWithSession, deleteSubjectWithSession, deleteTopicWithSession, deleteResource } from "@/lib/actions/admin";
+import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import type {
   GradeWithFullHierarchy,
   SubjectWithTopics,
@@ -854,6 +858,135 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
   );
 }
 
+// Resource Item Component with Lock/Unlock handling
+interface ResourceItemProps {
+  resource: Resource;
+  canDelete: boolean;
+  currentUserId: string;
+  onViewResource: (resource: Resource) => void;
+  onDeleteResource: (resourceId: string) => void;
+}
+
+function ResourceItem({ resource, canDelete, currentUserId, onViewResource, onDeleteResource }: ResourceItemProps) {
+  const [isUnlocked, setIsUnlocked] = useState(!resource.isLocked);
+  const [isChecking, setIsChecking] = useState(true);
+
+  // Check unlock status on mount
+  useEffect(() => {
+    const checkUnlockStatus = async () => {
+      if (!resource.isLocked) {
+        setIsUnlocked(true);
+        setIsChecking(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/content/unlock?resourceId=${resource.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setIsUnlocked(data.isUnlocked);
+        }
+      } catch (error) {
+        console.error("Failed to check unlock status:", error);
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    checkUnlockStatus();
+  }, [resource.id, resource.isLocked]);
+
+  const handleUnlockSuccess = () => {
+    setIsUnlocked(true);
+  };
+
+  const handleView = () => {
+    if (isUnlocked) {
+      onViewResource(resource);
+    }
+  };
+
+  if (isChecking) {
+    return (
+      <div className="flex items-center justify-between p-2 hover:bg-muted/20 rounded">
+        <div className="flex items-center gap-3">
+          <FileText className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm">{resource.title}</span>
+          <span className="text-xs text-muted-foreground capitalize">
+            ({resource.type})
+          </span>
+        </div>
+        <div className="h-8 w-8 animate-pulse bg-muted rounded" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between p-2 hover:bg-muted/20 rounded">
+      <div className="flex items-center gap-3">
+        {resource.isLocked ? (
+          <Lock className="h-4 w-4 text-yellow-600" />
+        ) : (
+          <FileText className="h-4 w-4 text-muted-foreground" />
+        )}
+        <span className="text-sm">{resource.title}</span>
+        <span className="text-xs text-muted-foreground capitalize">
+          ({resource.type})
+        </span>
+        {resource.isLocked && (
+          <span className="text-xs text-yellow-600 font-medium">
+            Ksh {resource.unlockFee}
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-1">
+        {resource.isLocked && !isUnlocked ? (
+          <ResourceUnlockModal
+            resourceId={resource.id}
+            resourceTitle={resource.title}
+            resourceType={resource.type}
+            unlockFeeKes={resource.unlockFee || 100}
+            isUnlocked={false}
+            trigger={
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+              >
+                <CreditCard className="h-4 w-4" />
+              </Button>
+            }
+            onUnlockSuccess={handleUnlockSuccess}
+          />
+        ) : (
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleView}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+        )}
+        {(canDelete && resource.ownerId === currentUserId) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onDeleteResource(resource.id)} className="text-destructive">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Grade Card Component
 interface GradeCardProps {
   grade: GradeWithFullHierarchy;
@@ -1187,42 +1320,14 @@ function GradeCard({
                                 </div>
                               ) : (
                                 topic.resources?.map((resource: Resource) => (
-                                  <div 
+                                  <ResourceItem
                                     key={resource.id}
-                                    className="flex items-center justify-between p-2 hover:bg-muted/20 rounded"
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <FileText className="h-4 w-4 text-muted-foreground" />
-                                      <span className="text-sm">{resource.title}</span>
-                                      <span className="text-xs text-muted-foreground capitalize">
-                                        ({resource.type})
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      <Button 
-                                        variant="ghost" 
-                                        size="sm"
-                                        onClick={() => onViewResource(resource)}
-                                      >
-                                        <Eye className="h-4 w-4" />
-                                      </Button>
-                                      {(canDelete && resource.ownerId === currentUserId) && (
-                                        <DropdownMenu>
-                                          <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="sm">
-                                              <MoreVertical className="h-4 w-4" />
-                                            </Button>
-                                          </DropdownMenuTrigger>
-                                          <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => onDeleteResource(resource.id)} className="text-destructive">
-                                              <Trash2 className="h-4 w-4 mr-2" />
-                                              Delete
-                                            </DropdownMenuItem>
-                                          </DropdownMenuContent>
-                                        </DropdownMenu>
-                                      )}
-                                    </div>
-                                  </div>
+                                    resource={resource}
+                                    canDelete={canDelete}
+                                    currentUserId={currentUserId}
+                                    onViewResource={onViewResource}
+                                    onDeleteResource={onDeleteResource}
+                                  />
                                 ))
                               )}
                             </div>

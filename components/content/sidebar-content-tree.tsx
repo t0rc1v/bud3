@@ -596,6 +596,7 @@ export function SidebarContentTree({
                     onEditTopic={enableCrud ? (t) => openEditDialog({ id: t.id, type: "topic", data: t }) : undefined}
                     onEditResource={enableCrud ? handleEditResource : undefined}
                     userId={userId}
+                    userRole={userRole}
                     activeTab={activeTab}
                   />
                 ))}
@@ -769,6 +770,7 @@ interface GradeNodeProps {
   onEditTopic?: (topic: TopicWithResources) => void;
   onEditResource?: (resource: Resource) => void;
   userId: string;
+  userRole: UserRole;
   activeTab: ContentTab;
 }
 
@@ -791,10 +793,12 @@ function GradeNode({
   onEditTopic,
   onEditResource,
   userId,
+  userRole,
   activeTab,
 }: GradeNodeProps) {
   const isOwner = grade.ownerId === userId;
-  const canManage = onDeleteGrade && isOwner && activeTab === "my";
+  const isSuperAdmin = userRole === "super_admin";
+  const canManage = onDeleteGrade && (isOwner || isSuperAdmin);
   const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false);
 
   return (
@@ -908,6 +912,7 @@ function GradeNode({
               onEditTopic={onEditTopic}
               onEditResource={onEditResource}
               userId={userId}
+              userRole={userRole}
               activeTab={activeTab}
             />
           ))}
@@ -933,6 +938,7 @@ interface SubjectNodeProps {
   onEditTopic?: (topic: TopicWithResources) => void;
   onEditResource?: (resource: Resource) => void;
   userId: string;
+  userRole: UserRole;
   activeTab: ContentTab;
 }
 
@@ -951,10 +957,12 @@ function SubjectNode({
   onEditTopic,
   onEditResource,
   userId,
+  userRole,
   activeTab,
 }: SubjectNodeProps) {
   const isOwner = subject.ownerId === userId;
-  const canManage = onDeleteSubject && isOwner && activeTab === "my";
+  const isSuperAdmin = userRole === "super_admin";
+  const canManage = onDeleteSubject && (isOwner || isSuperAdmin);
   const [isAddTopicOpen, setIsAddTopicOpen] = useState(false);
 
   return (
@@ -1066,6 +1074,7 @@ function SubjectNode({
               onEditTopic={onEditTopic}
               onEditResource={onEditResource}
               userId={userId}
+              userRole={userRole}
               activeTab={activeTab}
             />
           ))}
@@ -1087,6 +1096,7 @@ interface TopicNodeProps {
   onEditTopic?: (topic: TopicWithResources) => void;
   onEditResource?: (resource: Resource) => void;
   userId: string;
+  userRole: UserRole;
   activeTab: ContentTab;
 }
 
@@ -1101,10 +1111,12 @@ function TopicNode({
   onEditTopic,
   onEditResource,
   userId,
+  userRole,
   activeTab,
 }: TopicNodeProps) {
   const isOwner = topic.ownerId === userId;
-  const canManage = onDeleteTopic && isOwner && activeTab === "my";
+  const isSuperAdmin = userRole === "super_admin";
+  const canManage = onDeleteTopic && (isOwner || isSuperAdmin);
   const [isAddResourceOpen, setIsAddResourceOpen] = useState(false);
 
   return (
@@ -1206,6 +1218,7 @@ function TopicNode({
               onDelete={onDeleteResource}
               onEdit={onEditResource}
               userId={userId}
+              userRole={userRole}
               activeTab={activeTab}
             />
           ))}
@@ -1223,6 +1236,7 @@ interface ResourceNodeProps {
   onDelete?: (id: string) => void;
   onEdit?: (resource: Resource) => void | Promise<void>;
   userId: string;
+  userRole: UserRole;
   activeTab: ContentTab;
 }
 
@@ -1233,12 +1247,14 @@ function ResourceNode({
   onDelete,
   onEdit,
   userId,
+  userRole,
   activeTab,
 }: ResourceNodeProps) {
   const isOwner = resource.ownerId === userId;
-  const canDelete = onDelete && isOwner && activeTab === "my";
-  const canEdit = onEdit && isOwner && activeTab === "my";
-  const [isUnlocked, setIsUnlocked] = useState(!resource.isLocked);
+  const isSuperAdmin = userRole === "super_admin";
+  const canDelete = onDelete && (isOwner || isSuperAdmin);
+  const canEdit = onEdit && (isOwner || isSuperAdmin);
+  const [isUnlocked, setIsUnlocked] = useState(!resource.isLocked || isSuperAdmin);
 
   const handleUnlockSuccess = () => {
     setIsUnlocked(true);
@@ -1254,12 +1270,12 @@ function ResourceNode({
       
       <span 
         className="text-[11px] flex-1 truncate cursor-pointer"
-        onClick={isUnlocked || isOwner ? onView : undefined}
+        onClick={isUnlocked || isOwner || isSuperAdmin ? onView : undefined}
       >
         {resource.title}
       </span>
       
-      {resource.isLocked && !isUnlocked && !isOwner ? (
+      {resource.isLocked && !isUnlocked && !isOwner && !isSuperAdmin ? (
         <ResourceUnlockModal
           resourceId={resource.id}
           resourceTitle={resource.title}

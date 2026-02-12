@@ -54,7 +54,7 @@ export async function hasEnoughCredits(userId: string, amount: number): Promise<
 
 export interface TransactionData {
   userId: string;
-  type: "purchase" | "usage" | "refund" | "gift" | "unlock" | "bonus";
+  type: "purchase" | "usage" | "refund" | "gift" | "unlock" | "bonus" | "transfer";
   amount: number; // positive for credits added, negative for credits used
   description: string;
   metadata?: Record<string, unknown>;
@@ -90,7 +90,7 @@ export async function createCreditTransaction(data: TransactionData) {
   // Update totals based on transaction type
   if (data.type === "purchase" || data.type === "gift" || data.type === "bonus") {
     updateData.totalPurchased = credit.totalPurchased + data.amount;
-  } else if (data.type === "usage" || data.type === "unlock") {
+  } else if (data.type === "usage" || data.type === "unlock" || data.type === "transfer") {
     updateData.totalUsed = credit.totalUsed + Math.abs(data.amount);
   }
 
@@ -378,7 +378,7 @@ export async function giftCredits(
   amount: number,
   reason: string
 ) {
-  // Find user by email
+  // Find target user by email
   const targetUser = await db.query.user.findFirst({
     where: eq(user.email, targetUserEmail),
   });
@@ -387,38 +387,72 @@ export async function giftCredits(
     throw new Error(`User with email ${targetUserEmail} not found`);
   }
 
-  // Prevent non-super-admin users from gifting to themselves
-  if (targetUser.clerkId === adminUserId) {
-    const adminUserData = await db.query.user.findFirst({
-      where: eq(user.clerkId, adminUserId),
-    });
+  // Get admin user data
+  const adminUserData = await db.query.user.findFirst({
+    where: eq(user.clerkId, adminUserId),
+  });
 
-    if (adminUserData?.role !== "super_admin") {
-      throw new Error("Admins cannot gift credits to their own account");
-    }
+  if (!adminUserData) {
+    throw new Error("Admin user not found");
+  }
+
+  // Prevent non-super-admin users from gifting to themselves
+  if (targetUser.clerkId === adminUserId && adminUserData.role !== "super_admin") {
+    throw new Error("Admins cannot gift credits to their own account");
   }
 
   if (amount <= 0) {
     throw new Error("Gift amount must be positive");
   }
 
+  const isSuperAdmin = adminUserData.role === "super_admin";
+  const minimumBalance = DEFAULT_CREDIT_CONFIG.minimumAdminCreditBalance;
+
+  // Check admin's credit balance (super admins bypass this check)
+  if (!isSuperAdmin) {
+    const adminCredit = await getOrCreateUserCredit(adminUserId);
+    const requiredBalance = amount + minimumBalance;
+
+    if (adminCredit.balance < requiredBalance) {
+      throw new Error(
+        `Insufficient credits. You have ${adminCredit.balance} credits, but need ${amount} credits to gift ` +
+        `and must maintain a minimum balance of ${minimumBalance} credits. ` +
+        `Required: ${requiredBalance} credits.`
+      );
+    }
+
+    // Deduct credits from admin (transfer transaction)
+    await createCreditTransaction({
+      userId: adminUserId,
+      type: "transfer",
+      amount: -amount,
+      description: `Transferred ${amount} credits to ${targetUserEmail}`,
+      metadata: {
+        targetUserId: targetUser.clerkId,
+        targetUserEmail,
+        reason,
+        transferType: "gift_outgoing",
+      },
+    });
+  }
+
+  // Add credits to target user (gift transaction)
   const transaction = await addCredits(
     targetUser.clerkId,
     amount,
     "gift",
-    `Gifted ${amount} credits by admin`,
+    `Received ${amount} credits from ${isSuperAdmin ? "Super Admin" : "Admin"}`,
     {
       adminUserId,
+      adminEmail: adminUserData.email,
       reason,
-      targetUserEmail,
+      transferType: "gift_incoming",
+      isFromSuperAdmin: isSuperAdmin,
     }
   );
 
   // Get admin name for email
-  const adminUser = await db.query.user.findFirst({
-    where: eq(user.clerkId, adminUserId),
-  });
-  const senderName = adminUser?.institutionName || adminUser?.email || "Admin";
+  const senderName = adminUserData.institutionName || adminUserData.email || "Admin";
 
   // Send email notification
   try {
@@ -440,6 +474,8 @@ export async function giftCredits(
     transaction,
     userId: targetUser.clerkId,
     email: targetUser.email,
+    deductedFromAdmin: !isSuperAdmin,
+    adminBalanceAfter: !isSuperAdmin ? await getUserCreditBalance(adminUserId) : undefined,
   };
 }
 

@@ -382,7 +382,8 @@ export const transactionTypeEnum = pgEnum("transaction_type", [
   "refund",
   "gift",
   "unlock",
-  "bonus"
+  "bonus",
+  "transfer"
 ]);
 
 // Credit transaction history

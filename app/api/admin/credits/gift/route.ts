@@ -46,7 +46,12 @@ export async function POST(req: Request) {
     // Execute gift
     const result = await giftCredits(userId, email, amount, reason);
 
-    return NextResponse.json(result);
+    return NextResponse.json({
+      ...result,
+      message: result.deductedFromAdmin
+        ? `Successfully gifted ${amount} credits to ${email}. ${amount} credits have been deducted from your account.`
+        : `Successfully gifted ${amount} credits to ${email}.`,
+    });
 
   } catch (error) {
     console.error("Gift credits error:", error);

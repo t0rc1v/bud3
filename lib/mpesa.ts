@@ -312,14 +312,14 @@ export function parseCallbackData(callbackBody: CallbackData) {
 export const DEFAULT_CREDIT_CONFIG = {
   // 1 credit = 1 AI response (customizable)
   creditsPerAIResponse: 1,
-  
+
   // Default unlock fee
   defaultUnlockFeeKes: 100,
   defaultUnlockCredits: 50,
-  
+
   // Minimum purchase amount
   minimumPurchaseKes: 100,
-  
+
   // Credit packages (optional presets)
   creditPackages: [
     { name: 'Basic', credits: 50, kes: 100 },
@@ -327,6 +327,9 @@ export const DEFAULT_CREDIT_CONFIG = {
     { name: 'Premium', credits: 500, kes: 1000 },
     { name: 'Ultimate', credits: 1000, kes: 2000 },
   ],
+
+  // Admin gifting configuration
+  minimumAdminCreditBalance: 100, // Minimum credits admins must maintain when gifting
 };
 
 // Export all functions as a service object

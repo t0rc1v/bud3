@@ -87,7 +87,7 @@ export function RewardsManager({ userRole, hasCreditReward }: RewardsManagerProp
         </TabsList>
 
         <TabsContent value="credits" className="space-y-4">
-          <GiftCreditsTab />
+          <GiftCreditsTab userRole={userRole} />
         </TabsContent>
 
         <TabsContent value="unlock" className="space-y-4">
@@ -100,17 +100,44 @@ export function RewardsManager({ userRole, hasCreditReward }: RewardsManagerProp
 
 // ============== GIFT CREDITS TAB ==============
 
-function GiftCreditsTab() {
+interface GiftCreditsTabProps {
+  userRole: "super_admin" | "admin";
+}
+
+function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
   const [email, setEmail] = useState("");
   const [amount, setAmount] = useState(50);
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [adminBalance, setAdminBalance] = useState<number | null>(null);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(true);
+  const MINIMUM_BALANCE = 100;
+  const isSuperAdmin = userRole === "super_admin";
   const [result, setResult] = useState<{
     success: boolean;
     message: string;
     userId?: string;
     email?: string;
   } | null>(null);
+
+  // Fetch admin's credit balance on mount
+  useEffect(() => {
+    fetchAdminBalance();
+  }, []);
+
+  const fetchAdminBalance = async () => {
+    try {
+      const response = await fetch("/api/credits/balance");
+      if (response.ok) {
+        const data = await response.json();
+        setAdminBalance(data.balance ?? 0);
+      }
+    } catch (error) {
+      console.error("Failed to fetch admin balance:", error);
+    } finally {
+      setIsLoadingBalance(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,10 +156,12 @@ function GiftCreditsTab() {
       if (response.ok && data.success) {
         setResult({
           success: true,
-          message: `Successfully gifted ${amount} credits to ${email}`,
+          message: data.message || `Successfully gifted ${amount} credits to ${email}`,
           userId: data.userId,
           email: data.email,
         });
+        // Refresh balance after successful gift
+        fetchAdminBalance();
         setEmail("");
         setAmount(50);
         setReason("");
@@ -152,6 +181,9 @@ function GiftCreditsTab() {
     }
   };
 
+  const availableToGift = adminBalance !== null ? Math.max(0, adminBalance - MINIMUM_BALANCE) : 0;
+  const canGift = adminBalance !== null && amount > 0 && amount <= availableToGift;
+
   return (
     <Card>
       <CardHeader>
@@ -160,7 +192,9 @@ function GiftCreditsTab() {
           Gift AI Credits
         </CardTitle>
         <CardDescription>
-          Gift AI credits to a user by their email address. Credits will be added to their balance immediately.
+          {isSuperAdmin 
+            ? "Gift AI credits to a user by their email address. Credits will be added to their balance immediately."
+            : "Gift AI credits to a user by their email address. Credits will be deducted from your account and added to theirs immediately."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -179,6 +213,32 @@ function GiftCreditsTab() {
             </AlertTitle>
             <AlertDescription className={result.success ? "text-green-700" : "text-red-700"}>
               {result.message}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Credit Balance Display - Only for regular admins */}
+        {!isSuperAdmin && (
+          <Alert className="mb-6 bg-blue-50 border-blue-200">
+            <Coins className="h-4 w-4 text-blue-600" />
+            <AlertTitle className="text-blue-800">Your Credit Balance</AlertTitle>
+            <AlertDescription className="text-blue-700">
+              {isLoadingBalance ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Loading...
+                </span>
+              ) : (
+                <div className="space-y-1">
+                  <p className="font-semibold">{adminBalance ?? 0} credits available</p>
+                  <p className="text-sm">
+                    Minimum balance to maintain: {MINIMUM_BALANCE} credits
+                  </p>
+                  <p className="text-sm font-medium">
+                    Available to gift: {availableToGift} credits
+                  </p>
+                </div>
+              )}
             </AlertDescription>
           </Alert>
         )}
@@ -211,13 +271,27 @@ function GiftCreditsTab() {
               id="amount"
               type="number"
               min={1}
+              max={!isSuperAdmin && availableToGift > 0 ? availableToGift : undefined}
               step={1}
               value={amount}
               onChange={(e) => setAmount(Number(e.target.value))}
               required
+              disabled={!isSuperAdmin && (isLoadingBalance || availableToGift === 0)}
             />
+            {!isSuperAdmin && availableToGift === 0 && !isLoadingBalance && (
+              <p className="text-xs text-red-500">
+                Insufficient credits. You need at least {MINIMUM_BALANCE + 1} credits to gift.
+              </p>
+            )}
+            {!isSuperAdmin && amount > availableToGift && availableToGift > 0 && (
+              <p className="text-xs text-red-500">
+                Amount exceeds available credits ({availableToGift} credits available to gift)
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
-              Number of credits to gift (minimum 1)
+              {isSuperAdmin 
+                ? "Number of credits to gift (minimum 1)"
+                : `Number of credits to gift (minimum 1, maximum ${availableToGift > 0 ? availableToGift : 0})`}
             </p>
           </div>
 
@@ -241,7 +315,7 @@ function GiftCreditsTab() {
           <Button 
             type="submit" 
             className="w-full"
-            disabled={isSubmitting || !email || !reason || amount < 1}
+            disabled={isSubmitting || !email || !reason || (!isSuperAdmin && !canGift) || (!isSuperAdmin && isLoadingBalance)}
           >
             {isSubmitting ? (
               <>

@@ -15,6 +15,13 @@
       "when": 1770824561886,
       "tag": "0001_damp_randall",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1770878395525,
+      "tag": "0002_add_transfer_transaction_type",
+      "breakpoints": true
     }
   ]
 }

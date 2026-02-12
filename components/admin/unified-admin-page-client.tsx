@@ -66,6 +66,7 @@ import { EditGradeForm } from "@/components/admin/edit-grade-form";
 import { EditSubjectForm } from "@/components/admin/edit-subject-form";
 import { EditTopicForm } from "@/components/admin/edit-topic-form";
 import { EditResourceForm } from "@/components/admin/edit-resource-form";
+import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import {
   deleteGradeWithSession,
   deleteSubjectWithSession,
@@ -137,6 +138,9 @@ export function UnifiedAdminPageClient({
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteCallback, setDeleteCallback] = useState<(() => Promise<void>) | null>(null);
 
+  // Track unlocked resources for public tab
+  const [unlockedResources, setUnlockedResources] = useState<Set<string>>(new Set());
+
   // Handle viewResource query param from file tree dropdown
   useEffect(() => {
     const viewResourceId = searchParams.get("viewResource");
@@ -200,6 +204,17 @@ export function UnifiedAdminPageClient({
   const allSubjects = useMemo(() => myGrades.flatMap((g) => g.subjects), [myGrades]);
   const allTopics = useMemo(() => allSubjects.flatMap((s) => s.topics), [allSubjects]);
 
+  // Get all subjects and topics for the current tab's expand/collapse functionality
+  const currentTabGrades = activeTab === "my" ? myGrades : publicGrades;
+  const currentTabSubjects = useMemo(() => 
+    currentTabGrades.flatMap((g) => g.subjects), 
+    [currentTabGrades]
+  );
+  const currentTabTopics = useMemo(() => 
+    currentTabSubjects.flatMap((s) => s.topics), 
+    [currentTabSubjects]
+  );
+
   // Filter grades based on search and active tab
   const filteredMyGrades = useMemo(() => {
     if (!searchQuery) return myGrades;
@@ -257,9 +272,9 @@ export function UnifiedAdminPageClient({
   };
 
   const expandAll = () => {
-    setExpandedGrades(new Set(grades.map((g) => g.id)));
-    setExpandedSubjects(new Set(allSubjects.map((s) => s.id)));
-    setExpandedTopics(new Set(allTopics.map((t) => t.id)));
+    setExpandedGrades(new Set(currentTabGrades.map((g) => g.id)));
+    setExpandedSubjects(new Set(currentTabSubjects.map((s) => s.id)));
+    setExpandedTopics(new Set(currentTabTopics.map((t) => t.id)));
   };
 
   const collapseAll = () => {
@@ -1049,23 +1064,66 @@ export function UnifiedAdminPageClient({
                                               No resources available.
                                             </div>
                                           ) : (
-                                            topic.resources.map((resource: Resource) => (
-                                            <div 
-                                              key={resource.id}
-                                              className="flex items-center justify-between p-2 hover:bg-purple-50/10 rounded"
-                                            >
-                                              <div className="flex items-center gap-3">
-                                                <FileText className="h-4 w-4 text-muted-foreground" />
-                                                <span className="text-sm">{resource.title}</span>
-                                                <span className="text-xs text-muted-foreground capitalize">
-                                                  ({resource.type})
-                                                </span>
-                                              </div>
-                                            </div>
-                                          ))
-                                        )}
-                                      </div>
-                                    )}
+                                            topic.resources.map((resource: Resource) => {
+                                              const isUnlocked = !resource.isLocked || unlockedResources.has(resource.id);
+                                              return (
+                                                <div 
+                                                  key={resource.id}
+                                                  className="flex items-center justify-between p-2 hover:bg-purple-50/10 rounded"
+                                                >
+                                                  <div className="flex items-center gap-3">
+                                                    {resource.isLocked ? (
+                                                      <Lock className="h-4 w-4 text-yellow-600" />
+                                                    ) : (
+                                                      <Unlock className="h-4 w-4 text-green-600" />
+                                                    )}
+                                                    <span className="text-sm">{resource.title}</span>
+                                                    <span className="text-xs text-muted-foreground capitalize">
+                                                      ({resource.type})
+                                                    </span>
+                                                    {resource.isLocked && (
+                                                      <span className="text-xs text-yellow-600 font-medium flex items-center gap-1">
+                                                        <CreditCard className="h-3 w-3" />
+                                                        Ksh {resource.unlockFee}
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  {resource.isLocked && !isUnlocked ? (
+                                                    <ResourceUnlockModal
+                                                      resourceId={resource.id}
+                                                      resourceTitle={resource.title}
+                                                      resourceType={resource.type}
+                                                      unlockFeeKes={resource.unlockFee || 100}
+                                                      isUnlocked={false}
+                                                      trigger={
+                                                        <Button 
+                                                          variant="ghost" 
+                                                          size="sm"
+                                                          className="h-7 text-xs text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                                                        >
+                                                          <Lock className="h-3 w-3 mr-1" />
+                                                          Unlock
+                                                        </Button>
+                                                      }
+                                                      onUnlockSuccess={() => {
+                                                        setUnlockedResources(prev => new Set([...prev, resource.id]));
+                                                      }}
+                                                    />
+                                                  ) : (
+                                                    <Button 
+                                                      variant="ghost" 
+                                                      size="sm"
+                                                      onClick={() => handleViewResource(resource)}
+                                                    >
+                                                      <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                  )}
+                                                </div>
+                                              );
+                                            })
+                                          )}
+                                        </div>
+                                      )}
                                   </div>
                                 ))
                               )}

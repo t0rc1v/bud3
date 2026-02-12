@@ -16,6 +16,10 @@ export default function OnboardingPage() {
   // Institution fields for admin role
   const [institutionName, setInstitutionName] = useState("");
   const [institutionType, setInstitutionType] = useState("");
+  
+  // Regular user fields
+  const [userName, setUserName] = useState("");
+  const [userLevel, setUserLevel] = useState("");
 
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
@@ -37,14 +41,33 @@ export default function OnboardingPage() {
           return;
         }
       }
+      
+      // For regular role, validate name and level fields
+      if (selectedRole === "regular") {
+        if (!userName.trim()) {
+          setError("Please enter your name");
+          setIsLoading(false);
+          return;
+        }
+        if (!userLevel.trim()) {
+          setError("Please enter your education level");
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      const userData = selectedRole === "admin" ? {
+        institutionName: institutionName.trim(),
+        institutionType: institutionType.trim() || undefined,
+      } : selectedRole === "regular" ? {
+        name: userName.trim(),
+        level: userLevel.trim(),
+      } : undefined;
 
       await updateUserRole(
         user.id, 
         selectedRole, 
-        selectedRole === "admin" ? {
-          institutionName: institutionName.trim(),
-          institutionType: institutionType.trim() || undefined,
-        } : undefined
+        userData
       );
 
       // Redirect based on role (no verification needed)
@@ -175,6 +198,51 @@ export default function OnboardingPage() {
                     <option value="corporate">Corporate Training</option>
                     <option value="other">Other</option>
                   </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Regular User Details Form - Only show for regular role */}
+        {selectedRole === "regular" && (
+          <div className="mb-8 space-y-4">
+            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+              <h4 className="font-semibold text-green-900 mb-3">Your Details</h4>
+              <p className="text-sm text-green-700 mb-4">
+                Please provide your name and education level to personalize your experience.
+              </p>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    What name would you like to go by? *
+                  </label>
+                  <input
+                    type="text"
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    placeholder="e.g., John Doe"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    What is your education level? *
+                  </label>
+                  <input
+                    type="text"
+                    value={userLevel}
+                    onChange={(e) => setUserLevel(e.target.value)}
+                    placeholder="e.g., Grade 10, O-Level, A-Level, University Year 2"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Enter any education level that describes your current learning stage
+                  </p>
                 </div>
               </div>
             </div>

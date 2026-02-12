@@ -404,14 +404,14 @@ When responding:
               
               case 'add_regular': {
                 const { addMyLearner } = await import('@/lib/actions/admin');
-                const { email, levelId, metadata } = params;
-                if (!email || !levelId) {
+                const { email, metadata } = params;
+                if (!email) {
                   return {
                     success: false,
-                    error: 'Missing required parameters: email and levelId are required',
+                    error: 'Missing required parameter: email is required',
                   };
                 }
-                await addMyLearner(userId, email as string, levelId as string, metadata as Record<string, unknown>);
+                await addMyLearner(userId, email as string, metadata as Record<string, unknown>);
                 return {
                   success: true,
                   action: 'add_regular',
@@ -429,8 +429,8 @@ When responding:
                     id: l.id,
                     regularId: l.regularId,
                     email: l.regularEmail,
-                    levelId: l.levelId,
-                    levelTitle: l.level?.title,
+                    name: l.regular?.name,
+                    level: l.regular?.level,
                     metadata: l.metadata,
                   })),
                 };

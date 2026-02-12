@@ -61,7 +61,12 @@ export async function getOrCreateUser(
 export async function updateUserRole(
   clerkId: string,
   role: UserRole,
-  institutionData?: { institutionName?: string; institutionType?: string }
+  userData?: { 
+    institutionName?: string; 
+    institutionType?: string;
+    name?: string;
+    level?: string;
+  }
 ): Promise<User> {
   const updateData: Partial<typeof user.$inferInsert> = {
     role,
@@ -73,9 +78,15 @@ export async function updateUserRole(
   updateData.verificationStatus = "approved";
   
   // Store institution data for admin users
-  if (role === "admin" && institutionData) {
-    updateData.institutionName = institutionData.institutionName;
-    updateData.institutionType = institutionData.institutionType;
+  if (role === "admin" && userData) {
+    updateData.institutionName = userData.institutionName;
+    updateData.institutionType = userData.institutionType;
+  }
+  
+  // Store name and level for regular users
+  if (role === "regular" && userData) {
+    updateData.name = userData.name;
+    updateData.level = userData.level;
   }
 
   const [updatedUser] = await db

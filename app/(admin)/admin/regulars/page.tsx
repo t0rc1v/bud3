@@ -2,22 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
-import { getMyLearners, addMyLearner, removeMyLearner, getLevels } from "@/lib/actions/admin";
+import { getMyLearners, addMyLearner, removeMyLearner } from "@/lib/actions/admin";
 
 import type { MyLearnerWithDetails } from "@/lib/actions/admin";
-import type { LevelWithSubjects } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Users, Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -35,11 +26,9 @@ import {
 export default function ManageRegularsPage() {
   const { user: clerkUser } = useUser();
   const [regulars, setRegulars] = useState<MyLearnerWithDetails[]>([]);
-  const [levels, setLevels] = useState<LevelWithSubjects[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [newRegularEmail, setNewRegularEmail] = useState("");
-  const [selectedLevel, setSelectedLevel] = useState("");
   const [adminUser, setAdminUser] = useState<{ id: string; email: string; institutionName?: string } | null>(null);
 
   useEffect(() => {
@@ -65,13 +54,8 @@ export default function ManageRegularsPage() {
         institutionName: user.institutionName || undefined,
       });
 
-      const [regularsData, levelsData] = await Promise.all([
-        getMyLearners(user.id),
-        getLevels(),
-      ]);
-
+      const regularsData = await getMyLearners(user.id);
       setRegulars(regularsData);
-      setLevels(levelsData);
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Failed to load regulars");
@@ -82,15 +66,14 @@ export default function ManageRegularsPage() {
 
   const handleAddRegular = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adminUser || !newRegularEmail || !selectedLevel) return;
+    if (!adminUser || !newRegularEmail) return;
 
     try {
       setIsAdding(true);
-      await addMyLearner(adminUser.id, newRegularEmail, selectedLevel);
+      await addMyLearner(adminUser.id, newRegularEmail);
       
       toast.success(`Added ${newRegularEmail} to your institution`);
       setNewRegularEmail("");
-      setSelectedLevel("");
       
       // Refresh list
       const updatedRegulars = await getMyLearners(adminUser.id);
@@ -149,35 +132,18 @@ export default function ManageRegularsPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAddRegular} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Regular User Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="user@example.com"
-                  value={newRegularEmail}
-                  onChange={(e) => setNewRegularEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="level">Level</Label>
-                <Select value={selectedLevel} onValueChange={setSelectedLevel} required>
-                  <SelectTrigger id="level">
-                    <SelectValue placeholder="Select a level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {levels.map((level) => (
-                      <SelectItem key={level.id} value={level.id}>
-                        {level.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Regular User Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="user@example.com"
+                value={newRegularEmail}
+                onChange={(e) => setNewRegularEmail(e.target.value)}
+                required
+              />
             </div>
-            <Button type="submit" disabled={isAdding || !newRegularEmail || !selectedLevel}>
+            <Button type="submit" disabled={isAdding || !newRegularEmail}>
               {isAdding ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -224,9 +190,16 @@ export default function ManageRegularsPage() {
                       <Users className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
-                      <p className="font-medium">{regular.regularEmail}</p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>Level: {regular.level?.title || "Unknown"}</span>
+                      <p className="font-medium">
+                        {regular.regular?.name || regular.regularEmail}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {regular.regular?.name && regular.regularEmail}
+                      </p>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                        {regular.regular?.level && (
+                          <span>Level: {regular.regular.level}</span>
+                        )}
                         {regular.regular && (
                           <>
                             <span>•</span>

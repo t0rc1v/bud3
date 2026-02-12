@@ -326,12 +326,7 @@ export async function deleteLevel(
     throw new Error("You don't have permission to delete this level");
   }
 
-  // First, remove level references from admin_regulars to avoid FK constraint
-  await db.update(adminRegulars)
-    .set({ levelId: null })
-    .where(eq(adminRegulars.levelId, id));
-
-  // Now delete the level (cascade will handle subjects, topics, resources)
+  // Delete the level (cascade will handle subjects, topics, resources)
   await db.delete(level).where(eq(level.id, id));
   revalidatePath("/admin");
   revalidatePath("/regular");
@@ -994,13 +989,11 @@ export interface MyLearnerWithDetails {
   adminId: string;
   regularId: string;
   regularEmail: string;
-  levelId: string;
   metadata: Record<string, unknown> | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
   regular: User | null;
-  level: typeof level.$inferSelect;
 }
 
 export async function getMyLearners(adminId: string): Promise<MyLearnerWithDetails[]> {
@@ -1008,7 +1001,6 @@ export async function getMyLearners(adminId: string): Promise<MyLearnerWithDetai
     where: eq(adminRegulars.adminId, adminId),
     with: {
       regular: true,
-      level: true,
     },
     orderBy: [desc(adminRegulars.createdAt)],
   });
@@ -1018,7 +1010,6 @@ export async function getMyLearners(adminId: string): Promise<MyLearnerWithDetai
 export async function addMyLearner(
   adminId: string,
   regularEmail: string,
-  levelId: string,
   metadata?: Record<string, unknown>
 ): Promise<void> {
   const { getUserByEmail } = await import("./auth");
@@ -1047,7 +1038,6 @@ export async function addMyLearner(
     adminId,
     regularId: regular.id,
     regularEmail,
-    levelId,
     metadata: metadata || null,
     isActive: true,
   });

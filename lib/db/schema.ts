@@ -20,6 +20,10 @@ export const user = pgTable("user", {
   clerkId: varchar("clerk_id", { length: 255 }).notNull().unique(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   role: userRoleEnum("role").default("regular").notNull(),
+  // Name field for all users
+  name: varchar("name", { length: 255 }),
+  // Education level for regular users (free text)
+  level: varchar("level", { length: 100 }),
   onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
   // Institution fields for admin accounts
   institutionName: varchar("institution_name", { length: 255 }),
@@ -113,8 +117,6 @@ export const adminRegulars = pgTable("admin_regulars", {
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
   regularEmail: varchar('regular_email', { length: 255 }).notNull(),
-  levelId: uuid('level_id')
-    .references(() => level.id, { onDelete: 'restrict' }),
   metadata: jsonb('metadata'),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt,
@@ -192,7 +194,6 @@ export const userRelations = relations(user, ({ many }) => ({
 
 export const levelRelations = relations(level, ({ many }) => ({
   subjects: many(subject),
-  adminRegulars: many(adminRegulars),
 }));
 
 export const subjectRelations = relations(subject, ({ one, many }) => ({
@@ -237,10 +238,6 @@ export const adminRegularsRelations = relations(adminRegulars, ({ one }) => ({
     fields: [adminRegulars.regularId],
     references: [user.id],
     relationName: "regular",
-  }),
-  level: one(level, {
-    fields: [adminRegulars.levelId],
-    references: [level.id],
   }),
 }));
 

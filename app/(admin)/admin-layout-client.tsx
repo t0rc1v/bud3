@@ -12,6 +12,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
 import { UserButton } from "@clerk/nextjs";
+import { CreditBadge, CreditModal } from "@/components/credits/credit-modal";
 import type { Resource } from "@/lib/types";
 import type { GradeWithFullHierarchy } from "@/lib/types";
 
@@ -159,6 +160,9 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
           <h1 className="font-semibold">Admin</h1>
           
           <div className="flex items-center gap-2">
+            <div suppressHydrationWarning>
+              <CreditModal trigger={<CreditBadge className="cursor-pointer" />} />
+            </div>
             <div suppressHydrationWarning>
               <UserButton />
             </div>
@@ -311,6 +315,9 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
           </div>
           
           <div className="flex items-center gap-4">
+            <div suppressHydrationWarning>
+              <CreditModal trigger={<CreditBadge className="cursor-pointer" />} />
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">AI Chat</span>
               <Button

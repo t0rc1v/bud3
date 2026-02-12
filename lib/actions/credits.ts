@@ -387,6 +387,17 @@ export async function giftCredits(
     throw new Error(`User with email ${targetUserEmail} not found`);
   }
 
+  // Prevent non-super-admin users from gifting to themselves
+  if (targetUser.clerkId === adminUserId) {
+    const adminUserData = await db.query.user.findFirst({
+      where: eq(user.clerkId, adminUserId),
+    });
+
+    if (adminUserData?.role !== "super_admin") {
+      throw new Error("Admins cannot gift credits to their own account");
+    }
+  }
+
   if (amount <= 0) {
     throw new Error("Gift amount must be positive");
   }

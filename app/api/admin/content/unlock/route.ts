@@ -19,9 +19,12 @@ export async function POST(req: Request) {
     }
 
     // Check if user is super_admin or has credit_reward permission
-    const currentUser = await db.query.user.findFirst({
-      where: eq(user.clerkId, clerkId),
-    });
+    const currentUser = await db
+      .select()
+      .from(user)
+      .where(eq(user.clerkId, clerkId))
+      .limit(1)
+      .then(res => res[0] || null);
 
     if (!currentUser) {
       return NextResponse.json(
@@ -59,9 +62,12 @@ export async function POST(req: Request) {
     }
 
     // Find user by email
-    const targetUser = await db.query.user.findFirst({
-      where: eq(user.email, userEmail),
-    });
+    const targetUser = await db
+      .select()
+      .from(user)
+      .where(eq(user.email, userEmail))
+      .limit(1)
+      .then(res => res[0] || null);
 
     if (!targetUser) {
       return NextResponse.json(

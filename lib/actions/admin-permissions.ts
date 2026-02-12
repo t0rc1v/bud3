@@ -37,32 +37,47 @@ export interface AdminWithPermissions extends AdminBase {
 // ============== ROLE MANAGEMENT ==============
 
 export async function getAllRoles(): Promise<RoleWithPermissions[]> {
-  const roles = await db.query.role.findMany({
-    orderBy: [asc(role.name)],
-    with: {
-      permissions: true,
-    },
-  });
-
-  return roles.map((r) => ({
+  const rolesData = await db
+    .select()
+    .from(role)
+    .orderBy(asc(role.name));
+  
+  // Fetch permissions for all roles
+  const roleIds = rolesData.map(r => r.id);
+  const permissionsData = roleIds.length > 0
+    ? await db
+        .select()
+        .from(rolePermission)
+        .where(inArray(rolePermission.roleId, roleIds))
+    : [];
+  
+  return rolesData.map((r) => ({
     ...r,
-    permissions: r.permissions.map((p) => p.permission),
+    permissions: permissionsData
+      .filter(p => p.roleId === r.id)
+      .map((p) => p.permission),
   }));
 }
 
 export async function getRoleById(id: string): Promise<RoleWithPermissions | null> {
-  const roleData = await db.query.role.findFirst({
-    where: eq(role.id, id),
-    with: {
-      permissions: true,
-    },
-  });
+  const roleData = await db
+    .select()
+    .from(role)
+    .where(eq(role.id, id))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (!roleData) return null;
+  
+  // Fetch permissions for this role
+  const permissionsData = await db
+    .select()
+    .from(rolePermission)
+    .where(eq(rolePermission.roleId, id));
 
   return {
     ...roleData,
-    permissions: roleData.permissions.map((p) => p.permission),
+    permissions: permissionsData.map((p) => p.permission),
   };
 }
 
@@ -74,9 +89,12 @@ export async function createRole(
 ): Promise<{ success: boolean; error?: string; roleId?: string }> {
   try {
     // Check if role name already exists
-    const existing = await db.query.role.findFirst({
-      where: eq(role.name, name),
-    });
+    const existing = await db
+      .select()
+      .from(role)
+      .where(eq(role.name, name))
+      .limit(1)
+      .then(res => res[0] || null);
 
     if (existing) {
       return { success: false, error: "A role with this name already exists" };
@@ -122,9 +140,12 @@ export async function updateRole(
   try {
     // Check for name conflict if name is being updated
     if (updates.name) {
-      const existing = await db.query.role.findFirst({
-        where: and(eq(role.name, updates.name), eq(role.id, roleId)),
-      });
+      const existing = await db
+        .select()
+        .from(role)
+        .where(and(eq(role.name, updates.name), eq(role.id, roleId)))
+        .limit(1)
+        .then(res => res[0] || null);
       if (existing) {
         return { success: false, error: "A role with this name already exists" };
       }
@@ -167,9 +188,10 @@ export async function updateRole(
 export async function deleteRole(roleId: string): Promise<{ success: boolean; error?: string }> {
   try {
     // Check if any users are assigned to this role
-    const assignedUsers = await db.query.userRoles.findMany({
-      where: eq(userRoles.roleId, roleId),
-    });
+    const assignedUsers = await db
+      .select()
+      .from(userRoles)
+      .where(eq(userRoles.roleId, roleId));
 
     if (assignedUsers.length > 0) {
       return {
@@ -206,28 +228,35 @@ export async function getAllAdmins(): Promise<AdminWithPermissions[]> {
   const adminsWithPermissions: AdminWithPermissions[] = await Promise.all(
     adminUsers.map(async (adminUser): Promise<AdminWithPermissions> => {
       // Get direct permissions
-      const directPerms = await db.query.userPermission.findMany({
-        where: and(
+      const directPerms = await db
+        .select()
+        .from(userPermission)
+        .where(and(
           eq(userPermission.userId, adminUser.id),
           eq(userPermission.isActive, true)
-        ),
-      });
+        ));
 
       // Get assigned roles
-      const assignedRolesData = await db.query.userRoles.findMany({
-        where: eq(userRoles.userId, adminUser.id),
-        with: {
-          role: {
-            with: {
-              permissions: true,
-            },
-          },
-        },
-      });
+      const assignedRolesData = await db
+        .select()
+        .from(userRoles)
+        .where(eq(userRoles.userId, adminUser.id));
+      
+      // Fetch role details and permissions
+      const roleIds = assignedRolesData.map(ur => ur.roleId);
+      const rolesData = roleIds.length > 0
+        ? await db.select().from(role).where(inArray(role.id, roleIds))
+        : [];
+      
+      const rolePermissionsData = roleIds.length > 0
+        ? await db.select().from(rolePermission).where(inArray(rolePermission.roleId, roleIds))
+        : [];
 
-      const assignedRoles = assignedRolesData.map((ur) => ({
-        ...ur.role,
-        permissions: ur.role.permissions.map((p) => p.permission),
+      const assignedRoles = rolesData.map((r) => ({
+        ...r,
+        permissions: rolePermissionsData
+          .filter(p => p.roleId === r.id)
+          .map((p) => p.permission),
       }));
 
       // Combine all permissions (direct + from roles)
@@ -268,28 +297,35 @@ export async function getAdminById(id: string): Promise<AdminWithPermissions | n
   const admin = adminUser[0];
 
   // Get direct permissions
-  const directPerms = await db.query.userPermission.findMany({
-    where: and(
+  const directPerms = await db
+    .select()
+    .from(userPermission)
+    .where(and(
       eq(userPermission.userId, admin.id),
       eq(userPermission.isActive, true)
-    ),
-  });
+    ));
 
   // Get assigned roles
-  const assignedRolesData = await db.query.userRoles.findMany({
-    where: eq(userRoles.userId, admin.id),
-    with: {
-      role: {
-        with: {
-          permissions: true,
-        },
-      },
-    },
-  });
+  const assignedRolesData = await db
+    .select()
+    .from(userRoles)
+    .where(eq(userRoles.userId, admin.id));
+  
+  // Fetch role details and permissions
+  const roleIds = assignedRolesData.map(ur => ur.roleId);
+  const rolesData = roleIds.length > 0
+    ? await db.select().from(role).where(inArray(role.id, roleIds))
+    : [];
+  
+  const rolePermissionsData = roleIds.length > 0
+    ? await db.select().from(rolePermission).where(inArray(rolePermission.roleId, roleIds))
+    : [];
 
-  const assignedRoles = assignedRolesData.map((ur) => ({
-    ...ur.role,
-    permissions: ur.role.permissions.map((p) => p.permission),
+  const assignedRoles = rolesData.map((r) => ({
+    ...r,
+    permissions: rolePermissionsData
+      .filter(p => p.roleId === r.id)
+      .map((p) => p.permission),
   }));
 
   // Combine all permissions
@@ -321,13 +357,17 @@ export async function updateAdminRole(
   try {
     // Prevent changing the last super admin to admin
     if (newRole === "admin") {
-      const superAdmins = await db.query.user.findMany({
-        where: eq(user.role, "super_admin"),
-      });
+      const superAdmins = await db
+        .select()
+        .from(user)
+        .where(eq(user.role, "super_admin"));
 
-      const targetAdmin = await db.query.user.findFirst({
-        where: eq(user.id, adminId),
-      });
+      const targetAdmin = await db
+        .select()
+        .from(user)
+        .where(eq(user.id, adminId))
+        .limit(1)
+        .then(res => res[0] || null);
 
       if (targetAdmin?.role === "super_admin" && superAdmins.length <= 1) {
         return {
@@ -359,14 +399,18 @@ export async function deleteAdmin(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Check if trying to delete the last super admin
-    const adminToDelete = await db.query.user.findFirst({
-      where: eq(user.id, adminId),
-    });
+    const adminToDelete = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, adminId))
+      .limit(1)
+      .then(res => res[0] || null);
 
     if (adminToDelete?.role === "super_admin") {
-      const superAdmins = await db.query.user.findMany({
-        where: eq(user.role, "super_admin"),
-      });
+      const superAdmins = await db
+        .select()
+        .from(user)
+        .where(eq(user.role, "super_admin"));
 
       if (superAdmins.length <= 1) {
         return {
@@ -469,9 +513,12 @@ export async function assignRoleToUser(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Check if already assigned
-    const existing = await db.query.userRoles.findFirst({
-      where: and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleId)),
-    });
+    const existing = await db
+      .select()
+      .from(userRoles)
+      .where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleId)))
+      .limit(1)
+      .then(res => res[0] || null);
 
     if (existing) {
       return { success: false, error: "User already has this role assigned" };
@@ -515,9 +562,12 @@ export async function checkUserPermission(
   permission: Permission
 ): Promise<boolean> {
   // Super admin always has all permissions
-  const userData = await db.query.user.findFirst({
-    where: eq(user.clerkId, userId),
-  });
+  const userData = await db
+    .select()
+    .from(user)
+    .where(eq(user.clerkId, userId))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (userData?.role === "super_admin") {
     return true;
@@ -531,35 +581,39 @@ export async function checkUserPermission(
   const dbUserId = userData.id;
 
   // Check direct permissions
-  const directPerm = await db.query.userPermission.findFirst({
-    where: and(
+  const directPerm = await db
+    .select()
+    .from(userPermission)
+    .where(and(
       eq(userPermission.userId, dbUserId),
       eq(userPermission.permission, permission),
       eq(userPermission.isActive, true)
-    ),
-  });
+    ))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (directPerm) {
     return true;
   }
 
   // Check role-based permissions
-  const userRoleRecords = await db.query.userRoles.findMany({
-    where: eq(userRoles.userId, dbUserId),
-    with: {
-      role: {
-        with: {
-          permissions: true,
-        },
-      },
-    },
-  });
+  const userRoleRecords = await db
+    .select()
+    .from(userRoles)
+    .where(eq(userRoles.userId, dbUserId));
+  
+  // Fetch roles and their permissions
+  const roleIds = userRoleRecords.map(ur => ur.roleId);
+  if (roleIds.length === 0) return false;
+  
+  const rolePermissionsData = await db
+    .select()
+    .from(rolePermission)
+    .where(inArray(rolePermission.roleId, roleIds));
 
-  for (const userRoleData of userRoleRecords) {
-    const hasPermission = userRoleData.role.permissions.some(
-      (p) => p.permission === permission
-    );
-    if (hasPermission) {
+  // Check if any role has the permission
+  for (const rp of rolePermissionsData) {
+    if (rp.permission === permission) {
       return true;
     }
   }
@@ -569,9 +623,12 @@ export async function checkUserPermission(
 
 export async function getUserPermissions(userId: string): Promise<string[]> {
   // Super admin gets all permissions
-  const userData = await db.query.user.findFirst({
-    where: eq(user.id, userId),
-  });
+  const userData = await db
+    .select()
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (userData?.role === "super_admin") {
     // Import all permissions from the permissions file
@@ -580,28 +637,27 @@ export async function getUserPermissions(userId: string): Promise<string[]> {
   }
 
   // Get direct permissions
-  const directPerms = await db.query.userPermission.findMany({
-    where: and(
+  const directPerms = await db
+    .select()
+    .from(userPermission)
+    .where(and(
       eq(userPermission.userId, userId),
       eq(userPermission.isActive, true)
-    ),
-  });
+    ));
 
   // Get role-based permissions
-  const userRoleRecords = await db.query.userRoles.findMany({
-    where: eq(userRoles.userId, userId),
-    with: {
-      role: {
-        with: {
-          permissions: true,
-        },
-      },
-    },
-  });
+  const userRoleRecords = await db
+    .select()
+    .from(userRoles)
+    .where(eq(userRoles.userId, userId));
+  
+  // Fetch role permissions
+  const roleIds = userRoleRecords.map(ur => ur.roleId);
+  const rolePermissionsData = roleIds.length > 0
+    ? await db.select().from(rolePermission).where(inArray(rolePermission.roleId, roleIds))
+    : [];
 
-  const rolePermissions = userRoleRecords.flatMap((ur) =>
-    ur.role.permissions.map((p) => p.permission)
-  );
+  const rolePermissions = rolePermissionsData.map((p) => p.permission);
 
   // Combine and deduplicate
   const allPermissions = [
@@ -620,9 +676,12 @@ export async function promoteUserToAdmin(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Check if user exists
-    const targetUser = await db.query.user.findFirst({
-      where: eq(user.id, userId),
-    });
+    const targetUser = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1)
+      .then(res => res[0] || null);
 
     if (!targetUser) {
       return { success: false, error: "User not found" };
@@ -663,9 +722,12 @@ export async function ensureAdminPermissions(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Get the user from database
-    const userData = await db.query.user.findFirst({
-      where: eq(user.clerkId, clerkUserId),
-    });
+    const userData = await db
+      .select()
+      .from(user)
+      .where(eq(user.clerkId, clerkUserId))
+      .limit(1)
+      .then(res => res[0] || null);
 
     if (!userData) {
       return { success: false, error: "User not found" };
@@ -682,9 +744,10 @@ export async function ensureAdminPermissions(
     const defaultAdminPermissions = PermissionGroups.ADMIN_USER;
 
     // Check which permissions the user already has
-    const existingPermissions = await db.query.userPermission.findMany({
-      where: eq(userPermission.userId, dbUserId),
-    });
+    const existingPermissions = await db
+      .select()
+      .from(userPermission)
+      .where(eq(userPermission.userId, dbUserId));
 
     const existingPermissionSet = new Set(existingPermissions.map(p => p.permission));
 

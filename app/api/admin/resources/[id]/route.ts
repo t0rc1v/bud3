@@ -27,9 +27,12 @@ export async function GET(
       );
     }
 
-    const resourceData = await db.query.resource.findFirst({
-      where: eq(resource.id, resourceId),
-    });
+    const resourceData = await db
+      .select()
+      .from(resource)
+      .where(eq(resource.id, resourceId))
+      .limit(1)
+      .then(res => res[0] || null);
 
     if (!resourceData) {
       return NextResponse.json(
@@ -39,12 +42,15 @@ export async function GET(
     }
 
     // Get unlock fee if exists
-    const unlockFeeData = await db.query.unlockFee.findFirst({
-      where: and(
+    const unlockFeeData = await db
+      .select()
+      .from(unlockFee)
+      .where(and(
         eq(unlockFee.resourceId, resourceId),
         eq(unlockFee.isActive, true)
-      ),
-    });
+      ))
+      .limit(1)
+      .then(res => res[0] || null);
 
     return NextResponse.json({
       resource: {

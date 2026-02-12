@@ -26,9 +26,10 @@ export async function GET() {
     }
 
     // Get all credit purchases
-    const purchases = await db.query.creditPurchase.findMany({
-      where: eq(creditPurchase.status, "completed"),
-    });
+    const purchases = await db
+      .select()
+      .from(creditPurchase)
+      .where(eq(creditPurchase.status, "completed"));
 
     // Calculate total revenue
     const totalRevenue = purchases.reduce((sum, purchase) => sum + purchase.amountKes, 0);

@@ -25,9 +25,12 @@ export async function GET(req: Request) {
       );
     }
 
-    const foundUser = await db.query.user.findFirst({
-      where: eq(user.email, email),
-    });
+    const foundUser = await db
+      .select()
+      .from(user)
+      .where(eq(user.email, email))
+      .limit(1)
+      .then(res => res[0] || null);
 
     if (!foundUser) {
       return NextResponse.json(

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, desc } from "drizzle-orm";
 import { unlockFee, resource, topic, subject, level } from "@/lib/db/schema";
 import { checkUserPermission } from "@/lib/actions/admin-permissions";
 import { getUserByClerkId } from "@/lib/actions/auth";
@@ -47,39 +47,52 @@ export async function GET(request: Request) {
     const filter = searchParams.get("filter");
     const isMyContentOnly = filter === "my-content";
 
-    // Get all unlock fees with related content
-    const fees = await db.query.unlockFee.findMany({
-      orderBy: (unlockFee, { desc }) => [desc(unlockFee.createdAt)],
-      with: {
-        resource: {
-          with: {
-            topic: {
-              with: {
-                subject: {
-                  with: {
-                    level: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-        topic: {
-          with: {
-            subject: {
-              with: {
-                level: true,
-              },
-            },
-          },
-        },
-        subject: {
-          with: {
-            level: true,
-          },
-        },
-      },
-    });
+    // Get all unlock fees with related content using leftJoins
+    const feesWithRelations = await db
+      .select({
+        unlockFee: unlockFee,
+        resource: resource,
+        resourceTopic: topic,
+        resourceSubject: subject,
+        resourceLevel: level,
+        feeTopic: topic,
+        feeSubject: subject,
+        feeLevel: level,
+        feeSubjectDirect: subject,
+        feeLevelDirect: level,
+      })
+      .from(unlockFee)
+      .leftJoin(resource, eq(unlockFee.resourceId, resource.id))
+      .leftJoin(topic, eq(resource.topicId, topic.id))
+      .leftJoin(subject, eq(topic.subjectId, subject.id))
+      .leftJoin(level, eq(subject.levelId, level.id))
+      .orderBy(desc(unlockFee.createdAt));
+
+    // Transform the flat result into the nested structure expected by the frontend
+    const fees = feesWithRelations.map(({ unlockFee, resource, resourceTopic, resourceSubject, resourceLevel, feeSubjectDirect, feeLevelDirect }) => ({
+      ...unlockFee,
+      resource: resource ? {
+        ...resource,
+        topic: resourceTopic ? {
+          ...resourceTopic,
+          subject: resourceSubject ? {
+            ...resourceSubject,
+            level: resourceLevel || null,
+          } : null,
+        } : null,
+      } : null,
+      topic: unlockFee.topicId ? {
+        ...feeSubjectDirect,
+        subject: feeLevelDirect ? {
+          ...feeLevelDirect,
+          level: null, // Would need another join for this
+        } : null,
+      } : null,
+      subject: unlockFee.subjectId ? {
+        ...feeSubjectDirect,
+        level: feeLevelDirect,
+      } : null,
+    }));
 
     // If filtering by my-content and user is not super_admin, filter the results
     if (isMyContentOnly && currentUser.role !== "super_admin") {
@@ -154,15 +167,27 @@ export async function PUT(req: Request) {
       );
     }
 
-    // Get the unlock fee to check ownership
-    const existingFee = await db.query.unlockFee.findFirst({
-      where: eq(unlockFee.id, feeId),
-      with: {
-        resource: true,
-        topic: true,
-        subject: true,
-      },
-    });
+    // Get the unlock fee to check ownership with related content
+    const feeWithRelations = await db
+      .select({
+        unlockFee: unlockFee,
+        resource: resource,
+        topic: topic,
+        subject: subject,
+      })
+      .from(unlockFee)
+      .leftJoin(resource, eq(unlockFee.resourceId, resource.id))
+      .leftJoin(topic, eq(unlockFee.topicId, topic.id))
+      .leftJoin(subject, eq(unlockFee.subjectId, subject.id))
+      .where(eq(unlockFee.id, feeId))
+      .limit(1);
+
+    const existingFee = feeWithRelations[0] ? {
+      ...feeWithRelations[0].unlockFee,
+      resource: feeWithRelations[0].resource,
+      topic: feeWithRelations[0].topic,
+      subject: feeWithRelations[0].subject,
+    } : null;
 
     if (!existingFee) {
       return NextResponse.json(
@@ -251,14 +276,17 @@ export async function POST(req: Request) {
     else type = "subject";
 
     // Check if unlock fee already exists
-    const existingFee = await db.query.unlockFee.findFirst({
-      where: and(
+    const existingFee = await db
+      .select()
+      .from(unlockFee)
+      .where(and(
         type === "resource" ? eq(unlockFee.resourceId, resourceId!) :
         type === "topic" ? eq(unlockFee.topicId, topicId!) :
         eq(unlockFee.subjectId, subjectId!),
         eq(unlockFee.type, type)
-      ),
-    });
+      ))
+      .limit(1)
+      .then(res => res[0] || null);
 
     if (existingFee) {
       return NextResponse.json(

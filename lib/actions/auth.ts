@@ -7,16 +7,22 @@ import { revalidatePath } from "next/cache";
 import type { User, UserRole, UserVerificationStatus } from "@/lib/types";
 
 export async function getUserByClerkId(clerkId: string): Promise<User | null> {
-  const result = await db.query.user.findFirst({
-    where: eq(user.clerkId, clerkId),
-  });
+  const result = await db
+    .select()
+    .from(user)
+    .where(eq(user.clerkId, clerkId))
+    .limit(1)
+    .then(res => res[0] || null);
   return result ?? null;
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  const result = await db.query.user.findFirst({
-    where: eq(user.email, email),
-  });
+  const result = await db
+    .select()
+    .from(user)
+    .where(eq(user.email, email))
+    .limit(1)
+    .then(res => res[0] || null);
   return result ?? null;
 }
 
@@ -116,9 +122,12 @@ export async function deleteUser(clerkId: string): Promise<void> {
 }
 
 export async function checkSuperAdminExists(): Promise<boolean> {
-  const result = await db.query.user.findFirst({
-    where: eq(user.role, "super_admin"),
-  });
+  const result = await db
+    .select()
+    .from(user)
+    .where(eq(user.role, "super_admin"))
+    .limit(1)
+    .then(res => res[0] || null);
   return result !== null;
 }
 

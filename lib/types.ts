@@ -13,7 +13,7 @@ export interface TopicWithResources extends Topic {
 
 export interface TopicWithResourcesAndSubject extends Topic {
   resources: Resource[];
-  subject: Subject;
+  subject: Subject | null;
 }
 
 export interface SubjectWithTopics extends Subject {
@@ -22,7 +22,7 @@ export interface SubjectWithTopics extends Subject {
 
 export interface SubjectWithTopicsAndLevel extends Subject {
   topics: Topic[];
-  level: Level;
+  level: Level | null;
 }
 
 export interface LevelWithSubjects extends Level {
@@ -34,7 +34,7 @@ export interface LevelWithFullHierarchy extends Level {
 }
 
 export interface ResourceWithRelations extends Resource {
-  subject: Subject;
+  subject: Subject | null;
   topic: Topic | null;
 }
 

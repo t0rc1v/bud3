@@ -212,7 +212,9 @@ export function ResourceViewer({
                   <TypeIcon className="h-3 w-3 mr-1" />
                   {resource.type.charAt(0).toUpperCase() + resource.type.slice(1)}
                 </Badge>
-                <Badge variant="outline">{resource.subject.name}</Badge>
+                {resource.subject && (
+                  <Badge variant="outline">{resource.subject.name}</Badge>
+                )}
                 {resource.topic && (
                   <Badge variant="secondary">{resource.topic.title}</Badge>
                 )}

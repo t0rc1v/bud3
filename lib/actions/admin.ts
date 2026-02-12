@@ -36,12 +36,10 @@ import type {
  * Get the admin IDs for a regular user (supports multiple admins)
  */
 export async function getRegularAdminIds(regularId: string): Promise<string[]> {
-  const adminRegularsList = await db.query.adminRegulars.findMany({
-    where: eq(adminRegulars.regularId, regularId),
-    with: {
-      admin: true,
-    },
-  });
+  const adminRegularsList = await db
+    .select()
+    .from(adminRegulars)
+    .where(eq(adminRegulars.regularId, regularId));
   return adminRegularsList.map(ar => ar.adminId);
 }
 
@@ -200,21 +198,58 @@ export async function getLevelsForUser(
   
   const visibilityFilter = await buildContentVisibilityFilter(userId, userRole, adminIds);
   
-  const levels = await db.query.level.findMany({
-    where: visibilityFilter || undefined,
-    orderBy: [asc(level.order)],
-    with: {
-      subjects: {
-        with: {
-          topics: {
-            with: {
-              resources: true,
-            },
-          },
-        },
-      },
-    },
-  });
+  // Fetch levels
+  const levelsData = await db
+    .select()
+    .from(level)
+    .where(visibilityFilter || undefined)
+    .orderBy(asc(level.order));
+  
+  // Fetch all subjects for these levels
+  const levelIds = levelsData.map(l => l.id);
+  const subjectsData = levelIds.length > 0 
+    ? await db
+        .select()
+        .from(subject)
+        .where(inArray(subject.levelId, levelIds))
+        .orderBy(asc(subject.name))
+    : [];
+  
+  // Fetch all topics for these subjects
+  const subjectIds = subjectsData.map(s => s.id);
+  const topicsData = subjectIds.length > 0
+    ? await db
+        .select()
+        .from(topic)
+        .where(inArray(topic.subjectId, subjectIds))
+        .orderBy(asc(topic.order))
+    : [];
+  
+  // Fetch all resources for these topics
+  const topicIds = topicsData.map(t => t.id);
+  const resourcesData = topicIds.length > 0
+    ? await db
+        .select()
+        .from(resource)
+        .where(inArray(resource.topicId, topicIds))
+        .orderBy(desc(resource.createdAt))
+    : [];
+  
+  // Assemble the hierarchy
+  const levels = levelsData.map(l => ({
+    ...l,
+    subjects: subjectsData
+      .filter(s => s.levelId === l.id)
+      .map(s => ({
+        ...s,
+        topics: topicsData
+          .filter(t => t.subjectId === s.id)
+          .map(t => ({
+            ...t,
+            resources: resourcesData.filter(r => r.topicId === t.id),
+          })),
+      })),
+  }));
   
   return levels as unknown as LevelWithFullHierarchy[];
 }
@@ -224,14 +259,20 @@ export async function getLevelByIdWithAccessCheck(
   userId: string,
   userRole: UserRole
 ): Promise<LevelWithSubjects | null> {
-  const levelData = await db.query.level.findFirst({
-    where: eq(level.id, id),
-    with: {
-      subjects: true,
-    },
-  });
+  const levelData = await db
+    .select()
+    .from(level)
+    .where(eq(level.id, id))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (!levelData) return null;
+
+  const subjectsData = await db
+    .select()
+    .from(subject)
+    .where(eq(subject.levelId, id))
+    .orderBy(asc(subject.name));
 
   const hasAccess = await canAccessContent(
     levelData.ownerId || "",
@@ -241,7 +282,12 @@ export async function getLevelByIdWithAccessCheck(
     userRole
   );
 
-  return hasAccess ? (levelData as unknown as LevelWithSubjects) : null;
+  const levelWithSubjects = {
+    ...levelData,
+    subjects: subjectsData,
+  };
+
+  return hasAccess ? (levelWithSubjects as unknown as LevelWithSubjects) : null;
 }
 
 export async function createLevel(input: CreateLevelInput): Promise<Level> {
@@ -272,9 +318,12 @@ export async function updateLevel(
   const { id, ...data } = input;
 
   // Check ownership
-  const existingLevel = await db.query.level.findFirst({
-    where: eq(level.id, id),
-  });
+  const existingLevel = await db
+    .select()
+    .from(level)
+    .where(eq(level.id, id))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (!existingLevel) {
     throw new Error("Level not found");
@@ -308,9 +357,12 @@ export async function deleteLevel(
   userRole: UserRole
 ): Promise<void> {
   // Check ownership
-  const existingLevel = await db.query.level.findFirst({
-    where: eq(level.id, id),
-  });
+  const existingLevel = await db
+    .select()
+    .from(level)
+    .where(eq(level.id, id))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (!existingLevel) {
     throw new Error("Level not found");
@@ -347,16 +399,39 @@ export async function getSubjectsForUser(
 
   if (userRole === "super_admin") {
     // Super-admin sees all subjects
-    const subjects = await db.query.subject.findMany({
-      orderBy: [asc(subject.name)],
-      with: {
-        topics: {
-          with: {
-            resources: true,
-          },
-        },
-      },
-    });
+    const subjectsData = await db
+      .select()
+      .from(subject)
+      .orderBy(asc(subject.name));
+    
+    const subjectIds = subjectsData.map(s => s.id);
+    const topicsData = subjectIds.length > 0
+      ? await db
+          .select()
+          .from(topic)
+          .where(inArray(topic.subjectId, subjectIds))
+          .orderBy(asc(topic.order))
+      : [];
+    
+    const topicIds = topicsData.map(t => t.id);
+    const resourcesData = topicIds.length > 0
+      ? await db
+          .select()
+          .from(resource)
+          .where(inArray(resource.topicId, topicIds))
+          .orderBy(desc(resource.createdAt))
+      : [];
+    
+    const subjects = subjectsData.map(s => ({
+      ...s,
+      topics: topicsData
+        .filter(t => t.subjectId === s.id)
+        .map(t => ({
+          ...t,
+          resources: resourcesData.filter(r => r.topicId === t.id),
+        })),
+    }));
+    
     return subjects as unknown as SubjectWithTopics[];
   }
 
@@ -381,17 +456,39 @@ export async function getSubjectsForUser(
     });
   }
 
-  const subjects = await db.query.subject.findMany({
-    where: or(...conditions),
-    orderBy: [asc(subject.name)],
-    with: {
-      topics: {
-        with: {
-          resources: true,
-        },
-      },
-    },
-  });
+  const subjectsData = await db
+    .select()
+    .from(subject)
+    .where(or(...conditions))
+    .orderBy(asc(subject.name));
+  
+  const subjectIds = subjectsData.map(s => s.id);
+  const topicsData = subjectIds.length > 0
+    ? await db
+        .select()
+        .from(topic)
+        .where(inArray(topic.subjectId, subjectIds))
+        .orderBy(asc(topic.order))
+    : [];
+  
+  const topicIds = topicsData.map(t => t.id);
+  const resourcesData = topicIds.length > 0
+    ? await db
+        .select()
+        .from(resource)
+        .where(inArray(resource.topicId, topicIds))
+        .orderBy(desc(resource.createdAt))
+    : [];
+  
+  const subjects = subjectsData.map(s => ({
+    ...s,
+    topics: topicsData
+      .filter(t => t.subjectId === s.id)
+      .map(t => ({
+        ...t,
+        resources: resourcesData.filter(r => r.topicId === t.id),
+      })),
+  }));
 
   return subjects as unknown as SubjectWithTopics[];
 }
@@ -423,9 +520,12 @@ export async function updateSubject(
 ): Promise<void> {
   const { id, ...data } = input;
 
-  const existingSubject = await db.query.subject.findFirst({
-    where: eq(subject.id, id),
-  });
+  const existingSubject = await db
+    .select()
+    .from(subject)
+    .where(eq(subject.id, id))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (!existingSubject) {
     throw new Error("Subject not found");
@@ -458,9 +558,12 @@ export async function deleteSubject(
   userId: string,
   userRole: UserRole
 ): Promise<void> {
-  const existingSubject = await db.query.subject.findFirst({
-    where: eq(subject.id, id),
-  });
+  const existingSubject = await db
+    .select()
+    .from(subject)
+    .where(eq(subject.id, id))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (!existingSubject) {
     throw new Error("Subject not found");
@@ -496,12 +599,25 @@ export async function getTopicsForUser(
 
   if (userRole === "super_admin") {
     // Super-admin sees all topics
-    const topics = await db.query.topic.findMany({
-      orderBy: [asc(topic.order)],
-      with: {
-        resources: true,
-      },
-    });
+    const topicsData = await db
+      .select()
+      .from(topic)
+      .orderBy(asc(topic.order));
+    
+    const topicIds = topicsData.map(t => t.id);
+    const resourcesData = topicIds.length > 0
+      ? await db
+          .select()
+          .from(resource)
+          .where(inArray(resource.topicId, topicIds))
+          .orderBy(desc(resource.createdAt))
+      : [];
+    
+    const topics = topicsData.map(t => ({
+      ...t,
+      resources: resourcesData.filter(r => r.topicId === t.id),
+    }));
+    
     return topics;
   }
 
@@ -526,13 +642,25 @@ export async function getTopicsForUser(
     });
   }
 
-  const topics = await db.query.topic.findMany({
-    where: or(...conditions),
-    orderBy: [asc(topic.order)],
-    with: {
-      resources: true,
-    },
-  });
+  const topicsData = await db
+    .select()
+    .from(topic)
+    .where(or(...conditions))
+    .orderBy(asc(topic.order));
+  
+  const topicIds = topicsData.map(t => t.id);
+  const resourcesData = topicIds.length > 0
+    ? await db
+        .select()
+        .from(resource)
+        .where(inArray(resource.topicId, topicIds))
+        .orderBy(desc(resource.createdAt))
+    : [];
+  
+  const topics = topicsData.map(t => ({
+    ...t,
+    resources: resourcesData.filter(r => r.topicId === t.id),
+  }));
 
   return topics;
 }
@@ -563,9 +691,12 @@ export async function updateTopic(
 ): Promise<void> {
   const { id, ...data } = input;
 
-  const existingTopic = await db.query.topic.findFirst({
-    where: eq(topic.id, id),
-  });
+  const existingTopic = await db
+    .select()
+    .from(topic)
+    .where(eq(topic.id, id))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (!existingTopic) {
     throw new Error("Topic not found");
@@ -598,9 +729,12 @@ export async function deleteTopic(
   userId: string,
   userRole: UserRole
 ): Promise<void> {
-  const existingTopic = await db.query.topic.findFirst({
-    where: eq(topic.id, id),
-  });
+  const existingTopic = await db
+    .select()
+    .from(topic)
+    .where(eq(topic.id, id))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (!existingTopic) {
     throw new Error("Topic not found");
@@ -741,105 +875,257 @@ export async function updateTopicWithSession(input: UpdateTopicInput): Promise<v
 
 // These functions maintain backward compatibility but should be updated
 export async function getLevels(): Promise<LevelWithSubjects[]> {
-  const levels = await db.query.level.findMany({
-    orderBy: [asc(level.order)],
-    with: {
-      subjects: {
-        with: {
-          topics: true,
-        },
-      },
-    },
-  });
+  const levelsData = await db
+    .select()
+    .from(level)
+    .orderBy(asc(level.order));
+  
+  const levelIds = levelsData.map(l => l.id);
+  const subjectsData = levelIds.length > 0
+    ? await db
+        .select()
+        .from(subject)
+        .where(inArray(subject.levelId, levelIds))
+        .orderBy(asc(subject.name))
+    : [];
+  
+  const subjectIds = subjectsData.map(s => s.id);
+  const topicsData = subjectIds.length > 0
+    ? await db
+        .select()
+        .from(topic)
+        .where(inArray(topic.subjectId, subjectIds))
+        .orderBy(asc(topic.order))
+    : [];
+  
+  const levels = levelsData.map(l => ({
+    ...l,
+    subjects: subjectsData
+      .filter(s => s.levelId === l.id)
+      .map(s => ({
+        ...s,
+        topics: topicsData.filter(t => t.subjectId === s.id),
+      })),
+  }));
+  
   return levels as unknown as LevelWithSubjects[];
 }
 
 export async function getLevelsFullHierarchy(): Promise<LevelWithFullHierarchy[]> {
-  const levels = await db.query.level.findMany({
-    orderBy: [asc(level.order)],
-    with: {
-      subjects: {
-        with: {
-          topics: {
-            with: {
-              resources: true,
-            },
-          },
-        },
-      },
-    },
-  });
+  const levelsData = await db
+    .select()
+    .from(level)
+    .orderBy(asc(level.order));
+  
+  const levelIds = levelsData.map(l => l.id);
+  const subjectsData = levelIds.length > 0
+    ? await db
+        .select()
+        .from(subject)
+        .where(inArray(subject.levelId, levelIds))
+        .orderBy(asc(subject.name))
+    : [];
+  
+  const subjectIds = subjectsData.map(s => s.id);
+  const topicsData = subjectIds.length > 0
+    ? await db
+        .select()
+        .from(topic)
+        .where(inArray(topic.subjectId, subjectIds))
+        .orderBy(asc(topic.order))
+    : [];
+  
+  const topicIds = topicsData.map(t => t.id);
+  const resourcesData = topicIds.length > 0
+    ? await db
+        .select()
+        .from(resource)
+        .where(inArray(resource.topicId, topicIds))
+        .orderBy(desc(resource.createdAt))
+    : [];
+  
+  const levels = levelsData.map(l => ({
+    ...l,
+    subjects: subjectsData
+      .filter(s => s.levelId === l.id)
+      .map(s => ({
+        ...s,
+        topics: topicsData
+          .filter(t => t.subjectId === s.id)
+          .map(t => ({
+            ...t,
+            resources: resourcesData.filter(r => r.topicId === t.id),
+          })),
+      })),
+  }));
+  
   return levels as unknown as LevelWithFullHierarchy[];
 }
 
 export async function getLevelById(id: string): Promise<LevelWithSubjects | null> {
-  const result = await db.query.level.findFirst({
-    where: eq(level.id, id),
-    with: {
-      subjects: {
-        with: {
-          topics: true,
-        },
-      },
-    },
-  });
-  return (result as unknown as LevelWithSubjects) ?? null;
+  const levelData = await db
+    .select()
+    .from(level)
+    .where(eq(level.id, id))
+    .limit(1)
+    .then(res => res[0] || null);
+  
+  if (!levelData) return null;
+  
+  const subjectsData = await db
+    .select()
+    .from(subject)
+    .where(eq(subject.levelId, id))
+    .orderBy(asc(subject.name));
+  
+  const subjectIds = subjectsData.map(s => s.id);
+  const topicsData = subjectIds.length > 0
+    ? await db
+        .select()
+        .from(topic)
+        .where(inArray(topic.subjectId, subjectIds))
+        .orderBy(asc(topic.order))
+    : [];
+  
+  const result = {
+    ...levelData,
+    subjects: subjectsData.map(s => ({
+      ...s,
+      topics: topicsData.filter(t => t.subjectId === s.id),
+    })),
+  };
+  
+  return result as unknown as LevelWithSubjects;
 }
 
 // Keep other existing exports for backward compatibility
 export async function getSubjects(): Promise<SubjectWithTopicsAndLevel[]> {
-  const subjects = await db.query.subject.findMany({
-    orderBy: [asc(subject.name)],
-    with: {
-      topics: true,
-      level: true,
-    },
-  });
-  return subjects;
+  const subjectsData = await db
+    .select()
+    .from(subject)
+    .orderBy(asc(subject.name));
+  
+  const subjectIds = subjectsData.map(s => s.id);
+  const levelIds = [...new Set(subjectsData.map(s => s.levelId).filter(Boolean))];
+  
+  const [topicsData, levelsData] = await Promise.all([
+    subjectIds.length > 0
+      ? db.select().from(topic).where(inArray(topic.subjectId, subjectIds)).orderBy(asc(topic.order))
+      : Promise.resolve([]),
+    levelIds.length > 0
+      ? db.select().from(level).where(inArray(level.id, levelIds))
+      : Promise.resolve([]),
+  ]);
+  
+  const subjects = subjectsData.map(s => ({
+    ...s,
+    topics: topicsData.filter(t => t.subjectId === s.id),
+    level: levelsData.find(l => l.id === s.levelId),
+  }));
+  
+  return subjects as SubjectWithTopicsAndLevel[];
 }
 
 export async function getSubjectById(id: string): Promise<SubjectWithTopicsAndLevel | null> {
-  const result = await db.query.subject.findFirst({
-    where: eq(subject.id, id),
-    with: {
-      topics: true,
-      level: true,
-    },
-  });
-  return result ?? null;
+  const subjectData = await db
+    .select()
+    .from(subject)
+    .where(eq(subject.id, id))
+    .limit(1)
+    .then(res => res[0] || null);
+  
+  if (!subjectData) return null;
+  
+  const [topicsData, levelData] = await Promise.all([
+    db.select().from(topic).where(eq(topic.subjectId, id)).orderBy(asc(topic.order)),
+    subjectData.levelId 
+      ? db.select().from(level).where(eq(level.id, subjectData.levelId)).limit(1).then(res => res[0] || null)
+      : Promise.resolve(null),
+  ]);
+  
+  return {
+    ...subjectData,
+    topics: topicsData,
+    level: levelData,
+  } as SubjectWithTopicsAndLevel;
 }
 
 export async function getTopics(): Promise<TopicWithResourcesAndSubject[]> {
-  const topics = await db.query.topic.findMany({
-    orderBy: [asc(topic.order)],
-    with: {
-      resources: true,
-      subject: true,
-    },
-  });
-  return topics as TopicWithResourcesAndSubject[];
+  const topicsData = await db
+    .select()
+    .from(topic)
+    .orderBy(asc(topic.order));
+  
+  const topicIds = topicsData.map(t => t.id);
+  const subjectIds = [...new Set(topicsData.map(t => t.subjectId).filter(Boolean))];
+  
+  const [resourcesData, subjectsData] = await Promise.all([
+    topicIds.length > 0
+      ? db.select().from(resource).where(inArray(resource.topicId, topicIds)).orderBy(desc(resource.createdAt))
+      : Promise.resolve([]),
+    subjectIds.length > 0
+      ? db.select().from(subject).where(inArray(subject.id, subjectIds))
+      : Promise.resolve([]),
+  ]);
+  
+  const topics = topicsData.map(t => ({
+    ...t,
+    resources: resourcesData.filter(r => r.topicId === t.id),
+    subject: subjectsData.find(s => s.id === t.subjectId),
+  }));
+  
+  return topics as unknown as TopicWithResourcesAndSubject[];
 }
 
 export async function getTopicById(id: string): Promise<TopicWithResourcesAndSubject | null> {
-  const result = await db.query.topic.findFirst({
-    where: eq(topic.id, id),
-    with: {
-      resources: true,
-      subject: true,
-    },
-  });
-  return result ?? null;
+  const topicData = await db
+    .select()
+    .from(topic)
+    .where(eq(topic.id, id))
+    .limit(1)
+    .then(res => res[0] || null);
+  
+  if (!topicData) return null;
+  
+  const [resourcesData, subjectData] = await Promise.all([
+    db.select().from(resource).where(eq(resource.topicId, id)).orderBy(desc(resource.createdAt)),
+    topicData.subjectId
+      ? db.select().from(subject).where(eq(subject.id, topicData.subjectId)).limit(1).then(res => res[0] || null)
+      : Promise.resolve(null),
+  ]);
+  
+  return {
+    ...topicData,
+    resources: resourcesData,
+    subject: subjectData,
+  } as unknown as TopicWithResourcesAndSubject;
 }
 
 export async function getResources(): Promise<ResourceWithRelations[]> {
-  const resources = await db.query.resource.findMany({
-    orderBy: [desc(resource.createdAt)],
-    with: {
-      subject: true,
-      topic: true,
-    },
-  });
-  return resources;
+  const resourcesData = await db
+    .select()
+    .from(resource)
+    .orderBy(desc(resource.createdAt));
+  
+  const subjectIds = [...new Set(resourcesData.map(r => r.subjectId).filter(Boolean))];
+  const topicIds = [...new Set(resourcesData.map(r => r.topicId).filter(Boolean))];
+  
+  const [subjectsData, topicsData] = await Promise.all([
+    subjectIds.length > 0
+      ? db.select().from(subject).where(inArray(subject.id, subjectIds))
+      : Promise.resolve([]),
+    topicIds.length > 0
+      ? db.select().from(topic).where(inArray(topic.id, topicIds))
+      : Promise.resolve([]),
+  ]);
+  
+  const resources = resourcesData.map(r => ({
+    ...r,
+    subject: subjectsData.find(s => s.id === r.subjectId),
+    topic: topicsData.find(t => t.id === r.topicId),
+  }));
+  
+  return resources as unknown as ResourceWithRelations[];
 }
 
 export async function getResourcesForUser(
@@ -853,9 +1139,10 @@ export async function getResourcesForUser(
 
   if (userRole === "super_admin") {
     // Super-admin sees all resources
-    const resources = await db.query.resource.findMany({
-      orderBy: [desc(resource.createdAt)],
-    });
+    const resources = await db
+      .select()
+      .from(resource)
+      .orderBy(desc(resource.createdAt));
     return resources;
   }
 
@@ -880,23 +1167,39 @@ export async function getResourcesForUser(
     });
   }
 
-  const resources = await db.query.resource.findMany({
-    where: or(...conditions),
-    orderBy: [desc(resource.createdAt)],
-  });
+  const resources = await db
+    .select()
+    .from(resource)
+    .where(or(...conditions))
+    .orderBy(desc(resource.createdAt));
 
   return resources;
 }
 
 export async function getResourceById(id: string): Promise<ResourceWithRelations | null> {
-  const result = await db.query.resource.findFirst({
-    where: eq(resource.id, id),
-    with: {
-      subject: true,
-      topic: true,
-    },
-  });
-  return result ?? null;
+  const resourceData = await db
+    .select()
+    .from(resource)
+    .where(eq(resource.id, id))
+    .limit(1)
+    .then(res => res[0] || null);
+  
+  if (!resourceData) return null;
+  
+  const [subjectData, topicData] = await Promise.all([
+    resourceData.subjectId
+      ? db.select().from(subject).where(eq(subject.id, resourceData.subjectId)).limit(1).then(res => res[0] || null)
+      : Promise.resolve(null),
+    resourceData.topicId
+      ? db.select().from(topic).where(eq(topic.id, resourceData.topicId)).limit(1).then(res => res[0] || null)
+      : Promise.resolve(null),
+  ]);
+  
+  return {
+    ...resourceData,
+    subject: subjectData,
+    topic: topicData,
+  } as unknown as ResourceWithRelations;
 }
 
 export async function createResource(input: CreateResourceInput): Promise<void> {
@@ -944,9 +1247,12 @@ export async function updateResourceLockStatus(
   userRole: UserRole
 ): Promise<void> {
   // Check ownership
-  const existingResource = await db.query.resource.findFirst({
-    where: eq(resource.id, resourceId),
-  });
+  const existingResource = await db
+    .select()
+    .from(resource)
+    .where(eq(resource.id, resourceId))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (!existingResource) {
     throw new Error("Resource not found");
@@ -997,13 +1303,23 @@ export interface MyLearnerWithDetails {
 }
 
 export async function getMyLearners(adminId: string): Promise<MyLearnerWithDetails[]> {
-  const regulars = await db.query.adminRegulars.findMany({
-    where: eq(adminRegulars.adminId, adminId),
-    with: {
-      regular: true,
-    },
-    orderBy: [desc(adminRegulars.createdAt)],
-  });
+  const regularsData = await db
+    .select()
+    .from(adminRegulars)
+    .where(eq(adminRegulars.adminId, adminId))
+    .orderBy(desc(adminRegulars.createdAt));
+  
+  // Fetch regular users separately
+  const regularIds = regularsData.map(r => r.regularId);
+  const usersData = regularIds.length > 0
+    ? await db.select().from(user).where(inArray(user.id, regularIds))
+    : [];
+  
+  const regulars = regularsData.map(r => ({
+    ...r,
+    regular: usersData.find(u => u.id === r.regularId) || null,
+  }));
+  
   return regulars as MyLearnerWithDetails[];
 }
 
@@ -1023,12 +1339,15 @@ export async function addMyLearner(
     throw new Error("The specified user is not a regular user.");
   }
 
-  const existing = await db.query.adminRegulars.findFirst({
-    where: and(
+  const existing = await db
+    .select()
+    .from(adminRegulars)
+    .where(and(
       eq(adminRegulars.adminId, adminId),
       eq(adminRegulars.regularId, regular.id)
-    ),
-  });
+    ))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (existing) {
     throw new Error("This regular user is already in your list.");
@@ -1063,9 +1382,10 @@ export async function removeMyLearner(adminId: string, regularId: string): Promi
 // ==========================================
 
 export async function getAllUsers(): Promise<User[]> {
-  const users = await db.query.user.findMany({
-    orderBy: [desc(user.createdAt)],
-  });
+  const users = await db
+    .select()
+    .from(user)
+    .orderBy(desc(user.createdAt));
   return users;
 }
 
@@ -1088,11 +1408,11 @@ export async function getSystemStats(): Promise<SystemStats> {
     topics,
     resources,
   ] = await Promise.all([
-    db.query.user.findMany(),
-    db.query.level.findMany(),
-    db.query.subject.findMany(),
-    db.query.topic.findMany(),
-    db.query.resource.findMany(),
+    db.select().from(user),
+    db.select().from(level),
+    db.select().from(subject),
+    db.select().from(topic),
+    db.select().from(resource),
   ]);
 
   return {

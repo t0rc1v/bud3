@@ -46,8 +46,8 @@ import type {
 interface ResourceViewerProps {
   resource: ResourceWithRelations;
   onBack: () => void;
-  subjects: SubjectWithTopicsAndLevel[];
-  topics: TopicWithResources[];
+  subjects: { id: string; name: string; level: { id: string; title: string } | null }[];
+  topics: { id: string; title: string; subjectId: string }[];
   initialEditMode?: boolean;
 }
 

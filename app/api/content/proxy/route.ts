@@ -21,9 +21,12 @@ export async function GET(req: Request) {
     }
 
     // Get the database user ID from the clerk ID
-    const userData = await db.query.user.findFirst({
-      where: eq(user.clerkId, clerkId),
-    });
+    const userData = await db
+      .select()
+      .from(user)
+      .where(eq(user.clerkId, clerkId))
+      .limit(1)
+      .then(res => res[0] || null);
     
     if (!userData) {
       return NextResponse.json(
@@ -45,9 +48,12 @@ export async function GET(req: Request) {
     }
 
     // Get the resource details
-    const resourceData = await db.query.resource.findFirst({
-      where: eq(resource.id, resourceId),
-    });
+    const resourceData = await db
+      .select()
+      .from(resource)
+      .where(eq(resource.id, resourceId))
+      .limit(1)
+      .then(res => res[0] || null);
 
     if (!resourceData) {
       return NextResponse.json(
@@ -57,21 +63,27 @@ export async function GET(req: Request) {
     }
 
     // Check for unlock fee
-    const unlockFeeRecord = await db.query.unlockFee.findFirst({
-      where: and(
+    const unlockFeeRecord = await db
+      .select()
+      .from(unlockFee)
+      .where(and(
         eq(unlockFee.resourceId, resourceId),
         eq(unlockFee.isActive, true)
-      ),
-    });
+      ))
+      .limit(1)
+      .then(res => res[0] || null);
 
     // If there's an unlock fee, verify the user has unlocked it
     if (unlockFeeRecord) {
-      const unlockedRecord = await db.query.unlockedContent.findFirst({
-        where: and(
+      const unlockedRecord = await db
+        .select()
+        .from(unlockedContent)
+        .where(and(
           eq(unlockedContent.userId, dbUserId),
           eq(unlockedContent.unlockFeeId, unlockFeeRecord.id)
-        ),
-      });
+        ))
+        .limit(1)
+        .then(res => res[0] || null);
 
       if (!unlockedRecord) {
         return NextResponse.json(

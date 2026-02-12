@@ -29,9 +29,12 @@ export async function GET(req: Request) {
     }
 
     // Get user role
-    const userData = await db.query.user.findFirst({
-      where: eq(user.clerkId, clerkId),
-    });
+    const userData = await db
+      .select()
+      .from(user)
+      .where(eq(user.clerkId, clerkId))
+      .limit(1)
+      .then(res => res[0] || null);
 
     if (!userData) {
       return NextResponse.json(

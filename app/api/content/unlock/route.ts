@@ -23,9 +23,12 @@ export async function POST(req: Request) {
     }
 
     // Get the database user ID from the clerk ID
-    const userData = await db.query.user.findFirst({
-      where: eq(user.clerkId, clerkId),
-    });
+    const userData = await db
+      .select()
+      .from(user)
+      .where(eq(user.clerkId, clerkId))
+      .limit(1)
+      .then(res => res[0] || null);
     
     if (!userData) {
       return NextResponse.json(
@@ -68,12 +71,15 @@ export async function POST(req: Request) {
     }
 
     // Check if user has already unlocked this content
-    const existingUnlock = await db.query.unlockedContent.findFirst({
-      where: and(
+    const existingUnlock = await db
+      .select()
+      .from(unlockedContent)
+      .where(and(
         eq(unlockedContent.userId, dbUserId),
         eq(unlockedContent.unlockFeeId, unlockFeeRecord.id)
-      ),
-    });
+      ))
+      .limit(1)
+      .then(res => res[0] || null);
 
     if (existingUnlock) {
       return NextResponse.json({
@@ -85,9 +91,12 @@ export async function POST(req: Request) {
     }
 
     // Get resource details for metadata
-    const resourceData = await db.query.resource.findFirst({
-      where: eq(resource.id, resourceId),
-    });
+    const resourceData = await db
+      .select()
+      .from(resource)
+      .where(eq(resource.id, resourceId))
+      .limit(1)
+      .then(res => res[0] || null);
 
     // Create unlock record for direct M-Pesa payment
     // Note: All unlocks are via M-Pesa direct payment (credits are only for AI chat)
@@ -139,9 +148,12 @@ export async function GET(req: Request) {
     }
 
     // Get the database user ID from the clerk ID
-    const userData = await db.query.user.findFirst({
-      where: eq(user.clerkId, clerkId),
-    });
+    const userData = await db
+      .select()
+      .from(user)
+      .where(eq(user.clerkId, clerkId))
+      .limit(1)
+      .then(res => res[0] || null);
     
     if (!userData) {
       return NextResponse.json(
@@ -175,12 +187,15 @@ export async function GET(req: Request) {
     }
 
     // Check if unlocked
-    const unlockedRecord = await db.query.unlockedContent.findFirst({
-      where: and(
+    const unlockedRecord = await db
+      .select()
+      .from(unlockedContent)
+      .where(and(
         eq(unlockedContent.userId, dbUserId),
         eq(unlockedContent.unlockFeeId, unlockFeeRecord.id)
-      ),
-    });
+      ))
+      .limit(1)
+      .then(res => res[0] || null);
 
     return NextResponse.json({
       isUnlocked: !!unlockedRecord,

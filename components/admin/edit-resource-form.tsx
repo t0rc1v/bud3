@@ -26,7 +26,7 @@ import type { ResourceType, ResourceWithRelations } from "@/lib/types";
 
 interface EditResourceFormProps {
   resource: ResourceWithRelations;
-  subjects: { id: string; name: string; level: { id: string; title: string } }[];
+  subjects: { id: string; name: string; level: { id: string; title: string } | null }[];
   topics: { id: string; title: string; subjectId: string }[];
   onSuccess: () => void;
   onCancel: () => void;
@@ -230,7 +230,7 @@ export function EditResourceForm({
           <SelectContent>
             {subjects.map((subject) => (
               <SelectItem key={subject.id} value={subject.id}>
-                {subject.name} ({subject.level.title})
+                {subject.name} {subject.level && `(${subject.level.title})`}
               </SelectItem>
             ))}
           </SelectContent>

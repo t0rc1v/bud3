@@ -19,9 +19,12 @@ export async function POST(req: Request) {
     }
 
     // Check if user is admin or super_admin
-    const currentUser = await db.query.user.findFirst({
-      where: eq(user.clerkId, userId),
-    });
+    const currentUser = await db
+      .select()
+      .from(user)
+      .where(eq(user.clerkId, userId))
+      .limit(1)
+      .then(res => res[0] || null);
 
     if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "super_admin")) {
       return NextResponse.json(
@@ -39,12 +42,15 @@ export async function POST(req: Request) {
 
     for (const resourceData of allResources) {
       // Check if unlock fee already exists
-      const existingFee = await db.query.unlockFee.findFirst({
-        where: and(
+      const existingFee = await db
+        .select()
+        .from(unlockFee)
+        .where(and(
           eq(unlockFee.resourceId, resourceData.id),
           eq(unlockFee.isActive, true)
-        ),
-      });
+        ))
+        .limit(1)
+        .then(res => res[0] || null);
 
       if (existingFee) {
         skippedCount++;

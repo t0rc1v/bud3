@@ -12,7 +12,7 @@ import {
   topic,
   subject,
 } from "@/lib/db/schema";
-import { eq, and, desc, asc, sql } from "drizzle-orm";
+import { eq, and, desc, asc, sql, gt, or, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { CREDIT_PRICING, DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
 import { sendCreditGiftEmail, sendResourceUnlockEmail } from "@/lib/email";
@@ -20,9 +20,12 @@ import { sendCreditGiftEmail, sendResourceUnlockEmail } from "@/lib/email";
 // ============== USER CREDIT MANAGEMENT ==============
 
 export async function getOrCreateUserCredit(userId: string) {
-  let credit = await db.query.userCredit.findFirst({
-    where: eq(userCredit.userId, userId),
-  });
+  let credit = await db
+    .select()
+    .from(userCredit)
+    .where(eq(userCredit.userId, userId))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (!credit) {
     const [newCredit] = await db
@@ -167,14 +170,22 @@ export async function addCredits(
  */
 export async function getUserActiveTransactions(userId: string) {
   const now = new Date();
+
+  console.log("user in transaction", userId);
   
-  return db.query.creditTransaction.findMany({
-    where: and(
-      eq(creditTransaction.userId, userId),
-      sql`${creditTransaction.expiresAt} IS NULL OR ${creditTransaction.expiresAt} > ${now}`
-    ),
-    orderBy: [asc(creditTransaction.createdAt)], // FIFO order
-  });
+  return db
+    .select()
+    .from(creditTransaction)
+    .where(
+      and(
+        eq(creditTransaction.userId, userId),
+        or(
+          isNull(creditTransaction.expiresAt),
+          gt(creditTransaction.expiresAt, now)
+        )
+      )
+    )
+    .orderBy(asc(creditTransaction.createdAt));
 }
 
 /**
@@ -205,10 +216,11 @@ export async function getUserCreditDetails(userId: string) {
   warningDate.setDate(warningDate.getDate() + DEFAULT_CREDIT_CONFIG.EXPIRATION_WARNING_DAYS);
   
   // Get all transactions
-  const allTransactions = await db.query.creditTransaction.findMany({
-    where: eq(creditTransaction.userId, userId),
-    orderBy: [desc(creditTransaction.createdAt)],
-  });
+  const allTransactions = await db
+    .select()
+    .from(creditTransaction)
+    .where(eq(creditTransaction.userId, userId))
+    .orderBy(desc(creditTransaction.createdAt));
   
   // Calculate expired credits
   const expiredTransactions = allTransactions.filter(
@@ -275,9 +287,12 @@ export async function updateCreditPurchaseStatus(
   }
 ) {
   // First, get the current purchase to check its current status
-  const currentPurchase = await db.query.creditPurchase.findFirst({
-    where: eq(creditPurchase.id, purchaseId),
-  });
+  const currentPurchase = await db
+    .select()
+    .from(creditPurchase)
+    .where(eq(creditPurchase.id, purchaseId))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (!currentPurchase) {
     console.error(`Purchase ${purchaseId} not found`);
@@ -322,55 +337,69 @@ export async function updateCreditPurchaseStatus(
 }
 
 export async function getCreditPurchaseByCheckoutId(checkoutRequestId: string) {
-  return db.query.creditPurchase.findFirst({
-    where: eq(creditPurchase.checkoutRequestId, checkoutRequestId),
-  });
+  return db
+    .select()
+    .from(creditPurchase)
+    .where(eq(creditPurchase.checkoutRequestId, checkoutRequestId))
+    .limit(1)
+    .then(res => res[0] || null);
 }
 
 export async function getUserCreditPurchases(userId: string) {
-  return db.query.creditPurchase.findMany({
-    where: eq(creditPurchase.userId, userId),
-    orderBy: [desc(creditPurchase.createdAt)],
-  });
+  return db
+    .select()
+    .from(creditPurchase)
+    .where(eq(creditPurchase.userId, userId))
+    .orderBy(desc(creditPurchase.createdAt));
 }
 
 // ============== TRANSACTION HISTORY ==============
 
 export async function getUserTransactionHistory(userId: string, limit: number = 50) {
-  return db.query.creditTransaction.findMany({
-    where: eq(creditTransaction.userId, userId),
-    orderBy: [desc(creditTransaction.createdAt)],
-    limit,
-  });
+  return db
+    .select()
+    .from(creditTransaction)
+    .where(eq(creditTransaction.userId, userId))
+    .orderBy(desc(creditTransaction.createdAt))
+    .limit(limit);
 }
 
 // ============== UNLOCK FEE MANAGEMENT ==============
 
 export async function getUnlockFeeByResource(resourceId: string) {
-  return db.query.unlockFee.findFirst({
-    where: and(
+  return db
+    .select()
+    .from(unlockFee)
+    .where(and(
       eq(unlockFee.resourceId, resourceId),
       eq(unlockFee.isActive, true)
-    ),
-  });
+    ))
+    .limit(1)
+    .then(res => res[0] || null);
 }
 
 export async function getUnlockFeeByTopic(topicId: string) {
-  return db.query.unlockFee.findFirst({
-    where: and(
+  return db
+    .select()
+    .from(unlockFee)
+    .where(and(
       eq(unlockFee.topicId, topicId),
       eq(unlockFee.isActive, true)
-    ),
-  });
+    ))
+    .limit(1)
+    .then(res => res[0] || null);
 }
 
 export async function getUnlockFeeBySubject(subjectId: string) {
-  return db.query.unlockFee.findFirst({
-    where: and(
+  return db
+    .select()
+    .from(unlockFee)
+    .where(and(
       eq(unlockFee.subjectId, subjectId),
       eq(unlockFee.isActive, true)
-    ),
-  });
+    ))
+    .limit(1)
+    .then(res => res[0] || null);
 }
 
 export async function createUnlockFee(data: {
@@ -419,25 +448,40 @@ export async function deleteUnlockFee(feeId: string) {
 }
 
 export async function getAllUnlockFees() {
-  return db.query.unlockFee.findMany({
-    orderBy: [desc(unlockFee.createdAt)],
-    with: {
-      resource: true,
-      topic: true,
-      subject: true,
-    },
-  });
+  const feesWithRelations = await db
+    .select({
+      unlockFee: unlockFee,
+      resource: resource,
+      topic: topic,
+      subject: subject,
+    })
+    .from(unlockFee)
+    .leftJoin(resource, eq(unlockFee.resourceId, resource.id))
+    .leftJoin(topic, eq(unlockFee.topicId, topic.id))
+    .leftJoin(subject, eq(unlockFee.subjectId, subject.id))
+    .orderBy(desc(unlockFee.createdAt));
+
+  // Transform the flat result into the nested structure expected by consumers
+  return feesWithRelations.map(({ unlockFee, resource, topic, subject }) => ({
+    ...unlockFee,
+    resource: resource || null,
+    topic: topic || null,
+    subject: subject || null,
+  }));
 }
 
 // ============== CONTENT UNLOCKING ==============
 
 export async function hasUserUnlockedContent(userId: string, unlockFeeId: string): Promise<boolean> {
-  const unlocked = await db.query.unlockedContent.findFirst({
-    where: and(
+  const unlocked = await db
+    .select()
+    .from(unlockedContent)
+    .where(and(
       eq(unlockedContent.userId, userId),
       eq(unlockedContent.unlockFeeId, unlockFeeId)
-    ),
-  });
+    ))
+    .limit(1)
+    .then(res => res[0] || null);
 
   return !!unlocked;
 }
@@ -456,19 +500,32 @@ export async function unlockContent(
 }
 
 export async function getUserUnlockedContent(userId: string) {
-  return db.query.unlockedContent.findMany({
-    where: eq(unlockedContent.userId, userId),
-    orderBy: [desc(unlockedContent.unlockedAt)],
-    with: {
-      unlockFee: {
-        with: {
-          resource: true,
-          topic: true,
-          subject: true,
-        },
-      },
+  const unlockedWithRelations = await db
+    .select({
+      unlockedContent: unlockedContent,
+      unlockFee: unlockFee,
+      resource: resource,
+      topic: topic,
+      subject: subject,
+    })
+    .from(unlockedContent)
+    .innerJoin(unlockFee, eq(unlockedContent.unlockFeeId, unlockFee.id))
+    .leftJoin(resource, eq(unlockFee.resourceId, resource.id))
+    .leftJoin(topic, eq(unlockFee.topicId, topic.id))
+    .leftJoin(subject, eq(unlockFee.subjectId, subject.id))
+    .where(eq(unlockedContent.userId, userId))
+    .orderBy(desc(unlockedContent.unlockedAt));
+
+  // Transform the flat result into the nested structure expected by consumers
+  return unlockedWithRelations.map(({ unlockedContent, unlockFee, resource, topic, subject }) => ({
+    ...unlockedContent,
+    unlockFee: {
+      ...unlockFee,
+      resource: resource || null,
+      topic: topic || null,
+      subject: subject || null,
     },
-  });
+  }));
 }
 
 // ============== ADMIN: GIFT CREDITS ==============
@@ -481,18 +538,24 @@ export async function giftCredits(
   expirationDays?: number | null
 ) {
   // Find target user by email
-  const targetUser = await db.query.user.findFirst({
-    where: eq(user.email, targetUserEmail),
-  });
+  const targetUser = await db
+    .select()
+    .from(user)
+    .where(eq(user.email, targetUserEmail))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (!targetUser) {
     throw new Error(`User with email ${targetUserEmail} not found`);
   }
 
   // Get admin user data
-  const adminUserData = await db.query.user.findFirst({
-    where: eq(user.id, adminUserId),
-  });
+  const adminUserData = await db
+    .select()
+    .from(user)
+    .where(eq(user.id, adminUserId))
+    .limit(1)
+    .then(res => res[0] || null);
 
   if (!adminUserData) {
     throw new Error("Admin user not found");
@@ -689,50 +752,68 @@ export async function unlockContentForUser(params: UnlockContentForUserParams) {
 
   if (resourceId) {
     // Get resource name first
-    const resourceData = await db.query.resource.findFirst({
-      where: eq(resource.id, resourceId),
-    });
+    const resourceData = await db
+      .select()
+      .from(resource)
+      .where(eq(resource.id, resourceId))
+      .limit(1)
+      .then(res => res[0] || null);
     contentName = resourceData?.title || "Resource";
     contentId = resourceId;
     contentType = "resource";
     
     // Find or create unlock fee
-    const foundFee = await db.query.unlockFee.findFirst({
-      where: and(
+    const foundFee = await db
+      .select()
+      .from(unlockFee)
+      .where(and(
         eq(unlockFee.resourceId, resourceId),
         eq(unlockFee.isActive, true)
-      ),
-    });
+      ))
+      .limit(1)
+      .then(res => res[0] || null);
     feeRecord = foundFee || null;
   } else if (topicId) {
-    const topicData = await db.query.topic.findFirst({
-      where: eq(topic.id, topicId),
-    });
+    const topicData = await db
+      .select()
+      .from(topic)
+      .where(eq(topic.id, topicId))
+      .limit(1)
+      .then(res => res[0] || null);
     contentName = topicData?.title || "Topic";
     contentId = topicId;
     contentType = "topic";
     
-    const foundFee = await db.query.unlockFee.findFirst({
-      where: and(
+    const foundFee = await db
+      .select()
+      .from(unlockFee)
+      .where(and(
         eq(unlockFee.topicId, topicId),
         eq(unlockFee.isActive, true)
-      ),
-    });
+      ))
+      .limit(1)
+      .then(res => res[0] || null);
     feeRecord = foundFee || null;
   } else if (subjectId) {
-    const subjectData = await db.query.subject.findFirst({
-      where: eq(subject.id, subjectId),
-    });
+    const subjectData = await db
+      .select()
+      .from(subject)
+      .where(eq(subject.id, subjectId))
+      .limit(1)
+      .then(res => res[0] || null);
     contentName = subjectData?.name || "Subject";
     contentId = subjectId;
     contentType = "subject";
     
-    const foundFee = await db.query.unlockFee.findFirst({
-      where: and(
+    const foundFee = await db
+      .select()
+      .from(unlockFee)
+      .where(and(
         eq(unlockFee.subjectId, subjectId),
         eq(unlockFee.isActive, true)
-      ),
-    });
+      ))
+      .limit(1)
+      .then(res => res[0] || null);
     feeRecord = foundFee || null;
   }
 
@@ -797,13 +878,19 @@ export async function unlockContentForUser(params: UnlockContentForUserParams) {
     .returning();
 
   // Get recipient email and admin name for notification
-  const recipient = await db.query.user.findFirst({
-    where: eq(user.id, userId),
-  });
+  const recipient = await db
+    .select()
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1)
+    .then(res => res[0] || null);
   
-  const unlockedByUser = await db.query.user.findFirst({
-    where: eq(user.id, unlockedBy),
-  });
+  const unlockedByUser = await db
+    .select()
+    .from(user)
+    .where(eq(user.id, unlockedBy))
+    .limit(1)
+    .then(res => res[0] || null);
   
   const senderName = unlockedByUser?.institutionName || unlockedByUser?.email || "Admin";
 

@@ -5,7 +5,7 @@ import { SidebarContentTree } from "@/components/content/sidebar-content-tree";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { PanelLeft, PanelRight, MessageSquare, Shield, Gift, Coins, Users } from "lucide-react";
+import { PanelLeft, PanelRight, MessageSquare, Shield, Gift, Coins, Users, LayoutDashboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -113,6 +113,18 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
                       Admin Tools
                     </div>
                     <nav className="space-y-1">
+                      <Link
+                        href="/admin"
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                          pathname === "/admin"
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                      >
+                        <LayoutDashboard className="h-4 w-4" />
+                        Dashboard
+                      </Link>
                       <Link
                         href="/admin/rewards"
                         className={cn(
@@ -228,6 +240,18 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
               </div>
             </div>
             <nav className={cn("space-y-1 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
+              <Link
+                href="/admin"
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                  pathname === "/admin"
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                Dashboard
+              </Link>
               <Link
                 href="/admin/rewards"
                 className={cn(

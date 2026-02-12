@@ -5,7 +5,9 @@ import { SidebarContentTree } from "@/components/content/sidebar-content-tree";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { PanelLeft, PanelRight, MessageSquare } from "lucide-react";
+import { PanelLeft, PanelRight, MessageSquare, LayoutDashboard, GraduationCap } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useCallback } from "react";
 import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
@@ -40,6 +42,7 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole, init
   }, []);
 
   const title = userRole === "admin" ? "Institution Admin" : "Student";
+  const pathname = usePathname();
 
   // Handle resource selection from sidebar
   const handleResourceSelect = useCallback((resource: Resource) => {
@@ -103,6 +106,29 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole, init
                     className="h-full"
                   />
                 </div>
+                {/* Regular User Navigation */}
+                {userRole === "regular" && (
+                  <div className="border-t p-4">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
+                      <GraduationCap className="h-4 w-4" />
+                      Student Tools
+                    </div>
+                    <nav className="space-y-1">
+                      <Link
+                        href="/regular"
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                          pathname === "/regular"
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                      >
+                        <LayoutDashboard className="h-4 w-4" />
+                        Dashboard
+                      </Link>
+                    </nav>
+                  </div>
+                )}
               </div>
             </SheetContent>
           </Sheet>
@@ -182,6 +208,32 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole, init
             className="h-full"
           />
         </div>
+        
+        {/* Regular User Navigation */}
+        {userRole === "regular" && (
+          <div className="border-t p-4">
+            <div className={cn("mb-2 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
+              <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <GraduationCap className="h-4 w-4" />
+                Student Tools
+              </div>
+            </div>
+            <nav className={cn("space-y-1 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
+              <Link
+                href="/regular"
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                  pathname === "/regular"
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                Dashboard
+              </Link>
+            </nav>
+          </div>
+        )}
       </div>
       
       {/* Center - Main Content */}

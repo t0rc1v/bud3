@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
-import { getMyLearners, addMyLearner, removeMyLearner, getGrades } from "@/lib/actions/admin";
+import { getMyLearners, addMyLearner, removeMyLearner, getLevels } from "@/lib/actions/admin";
 
 import type { MyLearnerWithDetails } from "@/lib/actions/admin";
-import type { GradeWithSubjects } from "@/lib/types";
+import type { LevelWithSubjects } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,11 +35,11 @@ import {
 export default function ManageRegularsPage() {
   const { user: clerkUser } = useUser();
   const [regulars, setRegulars] = useState<MyLearnerWithDetails[]>([]);
-  const [grades, setGrades] = useState<GradeWithSubjects[]>([]);
+  const [levels, setLevels] = useState<LevelWithSubjects[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [newRegularEmail, setNewRegularEmail] = useState("");
-  const [selectedGrade, setSelectedGrade] = useState("");
+  const [selectedLevel, setSelectedLevel] = useState("");
   const [adminUser, setAdminUser] = useState<{ id: string; email: string; institutionName?: string } | null>(null);
 
   useEffect(() => {
@@ -65,13 +65,13 @@ export default function ManageRegularsPage() {
         institutionName: user.institutionName || undefined,
       });
 
-      const [regularsData, gradesData] = await Promise.all([
+      const [regularsData, levelsData] = await Promise.all([
         getMyLearners(user.id),
-        getGrades(),
+        getLevels(),
       ]);
 
       setRegulars(regularsData);
-      setGrades(gradesData);
+      setLevels(levelsData);
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Failed to load regulars");
@@ -82,15 +82,15 @@ export default function ManageRegularsPage() {
 
   const handleAddRegular = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adminUser || !newRegularEmail || !selectedGrade) return;
+    if (!adminUser || !newRegularEmail || !selectedLevel) return;
 
     try {
       setIsAdding(true);
-      await addMyLearner(adminUser.id, newRegularEmail, selectedGrade);
+      await addMyLearner(adminUser.id, newRegularEmail, selectedLevel);
       
       toast.success(`Added ${newRegularEmail} to your institution`);
       setNewRegularEmail("");
-      setSelectedGrade("");
+      setSelectedLevel("");
       
       // Refresh list
       const updatedRegulars = await getMyLearners(adminUser.id);
@@ -162,22 +162,22 @@ export default function ManageRegularsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="grade">Grade/Level</Label>
-                <Select value={selectedGrade} onValueChange={setSelectedGrade} required>
-                  <SelectTrigger id="grade">
-                    <SelectValue placeholder="Select a grade" />
+                <Label htmlFor="level">Level</Label>
+                <Select value={selectedLevel} onValueChange={setSelectedLevel} required>
+                  <SelectTrigger id="level">
+                    <SelectValue placeholder="Select a level" />
                   </SelectTrigger>
                   <SelectContent>
-                    {grades.map((grade) => (
-                      <SelectItem key={grade.id} value={grade.id}>
-                        {grade.title}
+                    {levels.map((level) => (
+                      <SelectItem key={level.id} value={level.id}>
+                        {level.title}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <Button type="submit" disabled={isAdding || !newRegularEmail || !selectedGrade}>
+            <Button type="submit" disabled={isAdding || !newRegularEmail || !selectedLevel}>
               {isAdding ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -226,41 +226,16 @@ export default function ManageRegularsPage() {
                     <div>
                       <p className="font-medium">{regular.regularEmail}</p>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>Grade: {regular.grade?.title || "Unknown"}</span>
+                        <span>Level: {regular.level?.title || "Unknown"}</span>
                         {regular.regular && (
                           <>
                             <span>•</span>
                             <span>Joined: {new Date(regular.regular.createdAt).toLocaleDateString()}</span>
                           </>
                         )}
-                      </div>
+                       </div>
                     </div>
                   </div>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remove Regular</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to remove {regular.regularEmail} from your institution?
-                          They will lose access to your shared resources.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleRemoveRegular(regular.regularId)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Remove
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
                 </div>
               ))}
             </div>

@@ -54,16 +54,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CreateGradeForm } from "@/components/admin/create-grade-form";
+import { CreateLevelForm } from "@/components/admin/create-level-form";
 import { CreateSubjectForm } from "@/components/admin/create-subject-form";
 import { CreateTopicForm } from "@/components/admin/create-topic-form";
 import { CreateResourceForm } from "@/components/admin/create-resource-form";
-import { EditGradeForm } from "@/components/admin/edit-grade-form";
+import { EditLevelForm } from "@/components/admin/edit-level-form";
 import { EditSubjectForm } from "@/components/admin/edit-subject-form";
 import { EditTopicForm } from "@/components/admin/edit-topic-form";
 import { EditResourceForm } from "@/components/admin/edit-resource-form";
 import {
-  deleteGradeWithSession,
+  deleteLevelWithSession,
   deleteSubjectWithSession,
   deleteTopicWithSession,
   deleteResource,
@@ -71,12 +71,12 @@ import {
 } from "@/lib/actions/admin";
 import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import type {
-  GradeWithFullHierarchy,
+  LevelWithFullHierarchy,
   SubjectWithTopics,
   TopicWithResources,
   Resource,
   ResourceWithRelations,
-  Grade,
+  Level,
   Subject,
   Topic,
 } from "@/lib/types";
@@ -87,7 +87,7 @@ type ContentTab = "my" | "institution" | "public" | "super" | "admin" | "regular
 type UserRole = "regular" | "admin" | "super_admin";
 
 interface SidebarContentTreeProps {
-  initialGrades: GradeWithFullHierarchy[];
+  initialLevels: LevelWithFullHierarchy[];
   userId: string;
   userRole: UserRole;
   adminIds?: string[];
@@ -100,7 +100,7 @@ interface SidebarContentTreeProps {
 }
 
 export function SidebarContentTree({
-  initialGrades,
+  initialLevels,
   userId,
   userRole,
   adminIds = [],
@@ -113,7 +113,7 @@ export function SidebarContentTree({
 }: SidebarContentTreeProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [grades, setGrades] = useState<GradeWithFullHierarchy[]>(initialGrades);
+  const [levels, setLevels] = useState<LevelWithFullHierarchy[]>(initialLevels);
 
   // Determine available tabs based on user role if not provided
   const tabs = useMemo(() => {
@@ -137,13 +137,13 @@ export function SidebarContentTree({
   const initialTab = defaultTab || tabs[0];
   const [activeTab, setActiveTab] = useState<ContentTab>(initialTab);
 
-  // Sync grades when initialGrades changes
+  // Sync levels when initialLevels changes
   useEffect(() => {
-    setGrades(initialGrades);
-  }, [initialGrades]);
+    setLevels(initialLevels);
+  }, [initialLevels]);
 
   // Expansion states
-  const [expandedGrades, setExpandedGrades] = useState<Set<string>>(new Set());
+  const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set());
   const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
   
@@ -152,7 +152,7 @@ export function SidebarContentTree({
   const [showSearch, setShowSearch] = useState(false);
 
   // Dialog states
-  const [isCreateGradeOpen, setIsCreateGradeOpen] = useState(false);
+  const [isCreateLevelOpen, setIsCreateLevelOpen] = useState(false);
   const [isCreateSubjectOpen, setIsCreateSubjectOpen] = useState(false);
   const [isCreateTopicOpen, setIsCreateTopicOpen] = useState(false);
   const [isCreateResourceOpen, setIsCreateResourceOpen] = useState(false);
@@ -165,66 +165,66 @@ export function SidebarContentTree({
   const [isLoadingEditResource, setIsLoadingEditResource] = useState(false);
 
   // Separate content by owner role
-  const myGrades = useMemo(() => 
-    grades.filter((g) => g.ownerId === userId),
-    [grades, userId]
+  const myLevels = useMemo(() => 
+    levels.filter((g) => g.ownerId === userId),
+    [levels, userId]
   );
 
-  const institutionGrades = useMemo(() => 
-    grades.filter((g) => g.ownerRole === "admin" && adminIds.includes(g.ownerId || "")),
-    [grades, adminIds]
+  const institutionLevels = useMemo(() => 
+    levels.filter((g) => g.ownerRole === "admin" && adminIds.includes(g.ownerId || "")),
+    [levels, adminIds]
   );
 
-  const publicGrades = useMemo(() => 
-    grades.filter((g) => g.ownerRole === "super_admin"),
-    [grades]
+  const publicLevels = useMemo(() => 
+    levels.filter((g) => g.ownerRole === "super_admin"),
+    [levels]
   );
 
-  const adminGrades = useMemo(() => 
-    grades.filter((g) => g.ownerRole === "admin"),
-    [grades]
+  const adminLevels = useMemo(() => 
+    levels.filter((g) => g.ownerRole === "admin"),
+    [levels]
   );
 
-  const regularGrades = useMemo(() => 
-    grades.filter((g) => g.ownerRole === "regular"),
-    [grades]
+  const regularLevels = useMemo(() => 
+    levels.filter((g) => g.ownerRole === "regular"),
+    [levels]
   );
 
-  // Get current tab grades
-  const currentTabGrades = useMemo(() => {
+  // Get current tab levels
+  const currentTabLevels = useMemo(() => {
     switch (activeTab) {
-      case "my": return myGrades;
-      case "institution": return institutionGrades;
-      case "public": return publicGrades;
-      case "super": return publicGrades;
-      case "admin": return adminGrades;
-      case "regular": return regularGrades;
-      default: return myGrades;
+      case "my": return myLevels;
+      case "institution": return institutionLevels;
+      case "public": return publicLevels;
+      case "super": return publicLevels;
+      case "admin": return adminLevels;
+      case "regular": return regularLevels;
+      default: return myLevels;
     }
-  }, [activeTab, myGrades, institutionGrades, publicGrades, adminGrades, regularGrades]);
+  }, [activeTab, myLevels, institutionLevels, publicLevels, adminLevels, regularLevels]);
 
-  // Filter grades based on search
-  const filteredGrades = useMemo(() => {
-    if (!searchQuery) return currentTabGrades;
+  // Filter levels based on search
+  const filteredLevels = useMemo(() => {
+    if (!searchQuery) return currentTabLevels;
     const query = searchQuery.toLowerCase();
-    return currentTabGrades.filter(g => 
+    return currentTabLevels.filter(g => 
       g.title.toLowerCase().includes(query) ||
       g.subjects.some(s => 
         s.name.toLowerCase().includes(query) ||
         s.topics.some(t => t.title.toLowerCase().includes(query))
       )
     );
-  }, [currentTabGrades, searchQuery]);
+  }, [currentTabLevels, searchQuery]);
 
   // Expansion handlers
-  const toggleGrade = (gradeId: string) => {
-    const newExpanded = new Set(expandedGrades);
-    if (newExpanded.has(gradeId)) {
-      newExpanded.delete(gradeId);
+  const toggleLevel = (levelId: string) => {
+    const newExpanded = new Set(expandedLevels);
+    if (newExpanded.has(levelId)) {
+      newExpanded.delete(levelId);
     } else {
-      newExpanded.add(gradeId);
+      newExpanded.add(levelId);
     }
-    setExpandedGrades(newExpanded);
+    setExpandedLevels(newExpanded);
   };
 
   const toggleSubject = (subjectId: string) => {
@@ -248,15 +248,15 @@ export function SidebarContentTree({
   };
 
   const expandAll = () => {
-    const allSubjects = currentTabGrades.flatMap((g) => g.subjects);
+    const allSubjects = currentTabLevels.flatMap((g) => g.subjects);
     const allTopics = allSubjects.flatMap((s) => s.topics);
-    setExpandedGrades(new Set(currentTabGrades.map((g) => g.id)));
+    setExpandedLevels(new Set(currentTabLevels.map((g) => g.id)));
     setExpandedSubjects(new Set(allSubjects.map((s) => s.id)));
     setExpandedTopics(new Set(allTopics.map((t) => t.id)));
   };
 
   const collapseAll = () => {
-    setExpandedGrades(new Set());
+    setExpandedLevels(new Set());
     setExpandedSubjects(new Set());
     setExpandedTopics(new Set());
   };
@@ -264,23 +264,23 @@ export function SidebarContentTree({
   // Helper to get item name
   const getItemName = (id: string, type: string): string => {
     switch (type) {
-      case "grade": {
-        const grade = grades.find(g => g.id === id);
-        return grade?.title || "Unknown Grade";
+      case "level": {
+        const level = levels.find(g => g.id === id);
+        return level?.title || "Unknown Level";
       }
       case "subject": {
-        const subjects = grades.flatMap(g => g.subjects);
+        const subjects = levels.flatMap(g => g.subjects);
         const subject = subjects.find(s => s.id === id);
         return subject?.name || "Unknown Subject";
       }
       case "topic": {
-        const subjects = grades.flatMap(g => g.subjects);
+        const subjects = levels.flatMap(g => g.subjects);
         const topics = subjects.flatMap(s => s.topics);
         const topic = topics.find(t => t.id === id);
         return topic?.title || "Unknown Topic";
       }
       case "resource": {
-        const subjects = grades.flatMap(g => g.subjects);
+        const subjects = levels.flatMap(g => g.subjects);
         const topics = subjects.flatMap(s => s.topics);
         const resources = topics.flatMap(t => t.resources || []);
         const resource = resources.find(r => r.id === id);
@@ -317,9 +317,9 @@ export function SidebarContentTree({
     }
   };
 
-  const handleDeleteGrade = async (gradeId: string) => {
-    openDeleteDialog(gradeId, "grade", async () => {
-      await deleteGradeWithSession(gradeId);
+  const handleDeleteLevel = async (levelId: string) => {
+    openDeleteDialog(levelId, "level?", async () => {
+      await deleteLevelWithSession(levelId);
     });
   };
 
@@ -390,7 +390,7 @@ export function SidebarContentTree({
   };
 
   // Get all subjects and topics for forms
-  const allSubjects = useMemo(() => currentTabGrades.flatMap((g) => g.subjects), [currentTabGrades]);
+  const allSubjects = useMemo(() => currentTabLevels.flatMap((g) => g.subjects), [currentTabLevels]);
   const allTopics = useMemo(() => allSubjects.flatMap((s) => s.topics), [allSubjects]);
 
   // Get tab icon
@@ -521,7 +521,7 @@ export function SidebarContentTree({
           </div>
           
           {enableCrud && activeTab === "my" && (
-            <Dialog open={isCreateGradeOpen} onOpenChange={setIsCreateGradeOpen}>
+            <Dialog open={isCreateLevelOpen} onOpenChange={setIsCreateLevelOpen}>
               <DialogTrigger asChild>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -534,15 +534,15 @@ export function SidebarContentTree({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
-                    <p>Add Grade</p>
+                    <p>Add Level</p>
                   </TooltipContent>
                 </Tooltip>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>Create New Grade</DialogTitle>
+                  <DialogTitle>Create New Level</DialogTitle>
                 </DialogHeader>
-                <CreateGradeForm onSuccess={() => { setIsCreateGradeOpen(false); router.refresh(); }} />
+                <CreateLevelForm onSuccess={() => { setIsCreateLevelOpen(false); router.refresh(); }} />
               </DialogContent>
             </Dialog>
           )}
@@ -566,7 +566,7 @@ export function SidebarContentTree({
         {/* Tree Content */}
         <ScrollArea className="flex-1">
           <div className="p-1">
-            {filteredGrades.length === 0 ? (
+            {filteredLevels.length === 0 ? (
               <div className="text-center py-4 px-2">
                 <FolderOpen className="h-6 w-6 mx-auto mb-1 text-muted-foreground opacity-50" />
                 <p className="text-xs text-muted-foreground">
@@ -575,23 +575,23 @@ export function SidebarContentTree({
               </div>
             ) : (
               <div className="space-y-0.5">
-                {filteredGrades.map((grade) => (
-                  <GradeNode
-                    key={grade.id}
-                    grade={grade}
-                    isExpanded={expandedGrades.has(grade.id)}
+                {filteredLevels.map((level) => (
+                  <LevelNode
+                    key={level.id}
+                    level={level}
+                    isExpanded={expandedLevels.has(level.id)}
                     expandedSubjects={expandedSubjects}
                     expandedTopics={expandedTopics}
-                    onToggle={() => toggleGrade(grade.id)}
+                    onToggle={() => toggleLevel(level.id)}
                     onToggleSubject={toggleSubject}
                     onToggleTopic={toggleTopic}
                     onViewResource={handleViewResource}
                     onAddToChat={handleAddToChat}
-                    onDeleteGrade={enableCrud ? handleDeleteGrade : undefined}
+                    onDeleteLevel={enableCrud ? handleDeleteLevel : undefined}
                     onDeleteSubject={enableCrud ? handleDeleteSubject : undefined}
                     onDeleteTopic={enableCrud ? handleDeleteTopic : undefined}
                     onDeleteResource={enableCrud ? handleDeleteResource : undefined}
-                    onEditGrade={enableCrud ? (g) => openEditDialog({ id: g.id, type: "grade", data: g }) : undefined}
+                    onEditLevel={enableCrud ? (g) => openEditDialog({ id: g.id, type: "level", data: g }) : undefined}
                     onEditSubject={enableCrud ? (s) => openEditDialog({ id: s.id, type: "subject", data: s }) : undefined}
                     onEditTopic={enableCrud ? (t) => openEditDialog({ id: t.id, type: "topic", data: t }) : undefined}
                     onEditResource={enableCrud ? handleEditResource : undefined}
@@ -607,8 +607,8 @@ export function SidebarContentTree({
 
         {/* Status Bar */}
         <div className="flex items-center justify-between px-2 py-1 text-xs text-muted-foreground border-t bg-muted/20">
-          <span>{filteredGrades.length} items</span>
-          <span>{expandedGrades.size + expandedSubjects.size + expandedTopics.size} expanded</span>
+          <span>{filteredLevels.length} items</span>
+          <span>{expandedLevels.size + expandedSubjects.size + expandedTopics.size} expanded</span>
         </div>
 
         {/* Delete Dialog */}
@@ -641,16 +641,16 @@ export function SidebarContentTree({
             <DialogHeader>
               <DialogTitle>Edit {itemToEdit?.type}</DialogTitle>
             </DialogHeader>
-            {itemToEdit?.type === "grade" && (
-              <EditGradeForm 
-                grade={itemToEdit.data as Grade} 
+            {itemToEdit?.type === "level" && (
+              <EditLevelForm 
+                level={itemToEdit.data as Level} 
                 onSuccess={handleEditSuccess}
               />
             )}
             {itemToEdit?.type === "subject" && (
               <EditSubjectForm 
                 subject={itemToEdit.data as Subject}
-                grades={currentTabGrades}
+                levels={currentTabLevels}
                 onSuccess={handleEditSuccess}
               />
             )}
@@ -694,10 +694,10 @@ export function SidebarContentTree({
               ) : (
                 <EditResourceForm
                   resource={itemToEdit.data as ResourceWithRelations}
-                  subjects={currentTabGrades.flatMap(g => g.subjects.map(s => ({ 
+                  subjects={currentTabLevels.flatMap(g => g.subjects.map(s => ({ 
                     id: s.id, 
                     name: s.name, 
-                    grade: { id: g.id, title: g.title } 
+                    level: { id: g.id, title: g.title } 
                   })))}
                   topics={allTopics.map(t => ({ id: t.id, title: t.title, subjectId: t.subjectId }))}
                   onSuccess={handleEditSuccess}
@@ -715,7 +715,7 @@ export function SidebarContentTree({
               <DialogTitle>Create Subject</DialogTitle>
             </DialogHeader>
             <CreateSubjectForm 
-              grades={currentTabGrades} 
+              levels={currentTabLevels} 
               onSuccess={() => { setIsCreateSubjectOpen(false); router.refresh(); }}
             />
           </DialogContent>
@@ -750,9 +750,9 @@ export function SidebarContentTree({
   );
 }
 
-// Grade Node Component
-interface GradeNodeProps {
-  grade: GradeWithFullHierarchy;
+// Level Node Component
+interface LevelNodeProps {
+  level: LevelWithFullHierarchy;
   isExpanded: boolean;
   expandedSubjects: Set<string>;
   expandedTopics: Set<string>;
@@ -761,11 +761,11 @@ interface GradeNodeProps {
   onToggleTopic: (id: string) => void;
   onViewResource: (resource: Resource) => void;
   onAddToChat: (resource: Resource) => void;
-  onDeleteGrade?: (id: string) => void;
+  onDeleteLevel?: (id: string) => void;
   onDeleteSubject?: (id: string) => void;
   onDeleteTopic?: (id: string) => void;
   onDeleteResource?: (id: string) => void;
-  onEditGrade?: (grade: GradeWithFullHierarchy) => void;
+  onEditLevel?: (level: LevelWithFullHierarchy) => void;
   onEditSubject?: (subject: SubjectWithTopics) => void;
   onEditTopic?: (topic: TopicWithResources) => void;
   onEditResource?: (resource: Resource) => void;
@@ -774,8 +774,8 @@ interface GradeNodeProps {
   activeTab: ContentTab;
 }
 
-function GradeNode({
-  grade,
+function LevelNode({
+  level,
   isExpanded,
   expandedSubjects,
   expandedTopics,
@@ -784,21 +784,21 @@ function GradeNode({
   onToggleTopic,
   onViewResource,
   onAddToChat,
-  onDeleteGrade,
+  onDeleteLevel,
   onDeleteSubject,
   onDeleteTopic,
   onDeleteResource,
-  onEditGrade,
+  onEditLevel,
   onEditSubject,
   onEditTopic,
   onEditResource,
   userId,
   userRole,
   activeTab,
-}: GradeNodeProps) {
-  const isOwner = grade.ownerId === userId;
+}: LevelNodeProps) {
+  const isOwner = level?.ownerId === userId;
   const isSuperAdmin = userRole === "super_admin";
-  const canManage = onDeleteGrade && (isOwner || isSuperAdmin);
+  const canManage = onDeleteLevel && (isOwner || isSuperAdmin);
   const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false);
 
   return (
@@ -824,20 +824,20 @@ function GradeNode({
         
         <div 
           className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold"
-          style={{ backgroundColor: grade.color }}
+          style={{ backgroundColor: level.color }}
         >
-          {grade.gradeNumber}
+          {level.levelNumber}
         </div>
         
         <span 
           className="text-xs font-medium flex-1 truncate"
           onClick={onToggle}
         >
-          {grade.title}
+          {level.title}
         </span>
         
         <span className="text-[10px] text-muted-foreground flex-shrink-0">
-          {grade.subjects.length}
+          {level.subjects.length}
         </span>
         
         {canManage && (
@@ -855,10 +855,10 @@ function GradeNode({
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>Add Subject to {grade.title}</DialogTitle>
+                  <DialogTitle>Add Subject to {level.title}</DialogTitle>
                 </DialogHeader>
                 <CreateSubjectForm
-                  grades={[grade]}
+                  levels={[level]}
                   onSuccess={() => { setIsAddSubjectOpen(false); window.location.reload(); }}
                 />
               </DialogContent>
@@ -876,13 +876,13 @@ function GradeNode({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEditGrade?.(grade)}>
+                <DropdownMenuItem onClick={() => onEditLevel?.(level)}>
                   <Edit className="h-3 w-3 mr-2" />
                   Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="text-destructive"
-                  onClick={() => onDeleteGrade?.(grade.id)}
+                  onClick={() => onDeleteLevel?.(level.id)}
                 >
                   <Trash2 className="h-3 w-3 mr-2" />
                   Delete
@@ -895,7 +895,7 @@ function GradeNode({
       
       {isExpanded && (
         <div className="ml-2 pl-2 border-l">
-          {grade.subjects.map((subject) => (
+          {level.subjects.map((subject) => (
             <SubjectNode
               key={subject.id}
               subject={subject}

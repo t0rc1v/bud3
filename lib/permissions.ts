@@ -29,11 +29,11 @@ export type PermissionDomain = (typeof PermissionDomains)[keyof typeof Permissio
 
 // Content-related permissions
 export const ContentPermissions = {
-  // Grades
-  GRADES_READ: "content:grades:read",
-  GRADES_CREATE: "content:grades:create",
-  GRADES_UPDATE: "content:grades:update",
-  GRADES_DELETE: "content:grades:delete",
+  // Levels
+  LEVELS_READ: "content:levels:read",
+  LEVELS_CREATE: "content:levels:create",
+  LEVELS_UPDATE: "content:levels:update",
+  LEVELS_DELETE: "content:levels:delete",
   
   // Subjects
   SUBJECTS_READ: "content:subjects:read",
@@ -160,7 +160,7 @@ export const PermissionGroups = {
   
   // Read-only content access
   CONTENT_READ_ONLY: [
-    ContentPermissions.GRADES_READ,
+    ContentPermissions.LEVELS_READ,
     ContentPermissions.SUBJECTS_READ,
     ContentPermissions.TOPICS_READ,
     ContentPermissions.RESOURCES_READ,
@@ -168,9 +168,9 @@ export const PermissionGroups = {
   
   // Content manager (create, read, update - no delete)
   CONTENT_MANAGER: [
-    ContentPermissions.GRADES_READ,
-    ContentPermissions.GRADES_CREATE,
-    ContentPermissions.GRADES_UPDATE,
+    ContentPermissions.LEVELS_READ,
+    ContentPermissions.LEVELS_CREATE,
+    ContentPermissions.LEVELS_UPDATE,
     ContentPermissions.SUBJECTS_READ,
     ContentPermissions.SUBJECTS_CREATE,
     ContentPermissions.SUBJECTS_UPDATE,
@@ -182,13 +182,13 @@ export const PermissionGroups = {
     ContentPermissions.RESOURCES_UPDATE,
   ],
   
-  // Regular user permissions - manage own content including grades
+  // Regular user permissions - manage own content including levels
   REGULAR_USER: [
-    // Grades - full management of their own grades
-    ContentPermissions.GRADES_READ,
-    ContentPermissions.GRADES_CREATE,
-    ContentPermissions.GRADES_UPDATE,
-    ContentPermissions.GRADES_DELETE,
+    // Levels - full management of their own levels
+    ContentPermissions.LEVELS_READ,
+    ContentPermissions.LEVELS_CREATE,
+    ContentPermissions.LEVELS_UPDATE,
+    ContentPermissions.LEVELS_DELETE,
     // Subjects - full management
     ContentPermissions.SUBJECTS_READ,
     ContentPermissions.SUBJECTS_CREATE,
@@ -208,13 +208,13 @@ export const PermissionGroups = {
     FinancePermissions.CREDITS_PURCHASE,
   ],
   
-  // Admin user permissions - can manage all their own content including grades
+  // Admin user permissions - can manage all their own content including levels
   ADMIN_USER: [
-    // Grades - full management
-    ContentPermissions.GRADES_READ,
-    ContentPermissions.GRADES_CREATE,
-    ContentPermissions.GRADES_UPDATE,
-    ContentPermissions.GRADES_DELETE,
+    // Levels - full management
+    ContentPermissions.LEVELS_READ,
+    ContentPermissions.LEVELS_CREATE,
+    ContentPermissions.LEVELS_UPDATE,
+    ContentPermissions.LEVELS_DELETE,
     // Subjects - full management
     ContentPermissions.SUBJECTS_READ,
     ContentPermissions.SUBJECTS_CREATE,
@@ -261,7 +261,7 @@ export const PermissionGroups = {
   
   // Basic admin - limited set
   BASIC_ADMIN: [
-    ContentPermissions.GRADES_READ,
+    ContentPermissions.LEVELS_READ,
     ContentPermissions.SUBJECTS_READ,
     ContentPermissions.TOPICS_READ,
     ContentPermissions.RESOURCES_READ,
@@ -275,11 +275,11 @@ export const PermissionGroups = {
 
 // Permission descriptions for UI display
 export const PermissionDescriptions: Record<Permission, { label: string; description: string; category: string }> = {
-  // Content - Grades
-  [ContentPermissions.GRADES_READ]: { label: "View Grades", description: "View grade listings and details", category: "Content - Grades" },
-  [ContentPermissions.GRADES_CREATE]: { label: "Create Grades", description: "Add new grades to the system", category: "Content - Grades" },
-  [ContentPermissions.GRADES_UPDATE]: { label: "Edit Grades", description: "Modify existing grade information", category: "Content - Grades" },
-  [ContentPermissions.GRADES_DELETE]: { label: "Delete Grades", description: "Remove grades from the system", category: "Content - Grades" },
+  // Content - Levels
+  [ContentPermissions.LEVELS_READ]: { label: "View Levels", description: "View level listings and details", category: "Content - Levels" },
+  [ContentPermissions.LEVELS_CREATE]: { label: "Create Levels", description: "Add new levels to the system", category: "Content - Levels" },
+  [ContentPermissions.LEVELS_UPDATE]: { label: "Edit Levels", description: "Modify existing level information", category: "Content - Levels" },
+  [ContentPermissions.LEVELS_DELETE]: { label: "Delete Levels", description: "Remove levels from the system", category: "Content - Levels" },
   
   // Content - Subjects
   [ContentPermissions.SUBJECTS_READ]: { label: "View Subjects", description: "View subject listings and details", category: "Content - Subjects" },

@@ -2,7 +2,7 @@ import { type ReactNode } from "react";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getUserByClerkId } from "@/lib/actions/auth";
-import { getGradesFullHierarchy } from "@/lib/actions/admin";
+import { getLevelsFullHierarchy } from "@/lib/actions/admin";
 import { SuperAdminLayoutClient } from "@/components/super-admin/super-admin-layout-client";
 
 export default async function SuperAdminLayout({
@@ -23,14 +23,14 @@ export default async function SuperAdminLayout({
     redirect("/admin");
   }
 
-  // Fetch grades for the sidebar content tree
-  const grades = await getGradesFullHierarchy();
+  // Fetch levels for the sidebar content tree
+  const levels = await getLevelsFullHierarchy();
 
   return (
     <SuperAdminLayoutClient 
       userId={user.clerkId}
       dbUserId={user.id}
-      initialGrades={grades}
+      initialLevels={levels}
     >
       {children}
     </SuperAdminLayoutClient>

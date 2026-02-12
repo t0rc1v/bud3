@@ -2,7 +2,6 @@ import { pgTable, text, integer, boolean, timestamp, uuid, varchar, jsonb, pgEnu
 import { relations } from 'drizzle-orm';
 
 
-export const levelEnum = pgEnum("level", ["elementary", "middle_school", "junior_high", "high_school", "higher_education"]);
 export const resourceTypeEnum = pgEnum('resource_type', ["notes", "video", "audio", "image"]);
 export const userRoleEnum = pgEnum('user_role_enum', ["regular", "admin", "super_admin"]);
 export const userVerificationEnum = pgEnum('user_verification_enum', ["pending", "approved", "rejected"]);
@@ -36,13 +35,12 @@ export const user = pgTable("user", {
 // Content visibility enum - shared across all content types
 export const contentVisibilityEnum = pgEnum('content_visibility_enum', ["public", "admin_only", "admin_and_regulars", "regular_only"]);
 
-export const grade = pgTable("grade", {
+export const level = pgTable("level", {
   id: uuid("id").defaultRandom().primaryKey(),
-  gradeNumber: integer('grade_number').notNull().unique(),
+  levelNumber: integer('level_number').notNull().unique(),
   title: varchar('title', { length: 100 }).notNull(),
   order: integer('order').notNull(),
   color: varchar('color', { length: 100 }).notNull(),
-  level: levelEnum('level').notNull(),
   // Ownership fields
   ownerId: uuid('owner_id').references(() => user.id, { onDelete: 'cascade' }),
   ownerRole: userRoleEnum('owner_role').notNull().default("regular"),
@@ -54,7 +52,7 @@ export const grade = pgTable("grade", {
 
 export const subject = pgTable("subject", {
   id: uuid('id').defaultRandom().primaryKey(),
-  gradeId: uuid('grade_id').notNull().references(() => grade.id, { onDelete: 'cascade' }),
+  levelId: uuid('level_id').notNull().references(() => level.id, { onDelete: 'cascade' }),
   name: varchar('name', { length: 100 }).notNull(),
   icon: varchar('icon', { length: 50 }).notNull(),
   color: varchar('color', { length: 100 }).notNull(),
@@ -115,8 +113,8 @@ export const adminRegulars = pgTable("admin_regulars", {
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
   regularEmail: varchar('regular_email', { length: 255 }).notNull(),
-  gradeId: uuid('grade_id')
-    .references(() => grade.id, { onDelete: 'restrict' }),
+  levelId: uuid('level_id')
+    .references(() => level.id, { onDelete: 'restrict' }),
   metadata: jsonb('metadata'),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt,
@@ -192,15 +190,15 @@ export const userRelations = relations(user, ({ many }) => ({
   assignedRoles: many(userRoles, { relationName: "roleAssigner" }),
 }));
 
-export const gradeRelations = relations(grade, ({ many }) => ({
+export const levelRelations = relations(level, ({ many }) => ({
   subjects: many(subject),
   adminRegulars: many(adminRegulars),
 }));
 
 export const subjectRelations = relations(subject, ({ one, many }) => ({
-  grade: one(grade, {
-    fields: [subject.gradeId],
-    references: [grade.id],
+  level: one(level, {
+    fields: [subject.levelId],
+    references: [level.id],
   }),
   topics: many(topic),
   resources: many(resource),
@@ -240,9 +238,9 @@ export const adminRegularsRelations = relations(adminRegulars, ({ one }) => ({
     references: [user.id],
     relationName: "regular",
   }),
-  grade: one(grade, {
-    fields: [adminRegulars.gradeId],
-    references: [grade.id],
+  level: one(level, {
+    fields: [adminRegulars.levelId],
+    references: [level.id],
   }),
 }));
 
@@ -547,7 +545,7 @@ export const aiAssignment = pgTable("ai_assignment", {
     .references(() => chat.id, { onDelete: 'cascade' }),
   title: varchar('title', { length: 255 }).notNull(),
   subject: varchar('subject', { length: 100 }).notNull(),
-  grade: varchar('grade', { length: 100 }).notNull(),
+  level: varchar('level', { length: 100 }).notNull(),
   type: varchar('type', { length: 50 }).notNull(), // 'assignment', 'homework', 'quiz', 'test', 'continuous_assessment', 'worksheet'
   instructions: text('instructions').notNull(),
   totalMarks: integer('total_marks').notNull(),

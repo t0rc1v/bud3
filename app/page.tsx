@@ -282,7 +282,7 @@ function PricingModal() {
                   {
                     icon: BookOpen,
                     title: "Browse Content",
-                    description: "Explore subjects, topics, and resources organized by grade level",
+                    description: "Explore subjects, topics, and resources organized by level",
                   },
                   {
                     icon: Lock,
@@ -657,7 +657,7 @@ export default function LandingPage() {
                 step: "02",
                 title: "Explore Content",
                 description:
-                  "Browse through thousands of resources organized by grade, subject, and topic.",
+                  "Browse through thousands of resources organized by level, subject, and topic.",
                 icon: BookOpen,
               },
               {

@@ -13,16 +13,16 @@ import { usePathname } from "next/navigation";
 import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
 import { UserButton } from "@clerk/nextjs";
 import type { Resource } from "@/lib/types";
-import type { GradeWithFullHierarchy } from "@/lib/types";
+import type { LevelWithFullHierarchy } from "@/lib/types";
 
 interface SuperAdminLayoutClientProps {
   children: ReactNode;
   userId: string;
   dbUserId?: string;
-  initialGrades: GradeWithFullHierarchy[];
+  initialLevels: LevelWithFullHierarchy[];
 }
 
-export function SuperAdminLayoutClient({ children, userId, dbUserId, initialGrades }: SuperAdminLayoutClientProps) {
+export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLevels }: SuperAdminLayoutClientProps) {
   const isMobile = useIsMobile();
   const [isClient, setIsClient] = useState(false);
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(!isMobile);
@@ -83,7 +83,7 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialGrad
                 </div>
                 <div className="flex-1 overflow-auto">
                   <SidebarContentTree
-                    initialGrades={initialGrades}
+                    initialLevels={initialLevels}
                     userId={dbUserId || userId}
                     userRole="super_admin"
                     onResourceSelect={handleResourceSelect}
@@ -216,7 +216,7 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialGrad
         </div>
         <div className="flex-1 overflow-auto">
           <SidebarContentTree
-            initialGrades={initialGrades}
+            initialLevels={initialLevels}
             userId={dbUserId || userId}
             userRole="super_admin"
             onResourceSelect={handleResourceSelect}

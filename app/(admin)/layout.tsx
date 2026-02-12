@@ -3,7 +3,7 @@ import { AdminLayoutClient } from "./admin-layout-client";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getUserByClerkId } from "@/lib/actions/auth";
-import { getGradesForUser } from "@/lib/actions/admin";
+import { getLevelsForUser } from "@/lib/actions/admin";
 
 export default async function AdminLayout({
   children,
@@ -27,15 +27,15 @@ export default async function AdminLayout({
     redirect("/");
   }
 
-  // Fetch grades for the sidebar content tree
-  const grades = await getGradesForUser(user.id, user.role);
+  // Fetch levels for the sidebar content tree
+  const levels = await getLevelsForUser(user.id, user.role);
 
   return (
     <AdminLayoutClient 
       userId={user.clerkId}
       dbUserId={user.id}
       userRole={user.role}
-      initialGrades={grades}
+      initialLevels={levels}
     >
       {children}
     </AdminLayoutClient>

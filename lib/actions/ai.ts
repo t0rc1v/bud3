@@ -232,7 +232,7 @@ export interface AIAssignmentItem {
   chatId: string | null;
   title: string;
   subject: string;
-  grade: string;
+  level: string;
   type: string;
   instructions: string;
   totalMarks: number;
@@ -286,7 +286,7 @@ export async function saveAIAssignment({
   chatId,
   title,
   subject,
-  grade,
+  level,
   type,
   instructions,
   totalMarks,
@@ -300,7 +300,7 @@ export async function saveAIAssignment({
   chatId?: string;
   title: string;
   subject: string;
-  grade: string;
+  level: string;
   type: string;
   instructions: string;
   totalMarks: number;
@@ -317,7 +317,7 @@ export async function saveAIAssignment({
       chatId: chatId || null,
       title,
       subject,
-      grade,
+      level,
       type,
       instructions,
       totalMarks,

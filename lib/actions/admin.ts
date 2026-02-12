@@ -1,26 +1,26 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { grade, subject, topic, resource, adminRegulars, user } from "@/lib/db/schema";
+import { level, subject, topic, resource, adminRegulars, user } from "@/lib/db/schema";
 import { eq, and, desc, asc, inArray, or, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type {
-  CreateGradeInput,
-  UpdateGradeInput,
+  CreateLevelInput,
+  UpdateLevelInput,
   CreateSubjectInput,
   UpdateSubjectInput,
   CreateTopicInput,
   UpdateTopicInput,
   CreateResourceInput,
   UpdateResourceInput,
-  GradeWithSubjects,
+  LevelWithSubjects,
   SubjectWithTopics,
   TopicWithResources,
   TopicWithResourcesAndSubject,
   ResourceWithRelations,
-  GradeWithFullHierarchy,
-  SubjectWithTopicsAndGrade,
-  Grade,
+  LevelWithFullHierarchy,
+  SubjectWithTopicsAndLevel,
+  Level,
   Subject,
   Topic,
   Resource,
@@ -70,9 +70,9 @@ export async function buildContentVisibilityFilter(
     // 2. Super-admin content (view-only)
     // 3. Public visibility content
     return or(
-      eq(grade.ownerId, userId),
-      eq(grade.ownerRole, "super_admin"),
-      eq(grade.visibility, "public")
+      eq(level.ownerId, userId),
+      eq(level.ownerRole, "super_admin"),
+      eq(level.visibility, "public")
     );
   }
 
@@ -82,15 +82,15 @@ export async function buildContentVisibilityFilter(
   // 3. Super-admin content (view-only)
   // 4. Public visibility content
   const conditions = [
-    eq(grade.ownerId, userId),
-    eq(grade.ownerRole, "super_admin"),
-    eq(grade.visibility, "public"),
+    eq(level.ownerId, userId),
+    eq(level.ownerRole, "super_admin"),
+    eq(level.visibility, "public"),
   ];
 
   // Add conditions for each admin the regular user belongs to
   if (adminIds.length > 0) {
     adminIds.forEach(adminId => {
-      conditions.push(eq(grade.ownerId, adminId));
+      conditions.push(eq(level.ownerId, adminId));
     });
   }
 
@@ -189,20 +189,20 @@ export async function canModifyContent(
 }
 
 // ==========================================
-// GRADE ACTIONS WITH OWNERSHIP
+// LEVEL ACTIONS WITH OWNERSHIP
 // ==========================================
 
-export async function getGradesForUser(
+export async function getLevelsForUser(
   userId: string,
   userRole: UserRole
-): Promise<GradeWithFullHierarchy[]> {
+): Promise<LevelWithFullHierarchy[]> {
   const adminIds = userRole === "regular" ? await getRegularAdminIds(userId) : [];
   
   const visibilityFilter = await buildContentVisibilityFilter(userId, userRole, adminIds);
   
-  const grades = await db.query.grade.findMany({
+  const levels = await db.query.level.findMany({
     where: visibilityFilter || undefined,
-    orderBy: [asc(grade.order)],
+    orderBy: [asc(level.order)],
     with: {
       subjects: {
         with: {
@@ -216,43 +216,42 @@ export async function getGradesForUser(
     },
   });
   
-  return grades as unknown as GradeWithFullHierarchy[];
+  return levels as unknown as LevelWithFullHierarchy[];
 }
 
-export async function getGradeByIdWithAccessCheck(
+export async function getLevelByIdWithAccessCheck(
   id: string,
   userId: string,
   userRole: UserRole
-): Promise<GradeWithSubjects | null> {
-  const gradeData = await db.query.grade.findFirst({
-    where: eq(grade.id, id),
+): Promise<LevelWithSubjects | null> {
+  const levelData = await db.query.level.findFirst({
+    where: eq(level.id, id),
     with: {
       subjects: true,
     },
   });
 
-  if (!gradeData) return null;
+  if (!levelData) return null;
 
   const hasAccess = await canAccessContent(
-    gradeData.ownerId || "",
-    gradeData.ownerRole,
-    gradeData.visibility,
+    levelData.ownerId || "",
+    levelData.ownerRole,
+    levelData.visibility,
     userId,
     userRole
   );
 
-  return hasAccess ? (gradeData as unknown as GradeWithSubjects) : null;
+  return hasAccess ? (levelData as unknown as LevelWithSubjects) : null;
 }
 
-export async function createGrade(input: CreateGradeInput): Promise<Grade> {
-  const [newGrade] = await db
-    .insert(grade)
+export async function createLevel(input: CreateLevelInput): Promise<Level> {
+  const [newLevel] = await db
+    .insert(level)
     .values({
-      gradeNumber: input.gradeNumber,
+      levelNumber: input.levelNumber,
       title: input.title,
       order: input.order,
       color: input.color,
-      level: input.level,
       ownerId: input.ownerId,
       ownerRole: input.ownerRole,
       visibility: input.visibility,
@@ -262,78 +261,78 @@ export async function createGrade(input: CreateGradeInput): Promise<Grade> {
 
   revalidatePath("/admin");
   revalidatePath("/regular");
-  return newGrade;
+  return newLevel;
 }
 
-export async function updateGrade(
-  input: UpdateGradeInput,
+export async function updateLevel(
+  input: UpdateLevelInput,
   userId: string,
   userRole: UserRole
 ): Promise<void> {
   const { id, ...data } = input;
 
   // Check ownership
-  const existingGrade = await db.query.grade.findFirst({
-    where: eq(grade.id, id),
+  const existingLevel = await db.query.level.findFirst({
+    where: eq(level.id, id),
   });
 
-  if (!existingGrade) {
-    throw new Error("Grade not found");
+  if (!existingLevel) {
+    throw new Error("Level not found");
   }
 
   const canModify = await canModifyContent(
-    existingGrade.ownerId || "",
+    existingLevel.ownerId || "",
     userId,
     userRole
   );
 
   if (!canModify) {
-    throw new Error("You don't have permission to modify this grade");
+    throw new Error("You don't have permission to modify this level");
   }
 
   await db
-    .update(grade)
+    .update(level)
     .set({
       ...data,
       updatedAt: new Date(),
     })
-    .where(eq(grade.id, id));
+    .where(eq(level.id, id));
 
   revalidatePath("/admin");
   revalidatePath("/regular");
 }
 
-export async function deleteGrade(
+export async function deleteLevel(
   id: string,
   userId: string,
   userRole: UserRole
 ): Promise<void> {
   // Check ownership
-  const existingGrade = await db.query.grade.findFirst({
-    where: eq(grade.id, id),
+  const existingLevel = await db.query.level.findFirst({
+    where: eq(level.id, id),
   });
 
-  if (!existingGrade) {
-    throw new Error("Grade not found");
+  if (!existingLevel) {
+    throw new Error("Level not found");
   }
 
   const canModify = await canModifyContent(
-    existingGrade.ownerId || "",
+    existingLevel.ownerId || "",
     userId,
     userRole
   );
 
   if (!canModify) {
-    throw new Error("You don't have permission to delete this grade");
+    throw new Error("You don't have permission to delete this level");
   }
 
-  // First, remove grade references from admin_regulars to avoid FK constraint
+  // First, remove level references from admin_regulars to avoid FK constraint
   await db.update(adminRegulars)
-    .set({ gradeId: null })
-    .where(eq(adminRegulars.gradeId, id));
+    .set({ levelId: null })
+    .where(eq(adminRegulars.levelId, id));
 
-  // Now delete the grade (cascade will handle subjects, topics, resources)
-  await db.delete(grade).where(eq(grade.id, id));
+  // Now delete the level (cascade will handle subjects, topics, resources)
+  await db.delete(level).where(eq(level.id, id));
   revalidatePath("/admin");
   revalidatePath("/regular");
 }
@@ -406,7 +405,7 @@ export async function createSubject(input: CreateSubjectInput): Promise<Subject>
   const [newSubject] = await db
     .insert(subject)
     .values({
-      gradeId: input.gradeId,
+      levelId: input.levelId,
       name: input.name,
       icon: input.icon,
       color: input.color,
@@ -632,7 +631,7 @@ export async function deleteTopic(
 // ==========================================
 // These wrappers get user info from Clerk session for client components
 
-export async function deleteGradeWithSession(id: string): Promise<void> {
+export async function deleteLevelWithSession(id: string): Promise<void> {
   const { auth } = await import("@clerk/nextjs/server");
   const { userId: clerkId } = await auth();
   
@@ -647,7 +646,7 @@ export async function deleteGradeWithSession(id: string): Promise<void> {
     throw new Error("User not found");
   }
   
-  return deleteGrade(id, user.id, user.role);
+  return deleteLevel(id, user.id, user.role);
 }
 
 export async function deleteSubjectWithSession(id: string): Promise<void> {
@@ -687,7 +686,7 @@ export async function deleteTopicWithSession(id: string): Promise<void> {
 }
 
 // Update functions with session
-export async function updateGradeWithSession(input: UpdateGradeInput): Promise<void> {
+export async function updateLevelWithSession(input: UpdateLevelInput): Promise<void> {
   const { auth } = await import("@clerk/nextjs/server");
   const { userId: clerkId } = await auth();
   
@@ -702,7 +701,7 @@ export async function updateGradeWithSession(input: UpdateGradeInput): Promise<v
     throw new Error("User not found");
   }
   
-  return updateGrade(input, user.id, user.role);
+  return updateLevel(input, user.id, user.role);
 }
 
 export async function updateSubjectWithSession(input: UpdateSubjectInput): Promise<void> {
@@ -746,9 +745,9 @@ export async function updateTopicWithSession(input: UpdateTopicInput): Promise<v
 // ==========================================
 
 // These functions maintain backward compatibility but should be updated
-export async function getGrades(): Promise<GradeWithSubjects[]> {
-  const grades = await db.query.grade.findMany({
-    orderBy: [asc(grade.order)],
+export async function getLevels(): Promise<LevelWithSubjects[]> {
+  const levels = await db.query.level.findMany({
+    orderBy: [asc(level.order)],
     with: {
       subjects: {
         with: {
@@ -757,12 +756,12 @@ export async function getGrades(): Promise<GradeWithSubjects[]> {
       },
     },
   });
-  return grades as unknown as GradeWithSubjects[];
+  return levels as unknown as LevelWithSubjects[];
 }
 
-export async function getGradesFullHierarchy(): Promise<GradeWithFullHierarchy[]> {
-  const grades = await db.query.grade.findMany({
-    orderBy: [asc(grade.order)],
+export async function getLevelsFullHierarchy(): Promise<LevelWithFullHierarchy[]> {
+  const levels = await db.query.level.findMany({
+    orderBy: [asc(level.order)],
     with: {
       subjects: {
         with: {
@@ -775,12 +774,12 @@ export async function getGradesFullHierarchy(): Promise<GradeWithFullHierarchy[]
       },
     },
   });
-  return grades as unknown as GradeWithFullHierarchy[];
+  return levels as unknown as LevelWithFullHierarchy[];
 }
 
-export async function getGradeById(id: string): Promise<GradeWithSubjects | null> {
-  const result = await db.query.grade.findFirst({
-    where: eq(grade.id, id),
+export async function getLevelById(id: string): Promise<LevelWithSubjects | null> {
+  const result = await db.query.level.findFirst({
+    where: eq(level.id, id),
     with: {
       subjects: {
         with: {
@@ -789,27 +788,27 @@ export async function getGradeById(id: string): Promise<GradeWithSubjects | null
       },
     },
   });
-  return (result as unknown as GradeWithSubjects) ?? null;
+  return (result as unknown as LevelWithSubjects) ?? null;
 }
 
 // Keep other existing exports for backward compatibility
-export async function getSubjects(): Promise<SubjectWithTopicsAndGrade[]> {
+export async function getSubjects(): Promise<SubjectWithTopicsAndLevel[]> {
   const subjects = await db.query.subject.findMany({
     orderBy: [asc(subject.name)],
     with: {
       topics: true,
-      grade: true,
+      level: true,
     },
   });
   return subjects;
 }
 
-export async function getSubjectById(id: string): Promise<SubjectWithTopicsAndGrade | null> {
+export async function getSubjectById(id: string): Promise<SubjectWithTopicsAndLevel | null> {
   const result = await db.query.subject.findFirst({
     where: eq(subject.id, id),
     with: {
       topics: true,
-      grade: true,
+      level: true,
     },
   });
   return result ?? null;
@@ -995,13 +994,13 @@ export interface MyLearnerWithDetails {
   adminId: string;
   regularId: string;
   regularEmail: string;
-  gradeId: string;
+  levelId: string;
   metadata: Record<string, unknown> | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
   regular: User | null;
-  grade: typeof grade.$inferSelect;
+  level: typeof level.$inferSelect;
 }
 
 export async function getMyLearners(adminId: string): Promise<MyLearnerWithDetails[]> {
@@ -1009,7 +1008,7 @@ export async function getMyLearners(adminId: string): Promise<MyLearnerWithDetai
     where: eq(adminRegulars.adminId, adminId),
     with: {
       regular: true,
-      grade: true,
+      level: true,
     },
     orderBy: [desc(adminRegulars.createdAt)],
   });
@@ -1019,7 +1018,7 @@ export async function getMyLearners(adminId: string): Promise<MyLearnerWithDetai
 export async function addMyLearner(
   adminId: string,
   regularEmail: string,
-  gradeId: string,
+  levelId: string,
   metadata?: Record<string, unknown>
 ): Promise<void> {
   const { getUserByEmail } = await import("./auth");
@@ -1048,7 +1047,7 @@ export async function addMyLearner(
     adminId,
     regularId: regular.id,
     regularEmail,
-    gradeId,
+    levelId,
     metadata: metadata || null,
     isActive: true,
   });
@@ -1085,7 +1084,7 @@ export interface SystemStats {
   totalRegulars: number;
   totalAdmins: number;
   totalSuperAdmins: number;
-  totalGrades: number;
+  totalLevels: number;
   totalSubjects: number;
   totalTopics: number;
   totalResources: number;
@@ -1094,13 +1093,13 @@ export interface SystemStats {
 export async function getSystemStats(): Promise<SystemStats> {
   const [
     users,
-    grades,
+    levels,
     subjects,
     topics,
     resources,
   ] = await Promise.all([
     db.query.user.findMany(),
-    db.query.grade.findMany(),
+    db.query.level.findMany(),
     db.query.subject.findMany(),
     db.query.topic.findMany(),
     db.query.resource.findMany(),
@@ -1111,7 +1110,7 @@ export async function getSystemStats(): Promise<SystemStats> {
     totalRegulars: users.filter(u => u.role === "regular").length,
     totalAdmins: users.filter(u => u.role === "admin").length,
     totalSuperAdmins: users.filter(u => u.role === "super_admin").length,
-    totalGrades: grades.length,
+    totalLevels: levels.length,
     totalSubjects: subjects.length,
     totalTopics: topics.length,
     totalResources: resources.length,

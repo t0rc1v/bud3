@@ -2,65 +2,36 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
-import { createGrade } from "@/lib/actions/admin";
-import { getUserByClerkId } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { updateLevelWithSession } from "@/lib/actions/admin";
 import type { Level } from "@/lib/types";
 
-interface CreateGradeFormProps {
+interface EditLevelFormProps {
+  level: Level;
   onSuccess?: () => void;
 }
 
-export function CreateGradeForm({ onSuccess }: CreateGradeFormProps) {
+export function EditLevelForm({ level, onSuccess }: EditLevelFormProps) {
   const router = useRouter();
-  const { user: clerkUser } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    gradeNumber: 1,
-    title: "",
-    order: 1,
-    color: "#3b82f6",
-    level: "elementary" as Level,
+    levelNumber: level.levelNumber,
+    title: level.title,
+    order: level.order,
+    color: level.color,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      if (!clerkUser) {
-        throw new Error("User not authenticated");
-      }
-      
-      // Get user info from database
-      const user = await getUserByClerkId(clerkUser.id);
-      if (!user) {
-        throw new Error("User not found");
-      }
-      
-      await createGrade({
+      await updateLevelWithSession({
+        id: level.id,
         ...formData,
-        ownerId: user.id,
-        ownerRole: user.role,
-        visibility: "admin_and_regulars",
       });
       router.refresh();
-      setFormData({
-        gradeNumber: 1,
-        title: "",
-        order: 1,
-        color: "#3b82f6",
-        level: "elementary",
-      });
       onSuccess?.();
     } finally {
       setIsLoading(false);
@@ -70,14 +41,14 @@ export function CreateGradeForm({ onSuccess }: CreateGradeFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="gradeNumber">Grade Number</Label>
+        <Label htmlFor="levelNumber">Level Number</Label>
         <Input
-          id="gradeNumber"
+          id="levelNumber"
           type="number"
           min={1}
-          value={formData.gradeNumber}
+          value={formData.levelNumber}
           onChange={(e) =>
-            setFormData({ ...formData, gradeNumber: parseInt(e.target.value) || 1 })
+            setFormData({ ...formData, levelNumber: parseInt(e.target.value) || 1 })
           }
           required
         />
@@ -89,7 +60,7 @@ export function CreateGradeForm({ onSuccess }: CreateGradeFormProps) {
           type="text"
           value={formData.title}
           onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          placeholder="e.g., Grade 1, Form 1, etc."
+          placeholder="e.g., Level 1, Form 1, etc."
           required
         />
       </div>
@@ -119,28 +90,8 @@ export function CreateGradeForm({ onSuccess }: CreateGradeFormProps) {
           <span className="text-sm text-muted-foreground">{formData.color}</span>
         </div>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="level">Level</Label>
-        <Select
-          value={formData.level}
-          onValueChange={(value: Level) =>
-            setFormData({ ...formData, level: value })
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select level" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="elementary">Elementary</SelectItem>
-            <SelectItem value="middle_school">Middle School</SelectItem>
-            <SelectItem value="junior_high">Junior High</SelectItem>
-            <SelectItem value="high_school">High School</SelectItem>
-            <SelectItem value="higher_education">Higher Education</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
       <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading ? "Creating..." : "Create Grade"}
+        {isLoading ? "Saving..." : "Save Changes"}
       </Button>
     </form>
   );

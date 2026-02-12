@@ -15,19 +15,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { GradeWithSubjects } from "@/lib/types";
+import type { LevelWithSubjects } from "@/lib/types";
 
 interface CreateSubjectFormProps {
-  grades: GradeWithSubjects[];
+  levels: LevelWithSubjects[];
   onSuccess?: () => void;
 }
 
-export function CreateSubjectForm({ grades, onSuccess }: CreateSubjectFormProps) {
+export function CreateSubjectForm({ levels, onSuccess }: CreateSubjectFormProps) {
   const router = useRouter();
   const { user: clerkUser } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    gradeId: grades[0]?.id ?? "",
+    levelId: levels[0]?.id ?? "",
     name: "",
     icon: "📚",
     color: "#10b981",
@@ -55,7 +55,7 @@ export function CreateSubjectForm({ grades, onSuccess }: CreateSubjectFormProps)
       });
       router.refresh();
       setFormData({
-        gradeId: grades[0]?.id ?? "",
+        levelId: levels[0]?.id ?? "",
         name: "",
         icon: "📚",
         color: "#10b981",
@@ -69,18 +69,18 @@ export function CreateSubjectForm({ grades, onSuccess }: CreateSubjectFormProps)
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="gradeId">Grade</Label>
+        <Label htmlFor="levelId">Level</Label>
         <Select
-          value={formData.gradeId}
-          onValueChange={(value) => setFormData({ ...formData, gradeId: value })}
+          value={formData.levelId}
+          onValueChange={(value) => setFormData({ ...formData, levelId: value })}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select a grade" />
+            <SelectValue placeholder="Select a level" />
           </SelectTrigger>
           <SelectContent>
-            {grades.map((grade) => (
-              <SelectItem key={grade.id} value={grade.id}>
-                {grade.title}
+            {levels.map((level) => (
+              <SelectItem key={level.id} value={level.id}>
+                {level.title}
               </SelectItem>
             ))}
           </SelectContent>
@@ -121,7 +121,7 @@ export function CreateSubjectForm({ grades, onSuccess }: CreateSubjectFormProps)
           <span className="text-sm text-muted-foreground">{formData.color}</span>
         </div>
       </div>
-      <Button type="submit" className="w-full" disabled={isLoading || grades.length === 0}>
+      <Button type="submit" className="w-full" disabled={isLoading || levels.length === 0}>
         {isLoading ? "Creating..." : "Create Subject"}
       </Button>
     </form>

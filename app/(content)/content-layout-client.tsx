@@ -14,18 +14,18 @@ import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
 import { UserButton } from "@clerk/nextjs";
 import { CreditBadge, CreditModal } from "@/components/credits/credit-modal";
 import type { Resource } from "@/lib/types";
-import type { GradeWithFullHierarchy } from "@/lib/types";
+import type { LevelWithFullHierarchy } from "@/lib/types";
 
 interface ContentLayoutClientProps {
   children: ReactNode;
   userId: string | null;
   dbUserId?: string | null;
   userRole: "admin" | "regular";
-  initialGrades: GradeWithFullHierarchy[];
+  initialLevels: LevelWithFullHierarchy[];
   adminIds?: string[];
 }
 
-export function ContentLayoutClient({ children, userId, dbUserId, userRole, initialGrades, adminIds = [] }: ContentLayoutClientProps) {
+export function ContentLayoutClient({ children, userId, dbUserId, userRole, initialLevels, adminIds = [] }: ContentLayoutClientProps) {
   const isMobile = useIsMobile();
   const [isClient, setIsClient] = useState(false);
   // Default to closed on mobile, open on desktop (for SSR consistency)
@@ -96,7 +96,7 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole, init
                 </div>
                 <div className="flex-1 overflow-auto">
                   <SidebarContentTree
-                    initialGrades={initialGrades}
+                    initialLevels={initialLevels}
                     userId={dbUserId || userId || ""}
                     userRole={userRole}
                     adminIds={adminIds}
@@ -198,7 +198,7 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole, init
         </div>
         <div className="flex-1 overflow-auto">
           <SidebarContentTree
-            initialGrades={initialGrades}
+            initialLevels={initialLevels}
             userId={dbUserId || userId || ""}
             userRole={userRole}
             adminIds={adminIds}

@@ -135,7 +135,7 @@ You have access to the following tools. Use them strategically based on the user
 3. research_materials - Use this when the user is looking for educational resources, lesson materials, or teaching content across multiple formats (videos, articles, PDFs). Best for "find resources for teaching X" or "lesson plan materials".
 4. fetch_memory - Use this to retrieve saved memories from the database. Use when the user asks about something they previously saved (e.g. "what did I save about...", "show my notes on...", "remember when I...").
 5. save_memory - Use this to save important information to memory for future reference. Save things like: student results, lesson plans, important notes, preferences, or any data the user might want to recall later. Always confirm what you're saving with the user and include timestamps when relevant.
-6. server_actions - Use this to call specific backend functions that are exposed to you. This allows you to perform system operations like managing regular users, grades, or resources when the user requests them.
+6. server_actions - Use this to call specific backend functions that are exposed to you. This allows you to perform system operations like managing regular users, levels, or resources when the user requests them.
 7. web_browse - Use this when the user provides a specific URL and asks you to read, summarize, or analyze its content. Works with web pages, PDFs, and documents.
 8. get_current_time - Use this to get the current date and time. Use when the user asks about scheduling, deadlines, or time-sensitive calculations.
 9. create_assignment - Use this to create assignments, homeworks, quizzes, or continuous assessment tests for ADMINS. This generates a PRINTABLE DOCUMENT with an 'Export to PDF' button. Use this when:
@@ -379,40 +379,39 @@ When responding:
         },
       }),
       server_actions: tool({
-        description: 'Call exposed server-side functions to perform system operations. Available actions include: get_grades (list all grades/levels), add_regular (add a regular user to admin\'s list), get_my_regulars (list admin\'s regular users), create_resource (create educational resources), get_resources (list resources). Use this when the user requests operations that require backend data manipulation.',
+        description: 'Call exposed server-side functions to perform system operations. Available actions include: get_levels (list all levels), add_regular (add a regular user to admin\'s list), get_my_regulars (list admin\'s regular users), create_resource (create educational resources), get_resources (list resources). Use this when the user requests operations that require backend data manipulation.',
         inputSchema: z.object({
-          action: z.enum(['get_grades', 'add_regular', 'get_my_regulars', 'create_resource', 'get_resources', 'get_subjects', 'get_topics']),
+          action: z.enum(['get_levels', 'add_regular', 'get_my_regulars', 'create_resource', 'get_resources', 'get_subjects', 'get_topics']),
           params: z.any().optional(),
         }),
         execute: async ({ action, params = {} }) => {
           try {
             switch (action) {
-              case 'get_grades': {
-                const { getGrades } = await import('@/lib/actions/admin');
-                const grades = await getGrades();
+              case 'get_levels': {
+                const { getLevels } = await import('@/lib/actions/admin');
+                const levels = await getLevels();
                 return {
                   success: true,
-                  action: 'get_grades',
-                  data: grades.map(g => ({
-                    id: g.id,
-                    title: g.title,
-                    gradeNumber: g.gradeNumber,
-                    level: g.level,
-                    subjects: g.subjects?.map((s: { name: string; id: string }) => s.name) || [],
+                  action: 'get_levels',
+                  data: levels.map(level => ({
+                    id: level.id,
+                    title: level.title,
+                    levelNumber: level.levelNumber,
+                    subjects: level.subjects?.map((s: { name: string; id: string }) => s.name) || [],
                   })),
                 };
               }
               
               case 'add_regular': {
                 const { addMyLearner } = await import('@/lib/actions/admin');
-                const { email, gradeId, metadata } = params;
-                if (!email || !gradeId) {
+                const { email, levelId, metadata } = params;
+                if (!email || !levelId) {
                   return {
                     success: false,
-                    error: 'Missing required parameters: email and gradeId are required',
+                    error: 'Missing required parameters: email and levelId are required',
                   };
                 }
-                await addMyLearner(userId, email as string, gradeId as string, metadata as Record<string, unknown>);
+                await addMyLearner(userId, email as string, levelId as string, metadata as Record<string, unknown>);
                 return {
                   success: true,
                   action: 'add_regular',
@@ -430,8 +429,8 @@ When responding:
                     id: l.id,
                     regularId: l.regularId,
                     email: l.regularEmail,
-                    gradeId: l.gradeId,
-                    gradeTitle: l.grade?.title,
+                    levelId: l.levelId,
+                    levelTitle: l.level?.title,
                     metadata: l.metadata,
                   })),
                 };
@@ -502,7 +501,7 @@ When responding:
                   data: subjects.map(s => ({
                     id: s.id,
                     name: s.name,
-                    grade: s.grade?.title,
+                    level: s.level?.title,
                     topicCount: s.topics?.length || 0,
                   })),
                 };
@@ -620,7 +619,7 @@ When responding:
         inputSchema: z.object({
           title: z.string().describe('Title of the assignment (e.g., "Mathematics Quiz - Algebra", "Homework Assignment 3")'),
           subject: z.string().describe('Subject area (e.g., "Mathematics", "Science", "English")'),
-          grade: z.string().describe('Grade level or class (e.g., "Grade 7", "Form 3", "High School")'),
+          level: z.string().describe('Level or class (e.g., "Level 7", "Form 3", "High School")'),
           type: z.enum(['assignment', 'homework', 'quiz', 'test', 'continuous_assessment', 'worksheet']).describe('Type of assessment'),
           instructions: z.string().describe('General instructions for students taking the assessment'),
           questions: z.array(z.object({
@@ -637,7 +636,7 @@ When responding:
           dueDate: z.string().optional().describe('Due date for submission (e.g., "2025-02-15")'),
           includeAnswerKey: z.boolean().optional().describe('Whether to include an answer key (default: true for admins)'),
         }),
-        execute: async ({ title, subject, grade, type, instructions, questions, totalMarks, timeLimit, dueDate, includeAnswerKey = true }) => {
+        execute: async ({ title, subject, level, type, instructions, questions, totalMarks, timeLimit, dueDate, includeAnswerKey = true }) => {
           try {
             // Generate answer key
             const answerKey = questions.map(q => ({
@@ -659,7 +658,7 @@ When responding:
               chatId,
               title,
               subject,
-              grade,
+              level,
               type,
               instructions,
               totalMarks: finalTotalMarks,
@@ -677,7 +676,7 @@ When responding:
               metadata: {
                 title,
                 subject,
-                grade,
+                level,
                 type,
                 createdAt: savedAssignment.createdAt.toISOString(),
                 totalMarks: finalTotalMarks,
@@ -690,7 +689,7 @@ When responding:
                 header: {
                   title,
                   subject,
-                  grade,
+                  level,
                   type: type.replace(/_/g, ' ').toUpperCase(),
                   totalMarks: finalTotalMarks,
                   timeLimit,

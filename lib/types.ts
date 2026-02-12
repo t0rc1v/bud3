@@ -1,7 +1,7 @@
 import { type InferSelectModel } from "drizzle-orm";
 import * as schema from "@/lib/db/schema";
 
-export type Grade = InferSelectModel<typeof schema.grade>;
+export type Level = InferSelectModel<typeof schema.level>;
 export type Subject = InferSelectModel<typeof schema.subject>;
 export type Topic = InferSelectModel<typeof schema.topic>;
 export type Resource = InferSelectModel<typeof schema.resource>;
@@ -20,16 +20,16 @@ export interface SubjectWithTopics extends Subject {
   topics: TopicWithResources[];
 }
 
-export interface SubjectWithTopicsAndGrade extends Subject {
+export interface SubjectWithTopicsAndLevel extends Subject {
   topics: Topic[];
-  grade: Grade;
+  level: Level;
 }
 
-export interface GradeWithSubjects extends Grade {
+export interface LevelWithSubjects extends Level {
   subjects: SubjectWithTopics[];
 }
 
-export interface GradeWithFullHierarchy extends Grade {
+export interface LevelWithFullHierarchy extends Level {
   subjects: SubjectWithTopics[];
 }
 
@@ -43,26 +43,24 @@ export type UserRole = "regular" | "admin" | "super_admin";
 export type UserVerificationStatus = "pending" | "approved" | "rejected";
 export type ResourceVisibility = "public" | "admin_only" | "admin_and_regulars" | "regular_only";
 export type ContentVisibility = "public" | "admin_only" | "admin_and_regulars" | "regular_only";
-export type Level = "elementary" | "middle_school" | "junior_high" | "high_school" | "higher_education";
 
-export interface CreateGradeInput {
-  gradeNumber: number;
+export interface CreateLevelInput {
+  levelNumber: number;
   title: string;
   order: number;
   color: string;
-  level: Level;
   // Ownership fields
   ownerId: string;
   ownerRole: UserRole;
   visibility: ContentVisibility;
 }
 
-export interface UpdateGradeInput extends Partial<CreateGradeInput> {
+export interface UpdateLevelInput extends Partial<CreateLevelInput> {
   id: string;
 }
 
 export interface CreateSubjectInput {
-  gradeId: string;
+  levelId: string;
   name: string;
   icon: string;
   color: string;

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { eq, and, inArray } from "drizzle-orm";
-import { unlockFee, resource, topic, subject, grade } from "@/lib/db/schema";
+import { unlockFee, resource, topic, subject, level } from "@/lib/db/schema";
 import { checkUserPermission } from "@/lib/actions/admin-permissions";
 import { getUserByClerkId } from "@/lib/actions/auth";
 import { FinancePermissions } from "@/lib/permissions";
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
               with: {
                 subject: {
                   with: {
-                    grade: true,
+                    level: true,
                   },
                 },
               },
@@ -68,14 +68,14 @@ export async function GET(request: Request) {
           with: {
             subject: {
               with: {
-                grade: true,
+                level: true,
               },
             },
           },
         },
         subject: {
           with: {
-            grade: true,
+            level: true,
           },
         },
       },

@@ -38,7 +38,7 @@ import { EditResourceForm } from "../edit-resource-form";
 import { deleteResource, updateResource } from "@/lib/actions/admin";
 import type {
   ResourceWithRelations,
-  SubjectWithTopicsAndGrade,
+  SubjectWithTopicsAndLevel,
   TopicWithResources,
   ResourceType,
 } from "@/lib/types";
@@ -46,7 +46,7 @@ import type {
 interface ResourceViewerProps {
   resource: ResourceWithRelations;
   onBack: () => void;
-  subjects: SubjectWithTopicsAndGrade[];
+  subjects: SubjectWithTopicsAndLevel[];
   topics: TopicWithResources[];
   initialEditMode?: boolean;
 }

@@ -1,10 +1,9 @@
 CREATE TYPE "public"."content_visibility_enum" AS ENUM('public', 'admin_only', 'admin_and_regulars', 'regular_only');--> statement-breakpoint
-CREATE TYPE "public"."level" AS ENUM('elementary', 'middle_school', 'junior_high', 'high_school', 'higher_education');--> statement-breakpoint
 CREATE TYPE "public"."payment_status" AS ENUM('pending', 'processing', 'completed', 'failed', 'cancelled', 'refunded');--> statement-breakpoint
 CREATE TYPE "public"."purchase_type" AS ENUM('credits', 'unlock');--> statement-breakpoint
 CREATE TYPE "public"."resource_type" AS ENUM('notes', 'video', 'audio', 'image');--> statement-breakpoint
 CREATE TYPE "public"."resource_visibility_enum" AS ENUM('public', 'admin_only', 'admin_and_regulars', 'regular_only');--> statement-breakpoint
-CREATE TYPE "public"."transaction_type" AS ENUM('purchase', 'usage', 'refund', 'gift', 'unlock', 'bonus');--> statement-breakpoint
+CREATE TYPE "public"."transaction_type" AS ENUM('purchase', 'usage', 'refund', 'gift', 'unlock', 'bonus', 'transfer');--> statement-breakpoint
 CREATE TYPE "public"."unlockable_type" AS ENUM('resource', 'topic', 'subject');--> statement-breakpoint
 CREATE TYPE "public"."user_role_enum" AS ENUM('regular', 'admin', 'super_admin');--> statement-breakpoint
 CREATE TYPE "public"."user_verification_enum" AS ENUM('pending', 'approved', 'rejected');--> statement-breakpoint
@@ -13,7 +12,7 @@ CREATE TABLE "admin_regulars" (
 	"admin_id" uuid NOT NULL,
 	"regular_id" uuid NOT NULL,
 	"regular_email" varchar(255) NOT NULL,
-	"grade_id" uuid,
+	"level_id" uuid,
 	"metadata" jsonb,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -26,7 +25,7 @@ CREATE TABLE "ai_assignment" (
 	"chat_id" uuid,
 	"title" varchar(255) NOT NULL,
 	"subject" varchar(100) NOT NULL,
-	"grade" varchar(100) NOT NULL,
+	"level" varchar(100) NOT NULL,
 	"type" varchar(50) NOT NULL,
 	"instructions" text NOT NULL,
 	"total_marks" integer NOT NULL,
@@ -131,23 +130,23 @@ CREATE TABLE "credit_transaction" (
 	"balance_after" integer NOT NULL,
 	"description" text,
 	"metadata" jsonb,
+	"expires_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "grade" (
+CREATE TABLE "level" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"grade_number" integer NOT NULL,
+	"level_number" integer NOT NULL,
 	"title" varchar(100) NOT NULL,
 	"order" integer NOT NULL,
 	"color" varchar(100) NOT NULL,
-	"level" "level" NOT NULL,
 	"owner_id" uuid,
 	"owner_role" "user_role_enum" DEFAULT 'regular' NOT NULL,
 	"visibility" "content_visibility_enum" DEFAULT 'regular_only' NOT NULL,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "grade_grade_number_unique" UNIQUE("grade_number")
+	CONSTRAINT "level_level_number_unique" UNIQUE("level_number")
 );
 --> statement-breakpoint
 CREATE TABLE "resource" (
@@ -164,6 +163,8 @@ CREATE TABLE "resource" (
 	"owner_role" "user_role_enum" DEFAULT 'regular' NOT NULL,
 	"visibility" "resource_visibility_enum" DEFAULT 'regular_only' NOT NULL,
 	"metadata" jsonb,
+	"is_locked" boolean DEFAULT false NOT NULL,
+	"unlock_fee" integer DEFAULT 0 NOT NULL,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -188,7 +189,7 @@ CREATE TABLE "role_permission" (
 --> statement-breakpoint
 CREATE TABLE "subject" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"grade_id" uuid NOT NULL,
+	"level_id" uuid NOT NULL,
 	"name" varchar(100) NOT NULL,
 	"icon" varchar(50) NOT NULL,
 	"color" varchar(100) NOT NULL,
@@ -259,6 +260,7 @@ CREATE TABLE "user_credit" (
 	"balance" integer DEFAULT 0 NOT NULL,
 	"total_purchased" integer DEFAULT 0 NOT NULL,
 	"total_used" integer DEFAULT 0 NOT NULL,
+	"expired_credits" integer DEFAULT 0 NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -285,7 +287,7 @@ CREATE TABLE "user_roles" (
 --> statement-breakpoint
 ALTER TABLE "admin_regulars" ADD CONSTRAINT "admin_regulars_admin_id_user_id_fk" FOREIGN KEY ("admin_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "admin_regulars" ADD CONSTRAINT "admin_regulars_regular_id_user_id_fk" FOREIGN KEY ("regular_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "admin_regulars" ADD CONSTRAINT "admin_regulars_grade_id_grade_id_fk" FOREIGN KEY ("grade_id") REFERENCES "public"."grade"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "admin_regulars" ADD CONSTRAINT "admin_regulars_level_id_level_id_fk" FOREIGN KEY ("level_id") REFERENCES "public"."level"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ai_assignment" ADD CONSTRAINT "ai_assignment_user_id_user_clerk_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("clerk_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ai_assignment" ADD CONSTRAINT "ai_assignment_chat_id_chat_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chat"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ai_memory" ADD CONSTRAINT "ai_memory_user_id_user_clerk_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("clerk_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -297,12 +299,12 @@ ALTER TABLE "chat" ADD CONSTRAINT "chat_user_id_user_clerk_id_fk" FOREIGN KEY ("
 ALTER TABLE "chat_message" ADD CONSTRAINT "chat_message_chat_id_chat_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chat"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "credit_purchase" ADD CONSTRAINT "credit_purchase_user_id_user_clerk_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("clerk_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "credit_transaction" ADD CONSTRAINT "credit_transaction_user_id_user_clerk_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("clerk_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "grade" ADD CONSTRAINT "grade_owner_id_user_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "level" ADD CONSTRAINT "level_owner_id_user_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "resource" ADD CONSTRAINT "resource_subject_id_subject_id_fk" FOREIGN KEY ("subject_id") REFERENCES "public"."subject"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "resource" ADD CONSTRAINT "resource_topic_id_topic_id_fk" FOREIGN KEY ("topic_id") REFERENCES "public"."topic"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "resource" ADD CONSTRAINT "resource_owner_id_user_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "role_permission" ADD CONSTRAINT "role_permission_role_id_role_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."role"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "subject" ADD CONSTRAINT "subject_grade_id_grade_id_fk" FOREIGN KEY ("grade_id") REFERENCES "public"."grade"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "subject" ADD CONSTRAINT "subject_level_id_level_id_fk" FOREIGN KEY ("level_id") REFERENCES "public"."level"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "subject" ADD CONSTRAINT "subject_owner_id_user_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "topic" ADD CONSTRAINT "topic_subject_id_subject_id_fk" FOREIGN KEY ("subject_id") REFERENCES "public"."subject"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "topic" ADD CONSTRAINT "topic_owner_id_user_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

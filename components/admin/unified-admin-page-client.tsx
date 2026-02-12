@@ -58,58 +58,58 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CreateGradeForm } from "@/components/admin/create-grade-form";
+import { CreateLevelForm } from "@/components/admin/create-level-form";
 import { CreateSubjectForm } from "@/components/admin/create-subject-form";
 import { CreateTopicForm } from "@/components/admin/create-topic-form";
 import { CreateResourceForm } from "@/components/admin/create-resource-form";
-import { EditGradeForm } from "@/components/admin/edit-grade-form";
+import { EditLevelForm } from "@/components/admin/edit-level-form";
 import { EditSubjectForm } from "@/components/admin/edit-subject-form";
 import { EditTopicForm } from "@/components/admin/edit-topic-form";
 import { EditResourceForm } from "@/components/admin/edit-resource-form";
 import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import {
-  deleteGradeWithSession,
+  deleteLevelWithSession,
   deleteSubjectWithSession,
   deleteTopicWithSession,
   deleteResource,
 } from "@/lib/actions/admin";
 import type {
-  GradeWithFullHierarchy,
+  LevelWithFullHierarchy,
   SubjectWithTopics,
   TopicWithResources,
   Resource,
   ResourceWithRelations,
-  Grade,
+  Level,
   Subject,
   Topic,
 } from "@/lib/types";
 
 interface UnifiedAdminPageClientProps {
-  initialGrades: GradeWithFullHierarchy[];
+  initialLevels: LevelWithFullHierarchy[];
   userId: string;
   userRole: "admin" | "super_admin";
 }
 
 export function UnifiedAdminPageClient({
-  initialGrades,
+  initialLevels,
   userId,
   userRole,
 }: UnifiedAdminPageClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user: clerkUser } = useUser();
-  const [grades, setGrades] = useState<GradeWithFullHierarchy[]>(initialGrades);
+  const [levels, setLevels] = useState<LevelWithFullHierarchy[]>(initialLevels);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<"my" | "public">("my");
 
-  // Sync grades when initialGrades changes (after revalidation)
+  // Sync levels when initialLevels changes (after revalidation)
   useEffect(() => {
-    setGrades(initialGrades);
-  }, [initialGrades]);
+    setLevels(initialLevels);
+  }, [initialLevels]);
 
   // Expansion states
-  const [expandedGrades, setExpandedGrades] = useState<Set<string>>(new Set());
+  const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set());
   const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
   
@@ -122,7 +122,7 @@ export function UnifiedAdminPageClient({
   const [openResourceInEditMode, setOpenResourceInEditMode] = useState(false);
 
   // Dialog states
-  const [isCreateGradeOpen, setIsCreateGradeOpen] = useState(false);
+  const [isCreateLevelOpen, setIsCreateLevelOpen] = useState(false);
   const [isCreateSubjectOpen, setIsCreateSubjectOpen] = useState(false);
   const [isCreateTopicOpen, setIsCreateTopicOpen] = useState(false);
   const [isCreateResourceOpen, setIsCreateResourceOpen] = useState(false);
@@ -144,7 +144,7 @@ export function UnifiedAdminPageClient({
   // Handle viewResource query param from file tree dropdown
   useEffect(() => {
     const viewResourceId = searchParams.get("viewResource");
-    if (viewResourceId && grades.length > 0) {
+    if (viewResourceId && levels.length > 0) {
       const loadResource = async () => {
         setIsLoadingResource(true);
         try {
@@ -160,95 +160,95 @@ export function UnifiedAdminPageClient({
       };
       loadResource();
     }
-  }, [searchParams, grades]);
+  }, [searchParams, levels]);
 
   // Separate content by owner role and owner ID
   // My Content: only content owned by the current user (admin's own content)
-  const myGrades = useMemo(() => 
-    grades.filter((g) => g.ownerRole === "admin" && g.ownerId === userId),
-    [grades, userId]
+  const myLevels = useMemo(() => 
+    levels.filter((g) => g.ownerRole === "admin" && g.ownerId === userId),
+    [levels, userId]
   );
   
   // Public Content: content owned by super_admin
-  const publicGrades = useMemo(() => 
-    grades.filter((g) => g.ownerRole === "super_admin"),
-    [grades]
+  const publicLevels = useMemo(() => 
+    levels.filter((g) => g.ownerRole === "super_admin"),
+    [levels]
   );
 
   // Stats
   const myStats = useMemo(() => {
-    const subjects = myGrades.flatMap((g) => g.subjects);
+    const subjects = myLevels.flatMap((g) => g.subjects);
     const topics = subjects.flatMap((s) => s.topics);
     const resources = topics.flatMap((t) => t.resources);
     return {
-      grades: myGrades.length,
+      levels: myLevels.length,
       subjects: subjects.length,
       topics: topics.length,
       resources: resources.length,
     };
-  }, [myGrades]);
+  }, [myLevels]);
 
   const publicStats = useMemo(() => {
-    const subjects = publicGrades.flatMap((g) => g.subjects);
+    const subjects = publicLevels.flatMap((g) => g.subjects);
     const topics = subjects.flatMap((s) => s.topics);
     const resources = topics.flatMap((t) => t.resources);
     return {
-      grades: publicGrades.length,
+      levels: publicLevels.length,
       subjects: subjects.length,
       topics: topics.length,
       resources: resources.length,
     };
-  }, [publicGrades]);
+  }, [publicLevels]);
 
   // Get all subjects and topics for forms (only from my content)
-  const allSubjects = useMemo(() => myGrades.flatMap((g) => g.subjects), [myGrades]);
+  const allSubjects = useMemo(() => myLevels.flatMap((g) => g.subjects), [myLevels]);
   const allTopics = useMemo(() => allSubjects.flatMap((s) => s.topics), [allSubjects]);
 
   // Get all subjects and topics for the current tab's expand/collapse functionality
-  const currentTabGrades = activeTab === "my" ? myGrades : publicGrades;
+  const currentTabLevels = activeTab === "my" ? myLevels : publicLevels;
   const currentTabSubjects = useMemo(() => 
-    currentTabGrades.flatMap((g) => g.subjects), 
-    [currentTabGrades]
+    currentTabLevels.flatMap((g) => g.subjects), 
+    [currentTabLevels]
   );
   const currentTabTopics = useMemo(() => 
     currentTabSubjects.flatMap((s) => s.topics), 
     [currentTabSubjects]
   );
 
-  // Filter grades based on search and active tab
-  const filteredMyGrades = useMemo(() => {
-    if (!searchQuery) return myGrades;
+  // Filter levels based on search and active tab
+  const filteredMyLevels = useMemo(() => {
+    if (!searchQuery) return myLevels;
     const query = searchQuery.toLowerCase();
-    return myGrades.filter(g => 
+    return myLevels.filter(g => 
       g.title.toLowerCase().includes(query) ||
       g.subjects.some(s => 
         s.name.toLowerCase().includes(query) ||
         s.topics.some(t => t.title.toLowerCase().includes(query))
       )
     );
-  }, [myGrades, searchQuery]);
+  }, [myLevels, searchQuery]);
 
-  const filteredPublicGrades = useMemo(() => {
-    if (!searchQuery) return publicGrades;
+  const filteredPublicLevels = useMemo(() => {
+    if (!searchQuery) return publicLevels;
     const query = searchQuery.toLowerCase();
-    return publicGrades.filter(g => 
+    return publicLevels.filter(g => 
       g.title.toLowerCase().includes(query) ||
       g.subjects.some(s => 
         s.name.toLowerCase().includes(query) ||
         s.topics.some(t => t.title.toLowerCase().includes(query))
       )
     );
-  }, [publicGrades, searchQuery]);
+  }, [publicLevels, searchQuery]);
 
   // Expansion handlers
-  const toggleGrade = (gradeId: string) => {
-    const newExpanded = new Set(expandedGrades);
-    if (newExpanded.has(gradeId)) {
-      newExpanded.delete(gradeId);
+  const toggleLevel = (levelId: string) => {
+    const newExpanded = new Set(expandedLevels);
+    if (newExpanded.has(levelId)) {
+      newExpanded.delete(levelId);
     } else {
-      newExpanded.add(gradeId);
+      newExpanded.add(levelId);
     }
-    setExpandedGrades(newExpanded);
+    setExpandedLevels(newExpanded);
   };
 
   const toggleSubject = (subjectId: string) => {
@@ -272,13 +272,13 @@ export function UnifiedAdminPageClient({
   };
 
   const expandAll = () => {
-    setExpandedGrades(new Set(currentTabGrades.map((g) => g.id)));
+    setExpandedLevels(new Set(currentTabLevels.map((g) => g.id)));
     setExpandedSubjects(new Set(currentTabSubjects.map((s) => s.id)));
     setExpandedTopics(new Set(currentTabTopics.map((t) => t.id)));
   };
 
   const collapseAll = () => {
-    setExpandedGrades(new Set());
+    setExpandedLevels(new Set());
     setExpandedSubjects(new Set());
     setExpandedTopics(new Set());
   };
@@ -286,23 +286,23 @@ export function UnifiedAdminPageClient({
   // Helper to get item name from ID
   const getItemName = (id: string, type: string): string => {
     switch (type) {
-      case "grade": {
-        const grade = grades.find(g => g.id === id);
-        return grade?.title || "Unknown Grade";
+      case "level": {
+        const level = levels.find(g => g.id === id);
+        return level?.title || "Unknown Level";
       }
       case "subject": {
-        const subjects = grades.flatMap(g => g.subjects);
+        const subjects = levels.flatMap(g => g.subjects);
         const subject = subjects.find(s => s.id === id);
         return subject?.name || "Unknown Subject";
       }
       case "topic": {
-        const subjects = grades.flatMap(g => g.subjects);
+        const subjects = levels.flatMap(g => g.subjects);
         const topics = subjects.flatMap(s => s.topics);
         const topic = topics.find(t => t.id === id);
         return topic?.title || "Unknown Topic";
       }
       case "resource": {
-        const subjects = grades.flatMap(g => g.subjects);
+        const subjects = levels.flatMap(g => g.subjects);
         const topics = subjects.flatMap(s => s.topics);
         const resources = topics.flatMap(t => t.resources);
         const resource = resources.find(r => r.id === id);
@@ -339,9 +339,9 @@ export function UnifiedAdminPageClient({
     }
   };
 
-  const handleDeleteGrade = async (gradeId: string) => {
-    openDeleteDialog(gradeId, "grade", async () => {
-      await deleteGradeWithSession(gradeId);
+  const handleDeleteLevel = async (levelId: string) => {
+    openDeleteDialog(levelId, "level?", async () => {
+      await deleteLevelWithSession(levelId);
     });
   };
 
@@ -396,7 +396,7 @@ export function UnifiedAdminPageClient({
     }
   };
 
-  // Edit handlers for grades, subjects, topics
+  // Edit handlers for levels, subjects, topics
   const openEditDialog = (item: { id: string; type: string; data: unknown }) => {
     setItemToEdit(item);
     setIsEditDialogOpen(true);
@@ -424,7 +424,7 @@ export function UnifiedAdminPageClient({
         onBack={handleBackFromViewer}
         subjects={allSubjects.map((s) => ({
           ...s,
-          grade: grades.find((g) => g.subjects.some((sub) => sub.id === s.id)) || {
+          level: levels.find((g) => g.subjects.some((sub) => sub.id === s.id)) || {
             id: "",
             title: "Unknown",
           },
@@ -444,7 +444,7 @@ export function UnifiedAdminPageClient({
         </h2>
         <p className="text-muted-foreground">
           Manage all educational content from one central hub. Navigate through
-          grades, subjects, topics, and resources.
+          levels, subjects, topics, and resources.
         </p>
       </div>
 
@@ -464,7 +464,7 @@ export function UnifiedAdminPageClient({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{myStats.grades}</div>
+            <div className="text-2xl font-bold">{myStats.levels}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {myStats.subjects} subjects, {myStats.resources} resources
             </p>
@@ -487,7 +487,7 @@ export function UnifiedAdminPageClient({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{publicStats.grades}</div>
+            <div className="text-2xl font-bold">{publicStats.levels}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {publicStats.subjects} subjects, {publicStats.resources} resources
             </p>
@@ -499,7 +499,7 @@ export function UnifiedAdminPageClient({
       </div>
 
       {/* Manage Regulars Card */}
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+      <Card className="bg-level?ient-to-r from-blue-50 to-indigo-50 border-blue-200">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -529,12 +529,12 @@ export function UnifiedAdminPageClient({
           <TabsTrigger value="my" className="flex items-center gap-2">
             <User className="h-4 w-4" />
             My Content
-            <Badge variant="secondary" className="ml-1">{myStats.grades}</Badge>
+            <Badge variant="secondary" className="ml-1">{myStats.levels}</Badge>
           </TabsTrigger>
           <TabsTrigger value="public" className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-purple-500" />
             Public Content
-            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800">{publicStats.grades}</Badge>
+            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800">{publicStats.levels}</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -542,23 +542,23 @@ export function UnifiedAdminPageClient({
           {/* Quick Actions & Search - Only show in My Content tab */}
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
             <div className="flex flex-wrap gap-2">
-              <Dialog open={isCreateGradeOpen} onOpenChange={setIsCreateGradeOpen}>
+              <Dialog open={isCreateLevelOpen} onOpenChange={setIsCreateLevelOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" className="h-9 sm:h-10 gap-1.5">
                     <Plus className="h-4 w-4" />
-                    <span>Add Grade</span>
+                    <span>Add Level</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
                   <DialogHeader>
-                    <DialogTitle>Create New Grade</DialogTitle>
+                    <DialogTitle>Create New Level</DialogTitle>
                   </DialogHeader>
-                  <CreateGradeForm onSuccess={() => setIsCreateGradeOpen(false)} />
+                  <CreateLevelForm onSuccess={() => setIsCreateLevelOpen(false)} />
                 </DialogContent>
               </Dialog>
               <Dialog open={isCreateSubjectOpen} onOpenChange={setIsCreateSubjectOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={grades.length === 0}>
+                  <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={levels.length === 0}>
                     <Plus className="h-4 w-4" />
                     <span>Add Subject</span>
                   </Button>
@@ -567,7 +567,7 @@ export function UnifiedAdminPageClient({
                   <DialogHeader>
                     <DialogTitle>Create New Subject</DialogTitle>
                   </DialogHeader>
-                  <CreateSubjectForm grades={grades} onSuccess={() => setIsCreateSubjectOpen(false)} />
+                  <CreateSubjectForm levels={levels} onSuccess={() => setIsCreateSubjectOpen(false)} />
                 </DialogContent>
               </Dialog>
               <Dialog open={isCreateTopicOpen} onOpenChange={setIsCreateTopicOpen}>
@@ -618,7 +618,7 @@ export function UnifiedAdminPageClient({
             </div>
           </div>
           {/* My Content Tree */}
-          {filteredMyGrades.length === 0 ? (
+          {filteredMyLevels.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
@@ -626,42 +626,41 @@ export function UnifiedAdminPageClient({
                 <p className="text-sm text-muted-foreground">
                   {searchQuery
                     ? "Try adjusting your search query"
-                    : "Get started by creating your first grade"}
+                    : "Get started by creating your first level?"}
                 </p>
                 {!searchQuery && (
-                  <Button className="mt-4" onClick={() => setIsCreateGradeOpen(true)}>
+                  <Button className="mt-4" onClick={() => setIsCreateLevelOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Create Grade
+                    Create Level
                   </Button>
                 )}
               </CardContent>
             </Card>
           ) : (
-            filteredMyGrades.map((grade: GradeWithFullHierarchy) => (
-            <Card key={grade.id} className="overflow-hidden">
-              {/* Grade Header */}
+            filteredMyLevels.map((level: LevelWithFullHierarchy) => (
+            <Card key={level.id} className="overflow-hidden">
+              {/* Level Header */}
               <div 
                 className="flex items-center justify-between p-4 bg-muted/50 cursor-pointer hover:bg-muted"
-                onClick={() => toggleGrade(grade.id)}
+                onClick={() => toggleLevel(level.id)}
               >
                 <div className="flex items-center gap-3">
-                  {expandedGrades.has(grade.id) ? (
+                  {expandedLevels.has(level.id) ? (
                     <ChevronDown className="h-5 w-5 text-muted-foreground" />
                   ) : (
                     <ChevronRight className="h-5 w-5 text-muted-foreground" />
                   )}
                   <div 
                     className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
-                    style={{ backgroundColor: grade.color }}
+                    style={{ backgroundColor: level.color }}
                   >
-                    {grade.gradeNumber}
+                    {level.levelNumber}
                   </div>
                   <div>
-                    <span className="font-semibold text-lg">{grade.title}</span>
-                    <Badge variant="secondary" className="ml-2">{grade.level}</Badge>
+                    <span className="font-semibold text-lg">{level.title}</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    ({grade.subjects.length} subjects)
+                    ({level.subjects.length} subjects)
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -674,9 +673,9 @@ export function UnifiedAdminPageClient({
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[425px]">
                       <DialogHeader>
-                        <DialogTitle>Add Subject to {grade.title}</DialogTitle>
+                        <DialogTitle>Add Subject to {level.title}</DialogTitle>
                       </DialogHeader>
-                      <CreateSubjectForm grades={[grade]} onSuccess={() => {}} />
+                      <CreateSubjectForm levels={[level]} onSuccess={() => {}} />
                     </DialogContent>
                   </Dialog>
                   <DropdownMenu>
@@ -686,16 +685,16 @@ export function UnifiedAdminPageClient({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEditDialog({ id: grade.id, type: "grade", data: grade })}>
+                      <DropdownMenuItem onClick={() => openEditDialog({ id: level.id, type: "level", data: level })}>
                         <Edit className="h-4 w-4 mr-2" />
-                        Edit Grade
+                        Edit Level
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive"
-                        onClick={() => handleDeleteGrade(grade.id)}
+                        onClick={() => handleDeleteLevel(level.id)}
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Grade
+                        Delete Level
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -703,14 +702,14 @@ export function UnifiedAdminPageClient({
               </div>
 
               {/* Subjects */}
-              {expandedGrades.has(grade.id) && (
+              {expandedLevels.has(level.id) && (
                 <div className="border-t">
-                  {grade.subjects.length === 0 ? (
+                  {level.subjects.length === 0 ? (
                     <div className="p-4 pl-12 text-sm text-muted-foreground">
                       No subjects yet. Add your first subject.
                     </div>
                   ) : (
-                    grade.subjects.map((subject) => (
+                    level.subjects.map((subject) => (
                       <div key={subject.id}>
                         {/* Subject Header */}
                         <div 
@@ -958,7 +957,7 @@ export function UnifiedAdminPageClient({
           </div>
 
           {/* Public Content Tree */}
-          {filteredPublicGrades.length === 0 ? (
+          {filteredPublicLevels.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Shield className="h-12 w-12 text-muted-foreground mb-4" />
@@ -969,46 +968,46 @@ export function UnifiedAdminPageClient({
               </CardContent>
             </Card>
           ) : (
-            filteredPublicGrades.map((grade: GradeWithFullHierarchy) => (
-              <Card key={grade.id} className="overflow-hidden border-purple-200">
-                {/* Grade Header */}
+            filteredPublicLevels.map((level: LevelWithFullHierarchy) => (
+              <Card key={level.id} className="overflow-hidden border-purple-200">
+                {/* Level Header */}
                 <div 
                   className="flex items-center justify-between p-4 bg-purple-50/50 cursor-pointer hover:bg-purple-50"
-                  onClick={() => toggleGrade(grade.id)}
+                  onClick={() => toggleLevel(level.id)}
                 >
                   <div className="flex items-center gap-3">
-                    {expandedGrades.has(grade.id) ? (
+                    {expandedLevels.has(level.id) ? (
                       <ChevronDown className="h-5 w-5 text-muted-foreground" />
                     ) : (
                       <ChevronRight className="h-5 w-5 text-muted-foreground" />
                     )}
                     <div 
                       className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
-                      style={{ backgroundColor: grade.color }}
+                      style={{ backgroundColor: level.color }}
                     >
-                      {grade.gradeNumber}
+                      {level.levelNumber}
                     </div>
                     <div>
-                      <span className="font-semibold text-lg">{grade.title}</span>
+                      <span className="font-semibold text-lg">{level.title}</span>
                       <Badge variant="outline" className="ml-2 bg-purple-100 text-purple-800 border-purple-300">
                         Public
                       </Badge>
                     </div>
                     <span className="text-sm text-muted-foreground">
-                      ({grade.subjects.length} subjects)
+                      ({level.subjects.length} subjects)
                     </span>
                   </div>
                 </div>
 
                 {/* Subjects */}
-                {expandedGrades.has(grade.id) && (
+                {expandedLevels.has(level.id) && (
                   <div className="border-t">
-                    {grade.subjects.length === 0 ? (
+                    {level.subjects.length === 0 ? (
                       <div className="p-4 pl-12 text-sm text-muted-foreground">
                         No subjects available.
                       </div>
                     ) : (
-                      grade.subjects.map((subject: SubjectWithTopics) => (
+                      level.subjects.map((subject: SubjectWithTopics) => (
                         <div key={subject.id}>
                           <div 
                             className="flex items-center justify-between p-3 pl-8 border-b cursor-pointer hover:bg-purple-50/30"
@@ -1171,16 +1170,16 @@ export function UnifiedAdminPageClient({
           <DialogHeader>
             <DialogTitle>Edit {itemToEdit?.type}</DialogTitle>
           </DialogHeader>
-          {itemToEdit?.type === "grade" && (
-            <EditGradeForm 
-              grade={itemToEdit.data as Grade} 
+          {itemToEdit?.type === "level" && (
+            <EditLevelForm 
+              level={itemToEdit.data as Level} 
               onSuccess={handleEditSuccess}
             />
           )}
           {itemToEdit?.type === "subject" && (
             <EditSubjectForm 
               subject={itemToEdit.data as Subject}
-              grades={grades}
+              levels={levels}
               onSuccess={handleEditSuccess}
             />
           )}
@@ -1224,7 +1223,7 @@ export function UnifiedAdminPageClient({
             ) : (
               <EditResourceForm 
                 resource={itemToEdit.data as ResourceWithRelations}
-                subjects={allSubjects.map(s => ({ id: s.id, name: s.name, grade: { id: s.gradeId, title: "Grade" } }))}
+                subjects={allSubjects.map(s => ({ id: s.id, name: s.name, level: { id: s.levelId, title: "Level" } }))}
                 topics={allTopics.map(t => ({ id: t.id, title: t.title, subjectId: t.subjectId }))}
                 onSuccess={handleEditSuccess}
                 onCancel={() => setIsEditDialogOpen(false)}

@@ -55,54 +55,54 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CreateGradeForm } from "@/components/admin/create-grade-form";
+import { CreateLevelForm } from "@/components/admin/create-level-form";
 import { CreateSubjectForm } from "@/components/admin/create-subject-form";
 import { CreateTopicForm } from "@/components/admin/create-topic-form";
 import { CreateResourceForm } from "@/components/admin/create-resource-form";
-import { EditGradeForm } from "@/components/admin/edit-grade-form";
+import { EditLevelForm } from "@/components/admin/edit-level-form";
 import { EditSubjectForm } from "@/components/admin/edit-subject-form";
 import { EditTopicForm } from "@/components/admin/edit-topic-form";
 import { EditResourceForm } from "@/components/admin/edit-resource-form";
-import { deleteGradeWithSession, deleteSubjectWithSession, deleteTopicWithSession, deleteResource, getResourceById } from "@/lib/actions/admin";
+import { deleteLevelWithSession, deleteSubjectWithSession, deleteTopicWithSession, deleteResource, getResourceById } from "@/lib/actions/admin";
 import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import type {
-  GradeWithFullHierarchy,
+  LevelWithFullHierarchy,
   SubjectWithTopics,
   TopicWithResources,
   Resource,
   ResourceWithRelations,
-  Grade,
+  Level,
   Subject,
   Topic,
 } from "@/lib/types";
 
 interface RegularDashboardClientProps {
-  initialGrades: GradeWithFullHierarchy[];
+  initialLevels: LevelWithFullHierarchy[];
   userId: string;
   adminIds: string[];
 }
 
-export function RegularDashboardClient({ initialGrades, userId, adminIds }: RegularDashboardClientProps) {
+export function RegularDashboardClient({ initialLevels, userId, adminIds }: RegularDashboardClientProps) {
   const { user: clerkUser } = useUser();
   const router = useRouter();
-  const [grades, setGrades] = useState<GradeWithFullHierarchy[]>(initialGrades);
+  const [levels, setLevels] = useState<LevelWithFullHierarchy[]>(initialLevels);
   const [searchQuery, setSearchQuery] = useState("");
   
   // Tab state
   const [activeTab, setActiveTab] = useState<"my" | "institution" | "public">("my");
 
-  // Sync grades when initialGrades changes (after revalidation)
+  // Sync levels when initialLevels changes (after revalidation)
   useEffect(() => {
-    setGrades(initialGrades);
-  }, [initialGrades]);
+    setLevels(initialLevels);
+  }, [initialLevels]);
 
   // Expansion states
-  const [expandedGrades, setExpandedGrades] = useState<Set<string>>(new Set());
+  const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set());
   const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
 
   // Dialog states
-  const [isCreateGradeOpen, setIsCreateGradeOpen] = useState(false);
+  const [isCreateLevelOpen, setIsCreateLevelOpen] = useState(false);
   const [isCreateSubjectOpen, setIsCreateSubjectOpen] = useState(false);
   const [isCreateTopicOpen, setIsCreateTopicOpen] = useState(false);
   const [isCreateResourceOpen, setIsCreateResourceOpen] = useState(false);
@@ -123,102 +123,102 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
 
   // Separate content by owner role and owner ID using useMemo
   // My Content: only content owned by the current user
-  const myGrades = useMemo(() => 
-    grades.filter((g) => g.ownerId === userId),
-    [grades, userId]
+  const myLevels = useMemo(() => 
+    levels.filter((g) => g.ownerId === userId),
+    [levels, userId]
   );
 
   // Admin/Institution Content: content owned by admins in adminIds
-  const adminGrades = useMemo(() => 
-    grades.filter((g) => g.ownerRole === "admin" && adminIds.includes(g.ownerId || "")),
-    [grades, adminIds]
+  const adminLevels = useMemo(() => 
+    levels.filter((g) => g.ownerRole === "admin" && adminIds.includes(g.ownerId || "")),
+    [levels, adminIds]
   );
 
   // Super Admin Content (public): content owned by super_admin
-  const superAdminGrades = useMemo(() => 
-    grades.filter((g) => g.ownerRole === "super_admin"),
-    [grades]
+  const superAdminLevels = useMemo(() => 
+    levels.filter((g) => g.ownerRole === "super_admin"),
+    [levels]
   );
 
   // Derived subjects, topics, resources for each category
-  const mySubjects = useMemo(() => myGrades.flatMap((g) => g.subjects), [myGrades]);
+  const mySubjects = useMemo(() => myLevels.flatMap((g) => g.subjects), [myLevels]);
   const myTopics = useMemo(() => mySubjects.flatMap((s) => s.topics), [mySubjects]);
   const myResources = useMemo(() => myTopics.flatMap((t) => t.resources || []), [myTopics]);
 
-  const adminSubjects = useMemo(() => adminGrades.flatMap((g) => g.subjects), [adminGrades]);
+  const adminSubjects = useMemo(() => adminLevels.flatMap((g) => g.subjects), [adminLevels]);
   const adminTopics = useMemo(() => adminSubjects.flatMap((s) => s.topics), [adminSubjects]);
   const adminResources = useMemo(() => adminTopics.flatMap((t) => t.resources || []), [adminTopics]);
 
-  const superAdminSubjects = useMemo(() => superAdminGrades.flatMap((g) => g.subjects), [superAdminGrades]);
+  const superAdminSubjects = useMemo(() => superAdminLevels.flatMap((g) => g.subjects), [superAdminLevels]);
   const superAdminTopics = useMemo(() => superAdminSubjects.flatMap((s) => s.topics), [superAdminSubjects]);
   const superAdminResources = useMemo(() => superAdminTopics.flatMap((t) => t.resources || []), [superAdminTopics]);
 
   // Stats
   const myStats = useMemo(() => ({
-    grades: myGrades.length,
+    levels: myLevels.length,
     subjects: mySubjects.length,
     topics: myTopics.length,
     resources: myResources.length,
-  }), [myGrades, mySubjects, myTopics, myResources]);
+  }), [myLevels, mySubjects, myTopics, myResources]);
 
   const adminStats = useMemo(() => ({
-    grades: adminGrades.length,
+    levels: adminLevels.length,
     subjects: adminSubjects.length,
     topics: adminTopics.length,
     resources: adminResources.length,
-  }), [adminGrades, adminSubjects, adminTopics, adminResources]);
+  }), [adminLevels, adminSubjects, adminTopics, adminResources]);
 
-  // Filter grades based on search
-  const filteredMyGrades = useMemo(() => {
-    if (!searchQuery) return myGrades;
+  // Filter levels based on search
+  const filteredMyLevels = useMemo(() => {
+    if (!searchQuery) return myLevels;
     const query = searchQuery.toLowerCase();
-    return myGrades.filter(g => 
+    return myLevels.filter(g => 
       g.title.toLowerCase().includes(query) ||
       g.subjects.some(s => 
         s.name.toLowerCase().includes(query) ||
         s.topics.some(t => t.title.toLowerCase().includes(query))
       )
     );
-  }, [myGrades, searchQuery]);
+  }, [myLevels, searchQuery]);
 
-  const filteredAdminGrades = useMemo(() => {
-    if (!searchQuery) return adminGrades;
+  const filteredAdminLevels = useMemo(() => {
+    if (!searchQuery) return adminLevels;
     const query = searchQuery.toLowerCase();
-    return adminGrades.filter(g => 
+    return adminLevels.filter(g => 
       g.title.toLowerCase().includes(query) ||
       g.subjects.some(s => 
         s.name.toLowerCase().includes(query) ||
         s.topics.some(t => t.title.toLowerCase().includes(query))
       )
     );
-  }, [adminGrades, searchQuery]);
+  }, [adminLevels, searchQuery]);
 
-  const filteredSuperAdminGrades = useMemo(() => {
-    if (!searchQuery) return superAdminGrades;
+  const filteredSuperAdminLevels = useMemo(() => {
+    if (!searchQuery) return superAdminLevels;
     const query = searchQuery.toLowerCase();
-    return superAdminGrades.filter(g => 
+    return superAdminLevels.filter(g => 
       g.title.toLowerCase().includes(query) ||
       g.subjects.some(s => 
         s.name.toLowerCase().includes(query) ||
         s.topics.some(t => t.title.toLowerCase().includes(query))
       )
     );
-  }, [superAdminGrades, searchQuery]);
+  }, [superAdminLevels, searchQuery]);
 
   // Get all subjects and topics for forms
   const allSubjects = useMemo(() => [...mySubjects, ...adminSubjects], [mySubjects, adminSubjects]);
   const allTopics = useMemo(() => [...myTopics, ...adminTopics], [myTopics, adminTopics]);
-  const allGrades = useMemo(() => [...myGrades, ...adminGrades], [myGrades, adminGrades]);
+  const allLevels = useMemo(() => [...myLevels, ...adminLevels], [myLevels, adminLevels]);
 
   // Expansion handlers
-  const toggleGrade = (gradeId: string) => {
-    const newExpanded = new Set(expandedGrades);
-    if (newExpanded.has(gradeId)) {
-      newExpanded.delete(gradeId);
+  const toggleLevel = (levelId: string) => {
+    const newExpanded = new Set(expandedLevels);
+    if (newExpanded.has(levelId)) {
+      newExpanded.delete(levelId);
     } else {
-      newExpanded.add(gradeId);
+      newExpanded.add(levelId);
     }
-    setExpandedGrades(newExpanded);
+    setExpandedLevels(newExpanded);
   };
 
   const toggleSubject = (subjectId: string) => {
@@ -242,16 +242,16 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
   };
 
   const expandAll = () => {
-    const allGradeIds = [...myGrades, ...adminGrades, ...superAdminGrades].map((g) => g.id);
+    const allLevelIds = [...myLevels, ...adminLevels, ...superAdminLevels].map((g) => g.id);
     const allSubjectIds = [...mySubjects, ...adminSubjects, ...superAdminSubjects].map((s) => s.id);
     const allTopicIds = [...myTopics, ...adminTopics, ...superAdminTopics].map((t) => t.id);
-    setExpandedGrades(new Set(allGradeIds));
+    setExpandedLevels(new Set(allLevelIds));
     setExpandedSubjects(new Set(allSubjectIds));
     setExpandedTopics(new Set(allTopicIds));
   };
 
   const collapseAll = () => {
-    setExpandedGrades(new Set());
+    setExpandedLevels(new Set());
     setExpandedSubjects(new Set());
     setExpandedTopics(new Set());
   };
@@ -259,9 +259,9 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
   // Helper to get item name from ID
   const getItemName = (id: string, type: string): string => {
     switch (type) {
-      case "grade": {
-        const grade = [...myGrades, ...adminGrades, ...superAdminGrades].find(g => g.id === id);
-        return grade?.title || "Unknown Grade";
+      case "level": {
+        const level = [...myLevels, ...adminLevels, ...superAdminLevels].find(g => g.id === id);
+        return level?.title || "Unknown Level";
       }
       case "subject": {
         const subjects = [...mySubjects, ...adminSubjects, ...superAdminSubjects];
@@ -309,9 +309,9 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
     }
   };
 
-  const handleDeleteGrade = async (gradeId: string) => {
-    openDeleteDialog(gradeId, "grade", async () => {
-      await deleteGradeWithSession(gradeId);
+  const handleDeleteLevel = async (levelId: string) => {
+    openDeleteDialog(levelId, "level", async () => {
+      await deleteLevelWithSession(levelId);
     });
   };
 
@@ -376,7 +376,7 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
 
   // Handle success callbacks for create operations
   const handleCreateSuccess = () => {
-    setIsCreateGradeOpen(false);
+    setIsCreateLevelOpen(false);
     setIsCreateSubjectOpen(false);
     setIsCreateTopicOpen(false);
     setIsCreateResourceOpen(false);
@@ -440,7 +440,7 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{myStats.grades}</div>
+            <div className="text-2xl font-bold">{myStats.levels}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {myStats.subjects} subjects, {myStats.resources} resources
             </p>
@@ -464,7 +464,7 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{superAdminGrades.length}</div>
+            <div className="text-2xl font-bold">{superAdminLevels.length}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {superAdminSubjects.length} subjects, {superAdminResources.length} resources
             </p>
@@ -489,7 +489,7 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{adminStats.grades}</div>
+              <div className="text-2xl font-bold">{adminStats.levels}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 {adminStats.subjects} subjects, {adminStats.resources} resources
               </p>
@@ -517,17 +517,17 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
           <TabsTrigger value="my" className="flex items-center gap-2">
             <User className="h-4 w-4" />
             My Content
-            <Badge variant="secondary" className="ml-1">{myStats.grades}</Badge>
+            <Badge variant="secondary" className="ml-1">{myStats.levels}</Badge>
           </TabsTrigger>
           <TabsTrigger value="institution" className="flex items-center gap-2" disabled={adminIds.length === 0}>
             <Building2 className="h-4 w-4" />
             Institution
-            {adminIds.length > 0 && <Badge variant="secondary" className="ml-1 bg-green-100 text-green-800">{adminStats.grades}</Badge>}
+            {adminIds.length > 0 && <Badge variant="secondary" className="ml-1 bg-green-100 text-green-800">{adminStats.levels}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="public" className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-purple-500" />
             Public
-            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800">{superAdminGrades.length}</Badge>
+            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800">{superAdminLevels.length}</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -535,23 +535,23 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
           {/* Quick Actions & Search - Only show in My Content tab */}
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
             <div className="flex flex-wrap gap-2">
-              <Dialog open={isCreateGradeOpen} onOpenChange={setIsCreateGradeOpen}>
+              <Dialog open={isCreateLevelOpen} onOpenChange={setIsCreateLevelOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" className="h-9 sm:h-10 gap-1.5">
                     <Plus className="h-4 w-4" />
-                    <span>Add Grade</span>
+                    <span>Add Level</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
                   <DialogHeader>
-                    <DialogTitle>Create New Grade</DialogTitle>
+                    <DialogTitle>Create New Level</DialogTitle>
                   </DialogHeader>
-                  <CreateGradeForm onSuccess={handleCreateSuccess} />
+                  <CreateLevelForm onSuccess={handleCreateSuccess} />
                 </DialogContent>
               </Dialog>
               <Dialog open={isCreateSubjectOpen} onOpenChange={setIsCreateSubjectOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={allGrades.length === 0}>
+                  <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={allLevels.length === 0}>
                     <Plus className="h-4 w-4" />
                     <span>Add Subject</span>
                   </Button>
@@ -561,7 +561,7 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
                     <DialogTitle>Create New Subject</DialogTitle>
                   </DialogHeader>
                   <CreateSubjectForm 
-                    grades={allGrades} 
+                    levels={allLevels} 
                     onSuccess={handleCreateSuccess}
                   />
                 </DialogContent>
@@ -624,7 +624,7 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
           </div>
 
           {/* My Content Tree */}
-          {filteredMyGrades.length === 0 ? (
+          {filteredMyLevels.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
@@ -632,34 +632,34 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
                 <p className="text-sm text-muted-foreground">
                   {searchQuery
                     ? "Try adjusting your search query"
-                    : "Get started by creating your first grade"}
+                    : "Get started by creating your first level?"}
                 </p>
                 {!searchQuery && (
-                  <Button className="mt-4" onClick={() => setIsCreateGradeOpen(true)}>
+                  <Button className="mt-4" onClick={() => setIsCreateLevelOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Create Grade
+                    Create Level
                   </Button>
                 )}
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-4">
-              {filteredMyGrades.map((grade: GradeWithFullHierarchy) => (
-                <GradeCard
-                  key={`my-${grade.id}`}
-                  grade={grade}
-                  isExpanded={expandedGrades.has(grade.id)}
+              {filteredMyLevels.map((level: LevelWithFullHierarchy) => (
+                  <LevelCard
+                    key={`my-${level.id}`}
+                    level={level}
+                  isExpanded={expandedLevels.has(level.id)}
                   expandedSubjects={expandedSubjects}
                   expandedTopics={expandedTopics}
-                  onToggle={() => toggleGrade(grade.id)}
+                  onToggle={() => toggleLevel(level.id)}
                   onToggleSubject={toggleSubject}
                   onToggleTopic={toggleTopic}
-                  onDelete={() => handleDeleteGrade(grade.id)}
+                  onDelete={() => handleDeleteLevel(level.id)}
                   onDeleteSubject={handleDeleteSubject}
                   onDeleteTopic={handleDeleteTopic}
                   onDeleteResource={handleDeleteResource}
                   onViewResource={handleViewResource}
-                  onEditGrade={() => openEditDialog({ id: grade.id, type: "grade", data: grade })}
+                  onEditLevel={() => openEditDialog({ id: level.id, type: "level", data: level ?? null })}
                   onEditSubject={(subject) => openEditDialog({ id: subject.id, type: "subject", data: subject })}
                   onEditTopic={(topic) => openEditDialog({ id: topic.id, type: "topic", data: topic })}
                   onEditResource={handleEditResource}
@@ -712,7 +712,7 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
           </div>
 
           {/* Institution Content Tree */}
-          {filteredAdminGrades.length === 0 ? (
+          {filteredAdminLevels.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
@@ -726,14 +726,14 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
             </Card>
           ) : (
             <div className="space-y-4">
-              {filteredAdminGrades.map((grade: GradeWithFullHierarchy) => (
-                <GradeCard
-                  key={`admin-${grade.id}`}
-                  grade={grade}
-                  isExpanded={expandedGrades.has(grade.id)}
+              {filteredAdminLevels.map((level: LevelWithFullHierarchy) => (
+                  <LevelCard
+                    key={`admin-${level.id}`}
+                    level={level}
+                  isExpanded={expandedLevels.has(level.id)}
                   expandedSubjects={expandedSubjects}
                   expandedTopics={expandedTopics}
-                  onToggle={() => toggleGrade(grade.id)}
+                  onToggle={() => toggleLevel(level.id)}
                   onToggleSubject={toggleSubject}
                   onToggleTopic={toggleTopic}
                   onDelete={() => {}}
@@ -788,7 +788,7 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
           </div>
 
           {/* Public Content Tree */}
-          {filteredSuperAdminGrades.length === 0 ? (
+          {filteredSuperAdminLevels.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Shield className="h-12 w-12 text-muted-foreground mb-4" />
@@ -800,14 +800,14 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
             </Card>
           ) : (
             <div className="space-y-4">
-              {filteredSuperAdminGrades.map((grade: GradeWithFullHierarchy) => (
-                <GradeCard
-                  key={`super-${grade.id}`}
-                  grade={grade}
-                  isExpanded={expandedGrades.has(grade.id)}
+              {filteredSuperAdminLevels.map((level: LevelWithFullHierarchy) => (
+                  <LevelCard
+                    key={`super-${level.id}`}
+                    level={level}
+                  isExpanded={expandedLevels.has(level.id)}
                   expandedSubjects={expandedSubjects}
                   expandedTopics={expandedTopics}
-                  onToggle={() => toggleGrade(grade.id)}
+                  onToggle={() => toggleLevel(level.id)}
                   onToggleSubject={toggleSubject}
                   onToggleTopic={toggleTopic}
                   onDelete={() => {}}
@@ -858,16 +858,16 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
           <DialogHeader>
             <DialogTitle>Edit {itemToEdit?.type}</DialogTitle>
           </DialogHeader>
-          {itemToEdit?.type === "grade" && (
-            <EditGradeForm 
-              grade={itemToEdit.data as Grade} 
+          {itemToEdit?.type === "level" && (
+            <EditLevelForm 
+              level={itemToEdit.data as Level} 
               onSuccess={handleEditSuccess}
             />
           )}
           {itemToEdit?.type === "subject" && (
             <EditSubjectForm 
               subject={itemToEdit.data as Subject}
-              grades={allGrades}
+              levels={allLevels}
               onSuccess={handleEditSuccess}
             />
           )}
@@ -900,7 +900,7 @@ export function RegularDashboardClient({ initialGrades, userId, adminIds }: Regu
                 resource={itemToEdit.data as ResourceWithRelations}
                 subjects={allSubjects.map((s) => ({
                   ...s,
-                  grade: grades.find((g) => g.subjects.some((sub) => sub.id === s.id)) || {
+                  level: levels.find((g) => g.subjects.some((sub) => sub.id === s.id)) || {
                     id: "",
                     title: "Unknown",
                   },
@@ -1055,9 +1055,9 @@ function ResourceItem({ resource, canDelete, currentUserId, onViewResource, onDe
   );
 }
 
-// Grade Card Component
-interface GradeCardProps {
-  grade: GradeWithFullHierarchy;
+// Level Card Component
+interface LevelCardProps {
+  level: LevelWithFullHierarchy;
   isExpanded: boolean;
   expandedSubjects: Set<string>;
   expandedTopics: Set<string>;
@@ -1069,7 +1069,7 @@ interface GradeCardProps {
   onDeleteTopic: (topicId: string) => void;
   onDeleteResource: (resourceId: string) => void;
   onViewResource: (resource: Resource) => void;
-  onEditGrade?: () => void;
+  onEditLevel?: () => void;
   onEditSubject?: (subject: SubjectWithTopics) => void;
   onEditTopic?: (topic: TopicWithResources) => void;
   onEditResource?: (resource: Resource) => void;
@@ -1082,8 +1082,8 @@ interface GradeCardProps {
   contentType?: "own" | "institution" | "public";
 }
 
-function GradeCard({
-  grade,
+function LevelCard({
+  level,
   isExpanded,
   expandedSubjects,
   expandedTopics,
@@ -1095,7 +1095,7 @@ function GradeCard({
   onDeleteTopic,
   onDeleteResource,
   onViewResource,
-  onEditGrade,
+  onEditLevel,
   onEditSubject,
   onEditTopic,
   onEditResource,
@@ -1106,13 +1106,13 @@ function GradeCard({
   isAdminContent,
   currentUserId,
   contentType = "own",
-}: GradeCardProps) {
+}: LevelCardProps) {
   const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false);
   const [addTopicForSubject, setAddTopicForSubject] = useState<string | null>(null);
   const [addResourceForTopic, setAddResourceForTopic] = useState<string | null>(null);
 
   // Check ownership at each level
-  const canDeleteGrade = canDelete && grade.ownerId === currentUserId;
+  const canDeleteLevel = canDelete && level?.ownerId === currentUserId;
 
   // Determine styling based on content type
   const isPublicContent = contentType === "public";
@@ -1124,7 +1124,7 @@ function GradeCard({
       isPublicContent && "border-purple-200",
       isInstitutionContent && "border-green-200"
     )}>
-      {/* Grade Header */}
+      {/* Level Header */}
       <div 
         className={cn(
           "flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50",
@@ -1141,10 +1141,10 @@ function GradeCard({
           )}
           <div 
             className="w-4 h-4 rounded-full" 
-            style={{ backgroundColor: grade.color }}
+            style={{ backgroundColor: level.color }}
           />
           <div>
-            <span className="font-semibold">{grade.title}</span>
+            <span className="font-semibold">{level.title}</span>
             {isPublicContent && (
               <Badge variant="outline" className="ml-2 text-xs bg-purple-100 text-purple-800 border-purple-300">
                 Public
@@ -1157,12 +1157,12 @@ function GradeCard({
             )}
           </div>
           <span className="text-sm text-muted-foreground">
-            ({grade.subjects?.length || 0} subjects)
+            ({level.subjects?.length || 0} subjects)
           </span>
         </div>
         <div className="flex items-center gap-2">
           {/* Add Subject button - only for owners */}
-          {canDeleteGrade && (
+          {canDeleteLevel && (
             <Dialog open={isAddSubjectOpen} onOpenChange={setIsAddSubjectOpen}>
               <DialogTrigger asChild>
                 <Button
@@ -1177,10 +1177,10 @@ function GradeCard({
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>Add Subject to {grade.title}</DialogTitle>
+                  <DialogTitle>Add Subject to {level.title}</DialogTitle>
                 </DialogHeader>
                 <CreateSubjectForm
-                  grades={[grade]}
+                  levels={[level]}
                   onSuccess={() => {
                     setIsAddSubjectOpen(false);
                     onAddSubjectSuccess?.();
@@ -1189,7 +1189,7 @@ function GradeCard({
               </DialogContent>
             </Dialog>
           )}
-          {canDeleteGrade && (
+          {canDeleteLevel && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -1197,13 +1197,13 @@ function GradeCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onEditGrade}>
+                <DropdownMenuItem onClick={onEditLevel}>
                   <Edit className="h-4 w-4 mr-2" />
-                  Edit Grade
+                  Edit Level
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={onDelete} className="text-destructive">
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Grade
+                  Delete Level
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -1214,12 +1214,12 @@ function GradeCard({
       {/* Subjects */}
       {isExpanded && (
         <div className="border-t">
-          {grade.subjects?.length === 0 ? (
+          {level.subjects?.length === 0 ? (
             <div className="p-4 pl-12 text-sm text-muted-foreground">
-              {canDelete ? "No subjects yet. Add your first subject." : "No subjects available from this grade."}
+              {canDelete ? "No subjects yet. Add your first subject." : "No subjects available from this level?."}
             </div>
           ) : (
-            grade.subjects?.map((subject: SubjectWithTopics) => (
+            level.subjects?.map((subject: SubjectWithTopics) => (
               <div key={subject.id}>
                 {/* Subject Header */}
                 <div 

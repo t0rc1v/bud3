@@ -14,17 +14,17 @@ import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
 import { UserButton } from "@clerk/nextjs";
 import { CreditBadge, CreditModal } from "@/components/credits/credit-modal";
 import type { Resource } from "@/lib/types";
-import type { GradeWithFullHierarchy } from "@/lib/types";
+import type { LevelWithFullHierarchy } from "@/lib/types";
 
 interface AdminLayoutClientProps {
   children: ReactNode;
   userId: string | null;
   dbUserId?: string | null;
   userRole?: "admin" | "super_admin";
-  initialGrades: GradeWithFullHierarchy[];
+  initialLevels: LevelWithFullHierarchy[];
 }
 
-export function AdminLayoutClient({ children, userId, dbUserId, userRole, initialGrades }: AdminLayoutClientProps) {
+export function AdminLayoutClient({ children, userId, dbUserId, userRole, initialLevels }: AdminLayoutClientProps) {
   const isMobile = useIsMobile();
   const [isClient, setIsClient] = useState(false);
   // Default to closed on mobile, open on desktop (for SSR consistency)
@@ -95,7 +95,7 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
                 <div className="flex-1 overflow-auto">
                   {dbUserId && (
                     <SidebarContentTree
-                      initialGrades={initialGrades}
+                      initialLevels={initialLevels}
                       userId={dbUserId}
                       userRole="admin"
                       onResourceSelect={handleResourceSelect}
@@ -223,7 +223,7 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
         <div className="flex-1 overflow-auto">
           {dbUserId && (
             <SidebarContentTree
-              initialGrades={initialGrades}
+              initialLevels={initialLevels}
               userId={dbUserId}
               userRole="admin"
               onResourceSelect={handleResourceSelect}

@@ -40,16 +40,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { EditGradeForm } from "@/components/admin/edit-grade-form";
+import { EditLevelForm } from "@/components/admin/edit-level-form";
 import { EditSubjectForm } from "@/components/admin/edit-subject-form";
 import { EditTopicForm } from "@/components/admin/edit-topic-form";
 import { EditResourceForm } from "@/components/admin/edit-resource-form";
 import { CreateSubjectForm } from "@/components/admin/create-subject-form";
 import { CreateTopicForm } from "@/components/admin/create-topic-form";
 import { CreateResourceForm } from "@/components/admin/create-resource-form";
-import { deleteGradeWithSession, deleteSubjectWithSession, deleteTopicWithSession, deleteResource } from "@/lib/actions/admin";
-import type { GradeWithSubjects, SubjectWithTopics, TopicWithResources } from "@/lib/types";
-import type { Grade, Subject, Topic, Resource, ResourceWithRelations } from "@/lib/types";
+import { deleteLevelWithSession, deleteSubjectWithSession, deleteTopicWithSession, deleteResource } from "@/lib/actions/admin";
+import type { LevelWithSubjects, SubjectWithTopics, TopicWithResources } from "@/lib/types";
+import type { Level, Subject, Topic, Resource, ResourceWithRelations } from "@/lib/types";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,7 +59,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
-export type TreeItemType = "grade" | "subject" | "topic" | "resource";
+export type TreeItemType = "level" | "subject" | "topic" | "resource";
 
 export interface ResourceData {
   id: string;
@@ -86,7 +86,7 @@ interface SubjectData {
   ownerId?: string;
 }
 
-interface GradeData {
+interface LevelData {
   id: string;
   title: string;
   subjects: SubjectData[];
@@ -97,7 +97,7 @@ export interface TreeItemData {
   id: string;
   name: string;
   type: TreeItemType;
-  data: GradeData | SubjectData | TopicData | ResourceData;
+  data: LevelData | SubjectData | TopicData | ResourceData;
   children?: TreeItemData[];
   childCount?: number;
   isUnlocked?: boolean;
@@ -121,7 +121,7 @@ interface TreeNodeProps {
 
 const getItemIcon = (type: TreeItemType, isUnlocked?: boolean) => {
   switch (type) {
-    case "grade":
+    case "level":
       return <GraduationCap className="h-4 w-4 text-blue-500" />;
     case "subject":
       return <BookOpen className="h-4 w-4 text-green-500" />;
@@ -198,7 +198,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
     // Only show add buttons for owners
     if (!isOwner) return null;
 
-    if (item.type === "grade") {
+    if (item.type === "level") {
       return (
         <Dialog>
           <DialogTrigger asChild>
@@ -216,7 +216,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
               <DialogTitle>Add Subject</DialogTitle>
             </DialogHeader>
             <CreateSubjectForm
-              grades={[{ ...(item.data as GradeData), subjects: [] } as unknown as GradeWithSubjects]}
+              levels={[{ ...(item.data as LevelData), subjects: [] } as unknown as LevelWithSubjects]}
               onSuccess={() => window.location.reload()}
             />
           </DialogContent>
@@ -242,7 +242,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
               <DialogTitle>Add Topic</DialogTitle>
             </DialogHeader>
             <CreateTopicForm
-              subjects={[{ ...(item.data as SubjectData), topics: [], grade: { id: "", title: "" } } as unknown as SubjectWithTopics]}
+              subjects={[{ ...(item.data as SubjectData), topics: [], level: { id: "", title: "" } } as unknown as SubjectWithTopics]}
               onSuccess={() => window.location.reload()}
             />
           </DialogContent>
@@ -469,9 +469,9 @@ export function ContentFileTree({
   const [itemToEdit, setItemToEdit] = useState<TreeItemData | null>(null);
 
   const buildTreeData = useCallback(
-    (grades: GradeData[]): TreeItemData[] => {
-      return grades.map((grade) => {
-        const subjectTreeItems: TreeItemData[] = grade.subjects.map((subject) => {
+    (levels: LevelData[]): TreeItemData[] => {
+      return levels.map((level) => {
+        const subjectTreeItems: TreeItemData[] = level.subjects.map((subject) => {
           const topicTreeItems: TreeItemData[] = subject.topics.map((topic) => {
             const resourceTreeItems: TreeItemData[] = topic.resources?.map(
               (resource) => ({
@@ -508,13 +508,13 @@ export function ContentFileTree({
         });
 
         return {
-          id: grade.id,
-          name: grade.title,
-          type: "grade",
-          data: grade,
+          id: level.id,
+          name: level.title,
+          type: "level",
+          data: level,
           children: subjectTreeItems,
           childCount: subjectTreeItems.length,
-          ownerId: grade.ownerId,
+          ownerId: level.ownerId,
         };
       });
     },
@@ -532,7 +532,7 @@ export function ContentFileTree({
       }
 
       const data = await response.json();
-      const tree = buildTreeData(data.grades);
+      const tree = buildTreeData(data.levels);
       setTreeData(tree);
     } catch (err) {
       setError("Failed to load data");
@@ -578,8 +578,8 @@ export function ContentFileTree({
     setIsDeleting(true);
     try {
       switch (itemToDelete.type) {
-        case "grade":
-          await deleteGradeWithSession(itemToDelete.id);
+        case "level":
+          await deleteLevelWithSession(itemToDelete.id);
           break;
         case "subject":
           await deleteSubjectWithSession(itemToDelete.id);
@@ -716,7 +716,7 @@ export function ContentFileTree({
           {treeData.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Folder className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No grades found</p>
+              <p className="text-sm">No levels found</p>
               <p className="text-xs mt-1">Content will appear here when available</p>
             </div>
           ) : (
@@ -743,7 +743,7 @@ export function ContentFileTree({
       {/* Status Bar */}
       <div className="flex items-center justify-between px-3 py-2 text-xs text-muted-foreground border-t">
         <span>
-          {treeData.length} grade{treeData.length !== 1 ? "s" : ""}
+          {treeData.length} level{treeData.length !== 1 ? "s" : ""}
         </span>
         <span>{expandedItems.size} expanded</span>
       </div>
@@ -779,16 +779,16 @@ export function ContentFileTree({
           <DialogHeader>
             <DialogTitle>Edit {itemToEdit?.type}</DialogTitle>
           </DialogHeader>
-          {itemToEdit?.type === "grade" && (
-            <EditGradeForm 
-              grade={itemToEdit.data as unknown as Grade} 
+          {itemToEdit?.type === "level" && (
+            <EditLevelForm 
+              level={itemToEdit.data as unknown as Level} 
               onSuccess={handleEditSuccess}
             />
           )}
           {itemToEdit?.type === "subject" && (
             <EditSubjectForm 
               subject={itemToEdit.data as unknown as Subject}
-              grades={[]}
+              levels={[]}
               onSuccess={handleEditSuccess}
             />
           )}

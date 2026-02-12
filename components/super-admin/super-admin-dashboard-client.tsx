@@ -59,16 +59,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreateGradeForm } from "@/components/admin/create-grade-form";
+import { CreateLevelForm } from "@/components/admin/create-level-form";
 import { CreateSubjectForm } from "@/components/admin/create-subject-form";
 import { CreateTopicForm } from "@/components/admin/create-topic-form";
 import { CreateResourceForm } from "@/components/admin/create-resource-form";
-import { EditGradeForm } from "@/components/admin/edit-grade-form";
+import { EditLevelForm } from "@/components/admin/edit-level-form";
 import { EditSubjectForm } from "@/components/admin/edit-subject-form";
 import { EditTopicForm } from "@/components/admin/edit-topic-form";
 import { EditResourceForm } from "@/components/admin/edit-resource-form";
 import {
-  deleteGradeWithSession,
+  deleteLevelWithSession,
   deleteSubjectWithSession,
   deleteTopicWithSession,
   deleteResource,
@@ -77,32 +77,32 @@ import {
 } from "@/lib/actions/admin";
 import { ResourceViewer, ResourceViewerSkeleton } from "@/components/admin/resource-viewer";
 import type {
-  GradeWithFullHierarchy,
+  LevelWithFullHierarchy,
   SubjectWithTopics,
   TopicWithResources,
   Resource,
   ResourceWithRelations,
   User as UserType,
-  Grade,
+  Level,
   Subject,
   Topic,
 } from "@/lib/types";
 import Link from "next/link";
 
 interface SuperAdminDashboardClientProps {
-  initialGrades: GradeWithFullHierarchy[];
+  initialLevels: LevelWithFullHierarchy[];
   initialUsers: UserType[];
   initialStats: SystemStats;
 }
 
 export function SuperAdminDashboardClient({
-  initialGrades,
+  initialLevels,
   initialUsers: _initialUsers, // eslint-disable-line @typescript-eslint/no-unused-vars
   initialStats,
 }: SuperAdminDashboardClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [grades, setGrades] = useState<GradeWithFullHierarchy[]>(initialGrades);
+  const [levels, setLevels] = useState<LevelWithFullHierarchy[]>(initialLevels);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("super");
   const [revenueStats, setRevenueStats] = useState({
@@ -111,13 +111,13 @@ export function SuperAdminDashboardClient({
     completedPurchases: 0,
   });
 
-  // Sync grades when initialGrades changes (after revalidation)
+  // Sync levels when initialLevels changes (after revalidation)
   useEffect(() => {
-    setGrades(initialGrades);
-  }, [initialGrades]);
+    setLevels(initialLevels);
+  }, [initialLevels]);
 
   // Dialog states
-  const [isCreateGradeOpen, setIsCreateGradeOpen] = useState(false);
+  const [isCreateLevelOpen, setIsCreateLevelOpen] = useState(false);
   const [isCreateSubjectOpen, setIsCreateSubjectOpen] = useState(false);
   const [isCreateTopicOpen, setIsCreateTopicOpen] = useState(false);
   const [isCreateResourceOpen, setIsCreateResourceOpen] = useState(false);
@@ -137,7 +137,7 @@ export function SuperAdminDashboardClient({
   const [openResourceInEditMode, setOpenResourceInEditMode] = useState(false);
 
   // Expansion states
-  const [expandedGrades, setExpandedGrades] = useState<Set<string>>(new Set());
+  const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set());
   const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
 
@@ -160,7 +160,7 @@ export function SuperAdminDashboardClient({
   // Handle viewResource query param from file tree dropdown
   useEffect(() => {
     const viewResourceId = searchParams.get("viewResource");
-    if (viewResourceId && grades.length > 0) {
+    if (viewResourceId && levels.length > 0) {
       const loadResource = async () => {
         setIsLoadingResource(true);
         try {
@@ -176,70 +176,70 @@ export function SuperAdminDashboardClient({
       };
       loadResource();
     }
-  }, [searchParams, grades]);
+  }, [searchParams, levels]);
 
   // Separate content by owner role
-  const superAdminGrades = useMemo(() => 
-    grades.filter((g) => g.ownerRole === "super_admin"),
-    [grades]
+  const superAdminLevels = useMemo(() => 
+    levels.filter((g) => g.ownerRole === "super_admin"),
+    [levels]
   );
   
-  const adminGrades = useMemo(() => 
-    grades.filter((g) => g.ownerRole === "admin"),
-    [grades]
+  const adminLevels = useMemo(() => 
+    levels.filter((g) => g.ownerRole === "admin"),
+    [levels]
   );
 
-  const regularGrades = useMemo(() => 
-    grades.filter((g) => g.ownerRole === "regular"),
-    [grades]
+  const regularLevels = useMemo(() => 
+    levels.filter((g) => g.ownerRole === "regular"),
+    [levels]
   );
 
   // Stats calculation
   const superAdminStats = useMemo(() => {
-    const subjects = superAdminGrades.flatMap((g) => g.subjects || []);
+    const subjects = superAdminLevels.flatMap((g) => g.subjects || []);
     const topics = subjects.flatMap((s) => s.topics || []);
     const resources = topics.flatMap((t) => t.resources || []);
     return {
-      grades: superAdminGrades.length,
+      levels: superAdminLevels.length,
       subjects: subjects.length,
       topics: topics.length,
       resources: resources.length,
     };
-  }, [superAdminGrades]);
+  }, [superAdminLevels]);
 
   const adminStats = useMemo(() => {
-    const subjects = adminGrades.flatMap((g) => g.subjects || []);
+    const subjects = adminLevels.flatMap((g) => g.subjects || []);
     const topics = subjects.flatMap((s) => s.topics || []);
     const resources = topics.flatMap((t) => t.resources || []);
     return {
-      grades: adminGrades.length,
+      levels: adminLevels.length,
       subjects: subjects.length,
       topics: topics.length,
       resources: resources.length,
     };
-  }, [adminGrades]);
+  }, [adminLevels]);
 
   const regularStats = useMemo(() => {
-    const subjects = regularGrades.flatMap((g) => g.subjects || []);
+    const subjects = regularLevels.flatMap((g) => g.subjects || []);
     const topics = subjects.flatMap((s) => s.topics || []);
     const resources = topics.flatMap((t) => t.resources || []);
     return {
-      grades: regularGrades.length,
+      levels: regularLevels.length,
       subjects: subjects.length,
       topics: topics.length,
       resources: resources.length,
     };
-  }, [regularGrades]);
+  }, [regularLevels]);
 
   // Get all subjects and topics for forms
-  const allSubjects = useMemo(() => grades.flatMap((g) => g.subjects || []), [grades]);
+  const allSubjects = useMemo(() => levels.flatMap((g) => g.subjects || []), [levels]);
   const allTopics = useMemo(() => allSubjects.flatMap((s) => s.topics || []), [allSubjects]);
 
-  // Filter grades based on search
-  const filterGrades = (gradesToFilter: GradeWithFullHierarchy[]) => {
-    if (!searchQuery) return gradesToFilter;
+  // Filter levels based on search
+  const filterLevels = (levelsToFilter: LevelWithFullHierarchy[]) => {
+    if (!searchQuery) return levelsToFilter;
     const query = searchQuery.toLowerCase();
-    return gradesToFilter.filter(g => 
+    return levelsToFilter.filter(g => 
       g.title.toLowerCase().includes(query) ||
       g.subjects?.some((s: SubjectWithTopics) => 
         s.name.toLowerCase().includes(query) ||
@@ -250,18 +250,18 @@ export function SuperAdminDashboardClient({
     );
   };
 
-  const filteredSuperAdminGrades = filterGrades(superAdminGrades);
-  const filteredAdminGrades = filterGrades(adminGrades);
-  const filteredRegularGrades = filterGrades(regularGrades);
+  const filteredSuperAdminLevels = filterLevels(superAdminLevels);
+  const filteredAdminLevels = filterLevels(adminLevels);
+  const filteredRegularLevels = filterLevels(regularLevels);
 
-  const toggleGrade = (gradeId: string) => {
-    const newExpanded = new Set(expandedGrades);
-    if (newExpanded.has(gradeId)) {
-      newExpanded.delete(gradeId);
+  const toggleLevel = (levelId: string) => {
+    const newExpanded = new Set(expandedLevels);
+    if (newExpanded.has(levelId)) {
+      newExpanded.delete(levelId);
     } else {
-      newExpanded.add(gradeId);
+      newExpanded.add(levelId);
     }
-    setExpandedGrades(newExpanded);
+    setExpandedLevels(newExpanded);
   };
 
   const toggleSubject = (subjectId: string) => {
@@ -285,41 +285,41 @@ export function SuperAdminDashboardClient({
   };
 
   const expandAll = () => {
-    const allGradeIds = grades.map((g) => g.id);
-    const allSubjectIds = grades.flatMap((g) => g.subjects?.map((s) => s.id) || []);
-    const allTopicIds = grades.flatMap((g) => 
+    const allLevelIds = levels.map((g) => g.id);
+    const allSubjectIds = levels.flatMap((g) => g.subjects?.map((s) => s.id) || []);
+    const allTopicIds = levels.flatMap((g) => 
       g.subjects?.flatMap((s) => s.topics?.map((t) => t.id) || []) || []
     );
-    setExpandedGrades(new Set(allGradeIds));
+    setExpandedLevels(new Set(allLevelIds));
     setExpandedSubjects(new Set(allSubjectIds));
     setExpandedTopics(new Set(allTopicIds));
   };
 
   const collapseAll = () => {
-    setExpandedGrades(new Set());
+    setExpandedLevels(new Set());
     setExpandedSubjects(new Set());
     setExpandedTopics(new Set());
   };
 
   const getItemName = (id: string, type: string): string => {
     switch (type) {
-      case "grade": {
-        const grade = grades.find(g => g.id === id);
-        return grade?.title || "Unknown Grade";
+      case "level": {
+        const level = levels.find(g => g.id === id);
+        return level?.title || "Unknown Level";
       }
       case "subject": {
-        const subjects = grades.flatMap(g => g.subjects || []);
+        const subjects = levels.flatMap(g => g.subjects || []);
         const subject = subjects.find(s => s.id === id);
         return subject?.name || "Unknown Subject";
       }
       case "topic": {
-        const subjects = grades.flatMap(g => g.subjects || []);
+        const subjects = levels.flatMap(g => g.subjects || []);
         const topics = subjects.flatMap(s => s.topics || []);
         const topic = topics.find(t => t.id === id);
         return topic?.title || "Unknown Topic";
       }
       case "resource": {
-        const subjects = grades.flatMap(g => g.subjects || []);
+        const subjects = levels.flatMap(g => g.subjects || []);
         const topics = subjects.flatMap(s => s.topics || []);
         const resources = topics.flatMap(t => t.resources || []);
         const resource = resources.find(r => r.id === id);
@@ -388,7 +388,7 @@ export function SuperAdminDashboardClient({
     }
   };
 
-  // Edit handlers for grades, subjects, topics
+  // Edit handlers for levels, subjects, topics
   const openEditDialog = (item: { id: string; type: string; data: unknown }) => {
     setItemToEdit(item);
     setIsEditDialogOpen(true);
@@ -401,7 +401,7 @@ export function SuperAdminDashboardClient({
   };
 
   const handleCreateSuccess = () => {
-    setIsCreateGradeOpen(false);
+    setIsCreateLevelOpen(false);
     setIsCreateSubjectOpen(false);
     setIsCreateTopicOpen(false);
     setIsCreateResourceOpen(false);
@@ -413,9 +413,9 @@ export function SuperAdminDashboardClient({
     setOpenResourceInEditMode(false);
   };
 
-  const handleDeleteGrade = async (gradeId: string) => {
-    openDeleteDialog(gradeId, "grade", async () => {
-      await deleteGradeWithSession(gradeId);
+  const handleDeleteLevel = async (levelId: string) => {
+    openDeleteDialog(levelId, "level", async () => {
+      await deleteLevelWithSession(levelId);
     });
   };
 
@@ -448,7 +448,7 @@ export function SuperAdminDashboardClient({
         onBack={handleBackFromViewer}
         subjects={allSubjects.map((s) => ({
           ...s,
-          grade: grades.find((g) => g.subjects.some((sub) => sub.id === s.id)) || {
+          level: levels.find((g) => g.subjects.some((sub) => sub.id === s.id)) || {
             id: "",
             title: "Unknown",
           },
@@ -495,7 +495,7 @@ export function SuperAdminDashboardClient({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{superAdminStats.grades}</div>
+            <div className="text-2xl font-bold">{superAdminStats.levels}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {superAdminStats.subjects} subjects, {superAdminStats.resources} resources
             </p>
@@ -520,7 +520,7 @@ export function SuperAdminDashboardClient({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{adminStats.grades}</div>
+            <div className="text-2xl font-bold">{adminStats.levels}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {adminStats.subjects} subjects, {adminStats.resources} resources
             </p>
@@ -545,7 +545,7 @@ export function SuperAdminDashboardClient({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{regularStats.grades}</div>
+            <div className="text-2xl font-bold">{regularStats.levels}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {regularStats.subjects} subjects, {regularStats.resources} resources
             </p>
@@ -577,11 +577,11 @@ export function SuperAdminDashboardClient({
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
               <GraduationCap className="h-4 w-4 text-green-500" />
-              Grades
+              Levels
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-lg sm:text-xl lg:text-2xl font-bold">{initialStats.totalGrades}</div>
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold">{initialStats.totalLevels}</div>
           </CardContent>
         </Card>
         <Card>
@@ -628,17 +628,17 @@ export function SuperAdminDashboardClient({
           <TabsTrigger value="super" className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-purple-500" />
             Public
-            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800">{superAdminStats.grades}</Badge>
+            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800">{superAdminStats.levels}</Badge>
           </TabsTrigger>
           <TabsTrigger value="admin" className="flex items-center gap-2">
             <Building2 className="h-4 w-4 text-blue-500" />
             Admin
-            <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-800">{adminStats.grades}</Badge>
+            <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-800">{adminStats.levels}</Badge>
           </TabsTrigger>
           <TabsTrigger value="regular" className="flex items-center gap-2">
             <User className="h-4 w-4 text-green-500" />
             Regular
-            <Badge variant="secondary" className="ml-1 bg-green-100 text-green-800">{regularStats.grades}</Badge>
+            <Badge variant="secondary" className="ml-1 bg-green-100 text-green-800">{regularStats.levels}</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -647,23 +647,23 @@ export function SuperAdminDashboardClient({
           <div className="flex flex-wrap gap-2">
             {activeTab === "super" && (
               <>
-                <Dialog open={isCreateGradeOpen} onOpenChange={setIsCreateGradeOpen}>
+                <Dialog open={isCreateLevelOpen} onOpenChange={setIsCreateLevelOpen}>
                   <DialogTrigger asChild>
                     <Button size="sm" className="h-9 sm:h-10 gap-1.5">
                       <Plus className="h-4 w-4" />
-                      <span>Add Grade</span>
+                      <span>Add Level</span>
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                      <DialogTitle>Create New Grade</DialogTitle>
+                      <DialogTitle>Create New Level</DialogTitle>
                     </DialogHeader>
-                    <CreateGradeForm onSuccess={handleCreateSuccess} />
+                    <CreateLevelForm onSuccess={handleCreateSuccess} />
                   </DialogContent>
                 </Dialog>
                 <Dialog open={isCreateSubjectOpen} onOpenChange={setIsCreateSubjectOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={grades.length === 0}>
+                    <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={levels.length === 0}>
                       <Plus className="h-4 w-4" />
                       <span>Add Subject</span>
                     </Button>
@@ -672,7 +672,7 @@ export function SuperAdminDashboardClient({
                     <DialogHeader>
                       <DialogTitle>Create New Subject</DialogTitle>
                     </DialogHeader>
-                    <CreateSubjectForm grades={grades} onSuccess={handleCreateSuccess} />
+                    <CreateSubjectForm levels={levels} onSuccess={handleCreateSuccess} />
                   </DialogContent>
                 </Dialog>
                 <Dialog open={isCreateTopicOpen} onOpenChange={setIsCreateTopicOpen}>
@@ -737,48 +737,48 @@ export function SuperAdminDashboardClient({
             </div>
           </div>
 
-          {filteredSuperAdminGrades.length === 0 ? (
+          {filteredSuperAdminLevels.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Shield className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-lg font-medium">No public content yet</p>
                 <p className="text-sm text-muted-foreground">
-                  Create grades, subjects, and resources that will be available to all users
+                  Create levels, subjects, and resources that will be available to all users
                 </p>
-                <Button className="mt-4" onClick={() => setIsCreateGradeOpen(true)}>
+                <Button className="mt-4" onClick={() => setIsCreateLevelOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Grade
+                  Create Level
                 </Button>
               </CardContent>
             </Card>
           ) : (
-            filteredSuperAdminGrades.map((grade: GradeWithFullHierarchy) => (
-              <Card key={grade.id} className="overflow-hidden border-purple-200">
-                {/* Grade Header */}
+            filteredSuperAdminLevels.map((level: LevelWithFullHierarchy) => (
+              <Card key={level.id} className="overflow-hidden border-purple-200">
+                {/* Level Header */}
                 <div 
                   className="flex items-center justify-between p-4 bg-purple-50/50 cursor-pointer hover:bg-purple-50"
-                  onClick={() => toggleGrade(grade.id)}
+                  onClick={() => toggleLevel(level.id)}
                 >
                   <div className="flex items-center gap-3">
-                    {expandedGrades.has(grade.id) ? (
+                    {expandedLevels.has(level.id) ? (
                       <ChevronDown className="h-5 w-5 text-muted-foreground" />
                     ) : (
                       <ChevronRight className="h-5 w-5 text-muted-foreground" />
                     )}
                     <div 
                       className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
-                      style={{ backgroundColor: grade.color }}
+                      style={{ backgroundColor: level.color }}
                     >
-                      {grade.gradeNumber}
+                      {level.levelNumber}
                     </div>
                     <div>
-                      <span className="font-semibold text-lg">{grade.title}</span>
+                      <span className="font-semibold text-lg">{level.title}</span>
                       <Badge variant="outline" className="ml-2 bg-purple-100 text-purple-800 border-purple-300">
                         Public
                       </Badge>
                     </div>
                     <span className="text-sm text-muted-foreground">
-                      ({grade.subjects?.length || 0} subjects)
+                      ({level.subjects?.length || 0} subjects)
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -791,9 +791,9 @@ export function SuperAdminDashboardClient({
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-[425px]">
                         <DialogHeader>
-                          <DialogTitle>Add Subject to {grade.title}</DialogTitle>
+                          <DialogTitle>Add Subject to {level.title}</DialogTitle>
                         </DialogHeader>
-                        <CreateSubjectForm grades={[grade]} onSuccess={handleCreateSuccess} />
+                        <CreateSubjectForm levels={[level]} onSuccess={handleCreateSuccess} />
                       </DialogContent>
                     </Dialog>
                     <DropdownMenu>
@@ -803,16 +803,16 @@ export function SuperAdminDashboardClient({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditDialog({ id: grade.id, type: "grade", data: grade })}>
+                        <DropdownMenuItem onClick={() => openEditDialog({ id: level.id, type: "level", data: level ?? null })}>
                           <Edit className="h-4 w-4 mr-2" />
-                          Edit Grade
+                          Edit Level
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={() => handleDeleteGrade(grade.id)}
+                          onClick={() => handleDeleteLevel(level.id)}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
-                          Delete Grade
+                          Delete Level
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -820,14 +820,14 @@ export function SuperAdminDashboardClient({
                 </div>
 
                 {/* Subjects */}
-                {expandedGrades.has(grade.id) && (
+                {expandedLevels.has(level.id) && (
                   <div className="border-t">
-                    {grade.subjects?.length === 0 ? (
+                    {level.subjects?.length === 0 ? (
                       <div className="p-4 pl-12 text-sm text-muted-foreground">
                         No subjects yet. Add your first subject.
                       </div>
                     ) : (
-                      grade.subjects?.map((subject: SubjectWithTopics) => (
+                      level.subjects?.map((subject: SubjectWithTopics) => (
                         <div key={subject.id}>
                           {/* Subject Header */}
                           <div 
@@ -1051,7 +1051,7 @@ export function SuperAdminDashboardClient({
             </div>
           </div>
 
-          {filteredAdminGrades.length === 0 ? (
+          {filteredAdminLevels.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
@@ -1062,33 +1062,33 @@ export function SuperAdminDashboardClient({
               </CardContent>
             </Card>
           ) : (
-            filteredAdminGrades.map((grade: GradeWithFullHierarchy) => (
-              <Card key={grade.id} className="overflow-hidden border-blue-200">
-                {/* Grade Header */}
+            filteredAdminLevels.map((level: LevelWithFullHierarchy) => (
+              <Card key={level.id} className="overflow-hidden border-blue-200">
+                {/* Level Header */}
                 <div 
                   className="flex items-center justify-between p-4 bg-blue-50/50 cursor-pointer hover:bg-blue-50"
-                  onClick={() => toggleGrade(grade.id)}
+                  onClick={() => toggleLevel(level.id)}
                 >
                   <div className="flex items-center gap-3">
-                    {expandedGrades.has(grade.id) ? (
+                    {expandedLevels.has(level.id) ? (
                       <ChevronDown className="h-5 w-5 text-muted-foreground" />
                     ) : (
                       <ChevronRight className="h-5 w-5 text-muted-foreground" />
                     )}
                     <div 
                       className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
-                      style={{ backgroundColor: grade.color }}
+                      style={{ backgroundColor: level.color }}
                     >
-                      {grade.gradeNumber}
+                      {level.levelNumber}
                     </div>
                     <div>
-                      <span className="font-semibold text-lg">{grade.title}</span>
+                      <span className="font-semibold text-lg">{level.title}</span>
                       <Badge variant="outline" className="ml-2 bg-blue-100 text-blue-800 border-blue-300">
                         Admin
                       </Badge>
                     </div>
                     <span className="text-sm text-muted-foreground">
-                      ({grade.subjects?.length || 0} subjects)
+                      ({level.subjects?.length || 0} subjects)
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1099,16 +1099,16 @@ export function SuperAdminDashboardClient({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditDialog({ id: grade.id, type: "grade", data: grade })}>
+                        <DropdownMenuItem onClick={() => openEditDialog({ id: level.id, type: "level", data: level ?? null })}>
                           <Edit className="h-4 w-4 mr-2" />
-                          Edit Grade
+                          Edit Level
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={() => handleDeleteGrade(grade.id)}
+                          onClick={() => handleDeleteLevel(level.id)}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
-                          Delete Grade
+                          Delete Level
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -1116,14 +1116,14 @@ export function SuperAdminDashboardClient({
                 </div>
 
                 {/* Subjects */}
-                {expandedGrades.has(grade.id) && (
+                {expandedLevels.has(level.id) && (
                   <div className="border-t">
-                    {grade.subjects?.length === 0 ? (
+                    {level.subjects?.length === 0 ? (
                       <div className="p-4 pl-12 text-sm text-muted-foreground">
                         No subjects yet.
                       </div>
                     ) : (
-                      grade.subjects?.map((subject: SubjectWithTopics) => (
+                      level.subjects?.map((subject: SubjectWithTopics) => (
                         <div key={subject.id}>
                           {/* Subject Header */}
                           <div 
@@ -1312,7 +1312,7 @@ export function SuperAdminDashboardClient({
             </div>
           </div>
 
-          {filteredRegularGrades.length === 0 ? (
+          {filteredRegularLevels.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <User className="h-12 w-12 text-muted-foreground mb-4" />
@@ -1323,33 +1323,33 @@ export function SuperAdminDashboardClient({
               </CardContent>
             </Card>
           ) : (
-            filteredRegularGrades.map((grade: GradeWithFullHierarchy) => (
-              <Card key={grade.id} className="overflow-hidden border-green-200">
-                {/* Grade Header */}
+            filteredRegularLevels.map((level: LevelWithFullHierarchy) => (
+              <Card key={level.id} className="overflow-hidden border-green-200">
+                {/* Level Header */}
                 <div 
                   className="flex items-center justify-between p-4 bg-green-50/50 cursor-pointer hover:bg-green-50"
-                  onClick={() => toggleGrade(grade.id)}
+                  onClick={() => toggleLevel(level.id)}
                 >
                   <div className="flex items-center gap-3">
-                    {expandedGrades.has(grade.id) ? (
+                    {expandedLevels.has(level.id) ? (
                       <ChevronDown className="h-5 w-5 text-muted-foreground" />
                     ) : (
                       <ChevronRight className="h-5 w-5 text-muted-foreground" />
                     )}
                     <div 
                       className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
-                      style={{ backgroundColor: grade.color }}
+                      style={{ backgroundColor: level.color }}
                     >
-                      {grade.gradeNumber}
+                      {level.levelNumber}
                     </div>
                     <div>
-                      <span className="font-semibold text-lg">{grade.title}</span>
+                      <span className="font-semibold text-lg">{level.title}</span>
                       <Badge variant="outline" className="ml-2 bg-green-100 text-green-800 border-green-300">
                         Regular
                       </Badge>
                     </div>
                     <span className="text-sm text-muted-foreground">
-                      ({grade.subjects?.length || 0} subjects)
+                      ({level.subjects?.length || 0} subjects)
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1360,16 +1360,16 @@ export function SuperAdminDashboardClient({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditDialog({ id: grade.id, type: "grade", data: grade })}>
+                        <DropdownMenuItem onClick={() => openEditDialog({ id: level.id, type: "level", data: level ?? null })}>
                           <Edit className="h-4 w-4 mr-2" />
-                          Edit Grade
+                          Edit Level
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={() => handleDeleteGrade(grade.id)}
+                          onClick={() => handleDeleteLevel(level.id)}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
-                          Delete Grade
+                          Delete Level
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -1377,14 +1377,14 @@ export function SuperAdminDashboardClient({
                 </div>
 
                 {/* Subjects */}
-                {expandedGrades.has(grade.id) && (
+                {expandedLevels.has(level.id) && (
                   <div className="border-t">
-                    {grade.subjects?.length === 0 ? (
+                    {level.subjects?.length === 0 ? (
                       <div className="p-4 pl-12 text-sm text-muted-foreground">
                         No subjects yet.
                       </div>
                     ) : (
-                      grade.subjects?.map((subject: SubjectWithTopics) => (
+                      level.subjects?.map((subject: SubjectWithTopics) => (
                         <div key={subject.id}>
                           {/* Subject Header */}
                           <div 
@@ -1593,16 +1593,16 @@ export function SuperAdminDashboardClient({
           <DialogHeader>
             <DialogTitle>Edit {itemToEdit?.type}</DialogTitle>
           </DialogHeader>
-          {itemToEdit?.type === "grade" && (
-            <EditGradeForm 
-              grade={itemToEdit.data as Grade} 
+          {itemToEdit?.type === "level" && (
+            <EditLevelForm 
+              level={itemToEdit.data as Level} 
               onSuccess={handleEditSuccess}
             />
           )}
           {itemToEdit?.type === "subject" && (
             <EditSubjectForm 
               subject={itemToEdit.data as Subject}
-              grades={grades}
+              levels={levels}
               onSuccess={handleEditSuccess}
             />
           )}
@@ -1646,7 +1646,7 @@ export function SuperAdminDashboardClient({
             ) : (
               <EditResourceForm 
                 resource={itemToEdit.data as ResourceWithRelations}
-                subjects={allSubjects.map(s => ({ id: s.id, name: s.name, grade: { id: s.gradeId, title: "Grade" } }))}
+                subjects={allSubjects.map(s => ({ id: s.id, name: s.name, level: { id: s.levelId, title: "Level" } }))}
                 topics={allTopics.map(t => ({ id: t.id, title: t.title, subjectId: t.subjectId }))}
                 onSuccess={handleEditSuccess}
                 onCancel={() => setIsEditDialogOpen(false)}

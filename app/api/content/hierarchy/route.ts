@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getGradesFullHierarchy } from "@/lib/actions/admin";
+import { getLevelsFullHierarchy } from "@/lib/actions/admin";
 
 export async function GET(req: Request) {
   try {
@@ -13,14 +13,14 @@ export async function GET(req: Request) {
       );
     }
 
-    const grades = await getGradesFullHierarchy();
+    const levels = await getLevelsFullHierarchy();
 
     return NextResponse.json({
-      grades: grades.map(grade => ({
-        id: grade.id,
-        name: grade.title,
-        type: "grade",
-        children: grade.subjects?.map(subject => ({
+      levels: levels.map(level => ({
+        id: level.id,
+        name: level.title,
+        type: "level",
+        children: level.subjects?.map(subject => ({
           id: subject.id,
           name: subject.name,
           type: "subject",

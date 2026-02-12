@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getGradesFullHierarchy } from "@/lib/actions/admin";
+import { getLevelsFullHierarchy } from "@/lib/actions/admin";
 import { hasUserUnlockedContent, getUnlockFeeByResource } from "@/lib/actions/credits";
 import { DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
 
@@ -15,15 +15,15 @@ export async function GET(req: Request) {
       );
     }
 
-    const grades = await getGradesFullHierarchy();
+    const levels = await getLevelsFullHierarchy();
 
     // Check unlock status for each resource
-    const gradesWithUnlockStatus = await Promise.all(
-      grades.map(async (grade) => ({
-        id: grade.id,
-        title: grade.title,
+    const levelsWithUnlockStatus = await Promise.all(
+      levels.map(async (level) => ({
+        id: level.id,
+        title: level.title,
         subjects: await Promise.all(
-          (grade.subjects || []).map(async (subject) => ({
+          (level.subjects || []).map(async (subject) => ({
             id: subject.id,
             name: subject.name,
             topics: await Promise.all(
@@ -65,11 +65,11 @@ export async function GET(req: Request) {
     );
 
     return NextResponse.json({
-      grades: gradesWithUnlockStatus,
+      levels: levelsWithUnlockStatus,
     });
 
   } catch (error) {
-    console.error("Grades with unlock status error:", error);
+    console.error("Levels with unlock status error:", error);
     return NextResponse.json(
       { error: "Failed to load content" },
       { status: 500 }

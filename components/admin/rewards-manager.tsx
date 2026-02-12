@@ -454,7 +454,7 @@ function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
 interface ContentItem {
   id: string;
   name: string;
-  type: "grade" | "subject" | "topic" | "resource";
+  type: "level" | "subject" | "topic" | "resource";
   children?: ContentItem[];
 }
 
@@ -465,7 +465,7 @@ function UnlockContentTab() {
   const [userData, setUserData] = useState<{ email: string; userId: string; name?: string } | null>(null);
   const [contentHierarchy, setContentHierarchy] = useState<ContentItem[]>([]);
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
-  const [expandedGrades, setExpandedGrades] = useState<Set<string>>(new Set());
+  const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set());
   const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
   const [result, setResult] = useState<{
@@ -576,7 +576,7 @@ function UnlockContentTab() {
   const renderContentTree = (items: ContentItem[], depth = 0) => {
     return items.map((item) => {
       const isExpanded = 
-        item.type === "grade" ? expandedGrades.has(item.id) :
+        item.type === "level" ? expandedLevels.has(item.id) :
         item.type === "subject" ? expandedSubjects.has(item.id) :
         item.type === "topic" ? expandedTopics.has(item.id) : false;
 
@@ -596,7 +596,7 @@ function UnlockContentTab() {
               if (isSelectable) {
                 setSelectedResourceId(item.id);
               } else if (hasChildren) {
-                if (item.type === "grade") toggleExpand(item.id, expandedGrades, setExpandedGrades);
+                if (item.type === "level") toggleExpand(item.id, expandedLevels, setExpandedLevels);
                 else if (item.type === "subject") toggleExpand(item.id, expandedSubjects, setExpandedSubjects);
                 else if (item.type === "topic") toggleExpand(item.id, expandedTopics, setExpandedTopics);
               }
@@ -608,7 +608,7 @@ function UnlockContentTab() {
               <div className="w-4" />
             )}
             
-            {item.type === "grade" && <FolderOpen className="h-4 w-4 text-blue-500" />}
+            {item.type === "level" && <FolderOpen className="h-4 w-4 text-blue-500" />}
             {item.type === "subject" && <BookOpen className="h-4 w-4 text-green-500" />}
             {item.type === "topic" && <FileText className="h-4 w-4 text-yellow-500" />}
             {item.type === "resource" && <FileText className="h-4 w-4 text-gray-500" />}

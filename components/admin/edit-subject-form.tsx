@@ -13,19 +13,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { updateSubjectWithSession } from "@/lib/actions/admin";
-import type { Subject, GradeWithSubjects } from "@/lib/types";
+import type { Subject, LevelWithSubjects } from "@/lib/types";
 
 interface EditSubjectFormProps {
   subject: Subject;
-  grades: GradeWithSubjects[];
+  levels: LevelWithSubjects[];
   onSuccess?: () => void;
 }
 
-export function EditSubjectForm({ subject, grades, onSuccess }: EditSubjectFormProps) {
+export function EditSubjectForm({ subject, levels, onSuccess }: EditSubjectFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    gradeId: subject.gradeId,
+    levelId: subject.levelId,
     name: subject.name,
     icon: subject.icon,
     color: subject.color,
@@ -49,18 +49,18 @@ export function EditSubjectForm({ subject, grades, onSuccess }: EditSubjectFormP
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="gradeId">Grade</Label>
+        <Label htmlFor="levelId">Level</Label>
         <Select
-          value={formData.gradeId}
-          onValueChange={(value) => setFormData({ ...formData, gradeId: value })}
+          value={formData.levelId}
+          onValueChange={(value) => setFormData({ ...formData, levelId: value })}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select a grade" />
+            <SelectValue placeholder="Select a level" />
           </SelectTrigger>
           <SelectContent>
-            {grades.map((grade) => (
-              <SelectItem key={grade.id} value={grade.id}>
-                {grade.title}
+            {levels.map((level) => (
+              <SelectItem key={level.id} value={level.id}>
+                {level.title}
               </SelectItem>
             ))}
           </SelectContent>
@@ -101,7 +101,7 @@ export function EditSubjectForm({ subject, grades, onSuccess }: EditSubjectFormP
           <span className="text-sm text-muted-foreground">{formData.color}</span>
         </div>
       </div>
-      <Button type="submit" className="w-full" disabled={isLoading || grades.length === 0}>
+      <Button type="submit" className="w-full" disabled={isLoading || levels.length === 0}>
         {isLoading ? "Saving..." : "Save Changes"}
       </Button>
     </form>

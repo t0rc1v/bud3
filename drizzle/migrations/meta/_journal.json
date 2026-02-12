@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1770794581000,
-      "tag": "0000_true_cardiac",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1770824561886,
-      "tag": "0001_damp_randall",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1770878395525,
-      "tag": "0002_add_transfer_transaction_type",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1770884240657,
-      "tag": "0003_ambitious_darkhawk",
+      "when": 1770892765214,
+      "tag": "0000_good_lady_vermin",
       "breakpoints": true
     }
   ]

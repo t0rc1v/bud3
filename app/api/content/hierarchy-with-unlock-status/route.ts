@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getGradesFullHierarchy } from "@/lib/actions/admin";
+import { getLevelsFullHierarchy } from "@/lib/actions/admin";
 import { hasUserUnlockedContent, getUnlockFeeByResource } from "@/lib/actions/credits";
 import { getUserByClerkId } from "@/lib/actions/auth";
 import { getRegularAdminIds } from "@/lib/actions/admin";
 import { DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
-import type { GradeWithFullHierarchy, SubjectWithTopics, TopicWithResources, Resource } from "@/lib/types";
+import type { LevelWithFullHierarchy, SubjectWithTopics, TopicWithResources, Resource } from "@/lib/types";
 import type { UserRole } from "@/lib/types";
 
 /**
@@ -157,28 +157,28 @@ function filterSubjects(
 }
 
 /**
- * Filter grades based on ownership (and their subjects)
+ * Filter levels based on ownership (and their subjects)
  */
-function filterGrades(
-  grades: GradeWithFullHierarchy[],
+function filterLevels(
+  levels: LevelWithFullHierarchy[],
   userId: string,
   userRole: UserRole,
   userAdminIds: string[]
-): GradeWithFullHierarchy[] {
-  return grades
-    .filter((grade) =>
+): LevelWithFullHierarchy[] {
+  return levels
+    .filter((level) =>
       canAccessContent(
-        grade.ownerId,
-        grade.ownerRole,
-        grade.visibility,
+        level.ownerId,
+        level.ownerRole,
+        level.visibility,
         userId,
         userRole,
         userAdminIds
       )
     )
-    .map((grade) => ({
-      ...grade,
-      subjects: filterSubjects(grade.subjects || [], userId, userRole, userAdminIds),
+    .map((level) => ({
+      ...level,
+      subjects: filterSubjects(level.subjects || [], userId, userRole, userAdminIds),
     }));
 }
 
@@ -213,19 +213,19 @@ export async function GET(req: Request) {
     // Get admin IDs for regular users (supports multiple admins)
     const userAdminIds = userRole === "regular" ? await getRegularAdminIds(userDbId) : [];
 
-    const grades = await getGradesFullHierarchy();
+    const levels = await getLevelsFullHierarchy();
 
-    // Filter grades based on ownership
-    const filteredGrades = filterGrades(grades, userDbId, userRole, userAdminIds);
+    // Filter levels based on ownership
+    const filteredLevels = filterLevels(levels, userDbId, userRole, userAdminIds);
 
     // Check unlock status for each resource
-    const gradesWithUnlockStatus = await Promise.all(
-      filteredGrades.map(async (grade) => ({
-        id: grade.id,
-        title: grade.title,
-        ownerId: grade.ownerId,
+    const levelsWithUnlockStatus = await Promise.all(
+      filteredLevels.map(async (level) => ({
+        id: level.id,
+        title: level.title,
+        ownerId: level.ownerId,
         subjects: await Promise.all(
-          (grade.subjects || []).map(async (subject) => ({
+          (level.subjects || []).map(async (subject) => ({
             id: subject.id,
             name: subject.name,
             ownerId: subject.ownerId,
@@ -268,7 +268,7 @@ export async function GET(req: Request) {
     );
 
     return NextResponse.json({
-      grades: gradesWithUnlockStatus,
+      levels: levelsWithUnlockStatus,
     });
 
   } catch (error) {

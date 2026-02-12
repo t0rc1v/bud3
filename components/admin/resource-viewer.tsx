@@ -46,7 +46,7 @@ import type { ResourceWithRelations, ResourceType } from "@/lib/types";
 interface ResourceViewerProps {
   resource: ResourceWithRelations;
   onBack: () => void;
-  subjects: { id: string; name: string; grade: { id: string; title: string } }[];
+  subjects: { id: string; name: string; level: { id: string; title: string } }[];
   topics: { id: string; title: string; subjectId: string }[];
   initialEditMode?: boolean;
 }

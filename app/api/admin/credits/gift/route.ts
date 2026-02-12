@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { email, amount, reason } = body;
+    const { email, amount, reason, expirationDays } = body;
 
     // Validate inputs
     if (!email || !amount || !reason) {
@@ -43,8 +43,18 @@ export async function POST(req: Request) {
       );
     }
 
+    // Validate expirationDays if provided
+    if (expirationDays !== undefined && expirationDays !== null) {
+      if (typeof expirationDays !== 'number' || expirationDays < 1 || expirationDays > 365) {
+        return NextResponse.json(
+          { error: "Expiration days must be between 1 and 365, or null for no expiration" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Execute gift
-    const result = await giftCredits(userId, email, amount, reason);
+    const result = await giftCredits(userId, email, amount, reason, expirationDays);
 
     return NextResponse.json({
       ...result,

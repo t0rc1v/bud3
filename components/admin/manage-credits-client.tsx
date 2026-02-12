@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -104,6 +104,13 @@ function GiftCreditsTab() {
   const [email, setEmail] = useState("");
   const [amount, setAmount] = useState(50);
   const [reason, setReason] = useState("");
+  const [expirationDays, setExpirationDays] = useState<number>(30);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [adminCreditInfo, setAdminCreditInfo] = useState<{
+    activeBalance: number;
+    totalBalance: number;
+    expiredCredits: number;
+  } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{
     success: boolean;
@@ -111,6 +118,27 @@ function GiftCreditsTab() {
     userId?: string;
     email?: string;
   } | null>(null);
+
+  // Fetch admin info and credit balance on mount
+  useEffect(() => {
+    const fetchAdminInfo = async () => {
+      try {
+        const response = await fetch("/api/admin/credits/info");
+        if (response.ok) {
+          const data = await response.json();
+          setIsSuperAdmin(data.isSuperAdmin);
+          setAdminCreditInfo({
+            activeBalance: data.activeBalance,
+            totalBalance: data.totalBalance,
+            expiredCredits: data.expiredCredits,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch admin info:", error);
+      }
+    };
+    fetchAdminInfo();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,7 +149,12 @@ function GiftCreditsTab() {
       const response = await fetch("/api/admin/credits/gift", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, amount, reason }),
+        body: JSON.stringify({ 
+          email, 
+          amount, 
+          reason,
+          expirationDays: isSuperAdmin && expirationDays === 0 ? null : expirationDays 
+        }),
       });
 
       const data = await response.json();
@@ -129,7 +162,7 @@ function GiftCreditsTab() {
       if (response.ok && data.success) {
         setResult({
           success: true,
-          message: `Successfully gifted ${amount} credits to ${email}`,
+          message: `Successfully gifted ${amount} credits to ${email}${data.expiresAt ? ` (expires: ${new Date(data.expiresAt).toLocaleDateString()})` : ' (never expires)'}`,
           userId: data.userId,
           email: data.email,
         });
@@ -137,6 +170,7 @@ function GiftCreditsTab() {
         setEmail("");
         setAmount(50);
         setReason("");
+        setExpirationDays(30);
       } else {
         setResult({
           success: false,
@@ -152,6 +186,9 @@ function GiftCreditsTab() {
       setIsSubmitting(false);
     }
   };
+
+  // Calculate if admin has enough active credits
+  const hasEnoughCredits = !adminCreditInfo || (adminCreditInfo.activeBalance >= amount + 100); // 100 is minimum balance
 
   return (
     <Card>
@@ -186,6 +223,34 @@ function GiftCreditsTab() {
                 <p className="text-sm text-muted-foreground">{result.message}</p>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Admin Credit Info */}
+        {adminCreditInfo && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="text-sm font-medium text-blue-800 mb-2">Your Credit Balance</h4>
+            <div className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-blue-600">Active Credits:</span>
+                <span className="font-medium">{adminCreditInfo.activeBalance}</span>
+              </div>
+              {adminCreditInfo.expiredCredits > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-red-600">Expired Credits:</span>
+                  <span className="font-medium text-red-500">{adminCreditInfo.expiredCredits}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm">
+                <span className="text-blue-600">Total Credits:</span>
+                <span className="font-medium">{adminCreditInfo.totalBalance}</span>
+              </div>
+            </div>
+            {!hasEnoughCredits && (
+              <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                <strong>Warning:</strong> You don't have enough active credits. You need {amount + 100} active credits (including 100 minimum balance).
+              </div>
+            )}
           </div>
         )}
 
@@ -227,6 +292,112 @@ function GiftCreditsTab() {
             </p>
           </div>
 
+          {/* Expiration Settings */}
+          <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <Label className="flex items-center gap-2 text-base font-semibold">
+              <RefreshCw className="h-4 w-4" />
+              Expiration Settings
+            </Label>
+            
+            {/* Expiration Type Selection */}
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Choose expiration type:</Label>
+              <div className="grid grid-cols-1 gap-2">
+                {/* Default 30 Days Option */}
+                <label className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-blue-400 transition-colors">
+                  <input
+                    type="radio"
+                    name="expirationType"
+                    checked={expirationDays === 30}
+                    onChange={() => setExpirationDays(30)}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <div className="flex-1">
+                    <span className="font-medium text-sm">Default (30 days)</span>
+                    <p className="text-xs text-muted-foreground">Credits expire 30 days from today</p>
+                  </div>
+                  <Badge variant="secondary">Standard</Badge>
+                </label>
+
+                {/* Custom Date Option */}
+                <label className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-blue-400 transition-colors">
+                  <input
+                    type="radio"
+                    name="expirationType"
+                    checked={expirationDays !== 30 && expirationDays !== 0}
+                    onChange={() => setExpirationDays(60)}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <div className="flex-1">
+                    <span className="font-medium text-sm">Custom Expiration</span>
+                    <p className="text-xs text-muted-foreground">Set a specific expiration date</p>
+                  </div>
+                  <Badge variant="outline">Custom</Badge>
+                </label>
+
+                {/* Super Admin Only - Never Expire Option */}
+                {isSuperAdmin && (
+                  <label className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-purple-400 transition-colors">
+                    <input
+                      type="radio"
+                      name="expirationType"
+                      checked={expirationDays === 0}
+                      onChange={() => setExpirationDays(0)}
+                      className="w-4 h-4 text-purple-600"
+                    />
+                    <div className="flex-1">
+                      <span className="font-medium text-sm text-purple-700">Never Expire</span>
+                      <p className="text-xs text-muted-foreground">Credits never expire (Super Admin only)</p>
+                    </div>
+                    <Badge className="bg-purple-100 text-purple-700 border-purple-300">Premium</Badge>
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Custom Days Input (shown when custom is selected) */}
+            {expirationDays !== 30 && expirationDays !== 0 && (
+              <div className="pt-2 border-t border-slate-200">
+                <Label htmlFor="customExpiration" className="text-sm mb-2 block">
+                  Custom Expiration (Days from today)
+                </Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    id="customExpiration"
+                    type="number"
+                    min={1}
+                    max={365}
+                    step={1}
+                    value={expirationDays}
+                    onChange={(e) => setExpirationDays(Number(e.target.value))}
+                    className="w-32"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    = Expires on {new Date(Date.now() + expirationDays * 24 * 60 * 60 * 1000).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Enter a number between 1 and 365 days
+                </p>
+              </div>
+            )}
+
+            {/* Summary Display */}
+            <div className="pt-3 border-t border-slate-200">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Expiration Date:</span>
+                <span className={cn(
+                  "text-sm font-semibold",
+                  expirationDays === 0 ? "text-purple-600" : "text-blue-600"
+                )}>
+                  {expirationDays === 0 
+                    ? "Never expires" 
+                    : new Date(Date.now() + expirationDays * 24 * 60 * 60 * 1000).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="reason" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
@@ -247,7 +418,7 @@ function GiftCreditsTab() {
           <Button 
             type="submit" 
             className="w-full"
-            disabled={isSubmitting || !email || !reason || amount < 1}
+            disabled={isSubmitting || !email || !reason || amount < 1 || !hasEnoughCredits}
           >
             {isSubmitting ? (
               <>

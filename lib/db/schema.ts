@@ -370,6 +370,7 @@ export const userCredit = pgTable("user_credit", {
   balance: integer('balance').notNull().default(0),
   totalPurchased: integer('total_purchased').notNull().default(0),
   totalUsed: integer('total_used').notNull().default(0),
+  expiredCredits: integer('expired_credits').notNull().default(0), // Total credits that have expired
   updatedAt,
 }, (table) => ({
   uniqueUserCredit: { columns: [table.userId] },
@@ -397,8 +398,12 @@ export const creditTransaction = pgTable("credit_transaction", {
   balanceAfter: integer('balance_after').notNull(),
   description: text('description'),
   metadata: jsonb('metadata'), // Additional info like resourceId, chatId, etc.
+  expiresAt: timestamp('expires_at', { withTimezone: true }), // null means never expires (super-admin gifts)
   createdAt,
-});
+}, (table) => ({
+  expiresAtIdx: { columns: [table.expiresAt] },
+  userExpiresAtIdx: { columns: [table.userId, table.expiresAt] },
+}));
 
 // M-Pesa payment tracking
 export const paymentStatusEnum = pgEnum("payment_status", [

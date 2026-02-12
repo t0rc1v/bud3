@@ -330,6 +330,10 @@ export const DEFAULT_CREDIT_CONFIG = {
 
   // Admin gifting configuration
   minimumAdminCreditBalance: 100, // Minimum credits admins must maintain when gifting
+
+  // Credit expiration configuration
+  CREDIT_EXPIRATION_DAYS: 30, // Credits expire 30 days from purchase/gift date
+  EXPIRATION_WARNING_DAYS: 7, // Show warning when credits expire within 7 days
 };
 
 // Export all functions as a service object

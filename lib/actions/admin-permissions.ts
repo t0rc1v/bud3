@@ -102,7 +102,7 @@ export async function createRole(
       );
     }
 
-    revalidatePath("/admin/manage-admins");
+    revalidatePath("/super-admin/manage-admins");
     return { success: true, roleId: newRole.id };
   } catch (error) {
     console.error("Error creating role:", error);
@@ -156,7 +156,7 @@ export async function updateRole(
       }
     }
 
-    revalidatePath("/admin/manage-admins");
+    revalidatePath("/super-admin/manage-admins");
     return { success: true };
   } catch (error) {
     console.error("Error updating role:", error);
@@ -184,7 +184,7 @@ export async function deleteRole(roleId: string): Promise<{ success: boolean; er
     // Delete the role
     await db.delete(role).where(eq(role.id, roleId));
 
-    revalidatePath("/admin/manage-admins");
+    revalidatePath("/super-admin/manage-admins");
     return { success: true };
   } catch (error) {
     console.error("Error deleting role:", error);
@@ -345,7 +345,7 @@ export async function updateAdminRole(
       })
       .where(eq(user.id, adminId));
 
-    revalidatePath("/admin/manage-admins");
+    revalidatePath("/super-admin/manage-admins");
     return { success: true };
   } catch (error) {
     console.error("Error updating admin role:", error);
@@ -399,7 +399,7 @@ export async function deleteAdmin(
       })
       .where(eq(user.id, adminId));
 
-    revalidatePath("/admin/manage-admins");
+    revalidatePath("/super-admin/manage-admins");
     return { success: true };
   } catch (error) {
     console.error("Error deleting admin:", error);
@@ -430,7 +430,7 @@ export async function assignPermissionsToUser(
       );
     }
 
-    revalidatePath("/admin/manage-admins");
+    revalidatePath("/super-admin/manage-admins");
     return { success: true };
   } catch (error) {
     console.error("Error assigning permissions:", error);
@@ -452,7 +452,7 @@ export async function revokePermissionFromUser(
         )
       );
 
-    revalidatePath("/admin/manage-admins");
+    revalidatePath("/super-admin/manage-admins");
     return { success: true };
   } catch (error) {
     console.error("Error revoking permission:", error);
@@ -483,7 +483,7 @@ export async function assignRoleToUser(
       assignedBy: assignedByUserId,
     });
 
-    revalidatePath("/admin/manage-admins");
+    revalidatePath("/super-admin/manage-admins");
     return { success: true };
   } catch (error) {
     console.error("Error assigning role:", error);
@@ -500,7 +500,7 @@ export async function removeRoleFromUser(
       .delete(userRoles)
       .where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleId)));
 
-    revalidatePath("/admin/manage-admins");
+    revalidatePath("/super-admin/manage-admins");
     return { success: true };
   } catch (error) {
     console.error("Error removing role:", error);
@@ -642,7 +642,7 @@ export async function promoteUserToAdmin(
       })
       .where(eq(user.id, userId));
 
-    revalidatePath("/admin/manage-admins");
+    revalidatePath("/super-admin/manage-admins");
     return { success: true };
   } catch (error) {
     console.error("Error promoting user to admin:", error);

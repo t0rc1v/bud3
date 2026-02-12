@@ -43,17 +43,28 @@ import { cn } from "@/lib/utils";
 
 interface CreditBalance {
   balance: number;
+  totalBalance: number;
+  expiredCredits: number;
+  expiringSoon: {
+    count: number;
+    credits: number;
+  };
   history: Array<{
     id: string;
     type: string;
     amount: number;
     description: string;
     createdAt: string;
+    expiresAt: string | null;
   }>;
   pricing: {
     minimumPurchase: number;
     creditsPerUnit: number;
     kesPerUnit: number;
+  };
+  expiration: {
+    days: number;
+    warningDays: number;
   };
 }
 
@@ -594,7 +605,7 @@ export function CreditModal({ trigger, className, isOpen: controlledIsOpen, onOp
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Current Balance
+                    Active Balance
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -605,6 +616,15 @@ export function CreditModal({ trigger, className, isOpen: controlledIsOpen, onOp
                   <p className="text-sm text-muted-foreground mt-2">
                     1 credit = 1 AI response
                   </p>
+                  {balance.expiringSoon.credits > 0 && (
+                    <Alert className="mt-4 bg-orange-50 border-orange-200">
+                      <AlertTriangle className="h-4 w-4 text-orange-600" />
+                      <AlertTitle className="text-orange-800">Credits Expiring Soon</AlertTitle>
+                      <AlertDescription className="text-orange-700 text-sm">
+                        {balance.expiringSoon.credits} credits will expire within {balance.expiration?.warningDays || 7} days. Use them before they expire!
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </CardContent>
               </Card>
 
@@ -638,6 +658,36 @@ export function CreditModal({ trigger, className, isOpen: controlledIsOpen, onOp
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Credit Details */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Credit Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Active Credits</span>
+                    <span className="font-medium">{balance.balance}</span>
+                  </div>
+                  {balance.expiredCredits > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Expired Credits</span>
+                      <span className="font-medium text-red-500">{balance.expiredCredits}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Total Credits (All Time)</span>
+                    <span className="font-medium">{balance.totalBalance}</span>
+                  </div>
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-muted-foreground">
+                      Credits expire {balance.expiration?.days || 30} days from purchase/gift date.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="purchase" className="space-y-4">
@@ -654,38 +704,67 @@ export function CreditModal({ trigger, className, isOpen: controlledIsOpen, onOp
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {balance.history.map((transaction) => (
-                      <Card key={transaction.id}>
-                        <CardContent className="flex items-center justify-between py-4">
-                          <div className="flex items-center gap-3">
-                            <div className={cn(
-                              "p-2 rounded-full",
-                              transaction.amount > 0 ? "bg-green-500/10" : "bg-red-500/10"
-                            )}>
-                              {transaction.amount > 0 ? (
-                                <Gift className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <Zap className="h-4 w-4 text-red-500" />
+                    {balance.history.map((transaction) => {
+                      const isExpired = transaction.expiresAt && new Date(transaction.expiresAt) < new Date();
+                      const isExpiringSoon = transaction.expiresAt && 
+                        !isExpired && 
+                        new Date(transaction.expiresAt) <= new Date(Date.now() + (balance.expiration?.warningDays || 7) * 24 * 60 * 60 * 1000);
+                      
+                      return (
+                        <Card key={transaction.id} className={cn(
+                          isExpired && "opacity-60"
+                        )}>
+                          <CardContent className="flex items-center justify-between py-4">
+                            <div className="flex items-center gap-3">
+                              <div className={cn(
+                                "p-2 rounded-full",
+                                transaction.amount > 0 ? "bg-green-500/10" : "bg-red-500/10"
+                              )}>
+                                {transaction.amount > 0 ? (
+                                  <Gift className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Zap className="h-4 w-4 text-red-500" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium">{transaction.description}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(transaction.createdAt).toLocaleDateString()}
+                                </p>
+                                {transaction.amount > 0 && transaction.expiresAt && (
+                                  <p className={cn(
+                                    "text-xs mt-1",
+                                    isExpired ? "text-red-500" : isExpiringSoon ? "text-orange-500" : "text-muted-foreground"
+                                  )}>
+                                    {isExpired ? (
+                                      <>Expired on {new Date(transaction.expiresAt).toLocaleDateString()}</>
+                                    ) : isExpiringSoon ? (
+                                      <>Expires soon: {new Date(transaction.expiresAt).toLocaleDateString()}</>
+                                    ) : (
+                                      <>Expires: {new Date(transaction.expiresAt).toLocaleDateString()}</>
+                                    )}
+                                  </p>
+                                )}
+                                {transaction.amount > 0 && !transaction.expiresAt && (
+                                  <p className="text-xs text-green-600 mt-1">
+                                    Never expires
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <Badge 
+                              variant={transaction.amount > 0 ? "default" : "secondary"}
+                              className={cn(
+                                transaction.amount > 0 ? "bg-green-500" : "",
+                                isExpired && "bg-gray-400"
                               )}
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">{transaction.description}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(transaction.createdAt).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                          <Badge 
-                            variant={transaction.amount > 0 ? "default" : "secondary"}
-                            className={cn(
-                              transaction.amount > 0 ? "bg-green-500" : ""
-                            )}
-                          >
-                            {transaction.amount > 0 ? "+" : ""}{transaction.amount}
-                          </Badge>
-                        </CardContent>
-                      </Card>
-                    ))}
+                            >
+                              {transaction.amount > 0 ? "+" : ""}{transaction.amount}
+                            </Badge>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 )}
               </ScrollArea>

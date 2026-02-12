@@ -46,8 +46,8 @@ export async function getUserCreditBalance(userId: string): Promise<number> {
 }
 
 export async function hasEnoughCredits(userId: string, amount: number): Promise<boolean> {
-  const balance = await getUserCreditBalance(userId);
-  return balance >= amount;
+  const activeBalance = await getActiveCreditBalance(userId);
+  return activeBalance >= amount;
 }
 
 // ============== CREDIT TRANSACTIONS ==============
@@ -58,6 +58,7 @@ export interface TransactionData {
   amount: number; // positive for credits added, negative for credits used
   description: string;
   metadata?: Record<string, unknown>;
+  expiresAt?: Date | null; // null means never expires (super-admin gifts)
 }
 
 export async function createCreditTransaction(data: TransactionData) {
@@ -78,6 +79,7 @@ export async function createCreditTransaction(data: TransactionData) {
       balanceAfter: newBalance,
       description: data.description,
       metadata: data.metadata || {},
+      expiresAt: data.expiresAt || null,
     })
     .returning();
 
@@ -125,15 +127,114 @@ export async function addCredits(
   amount: number, 
   type: "purchase" | "gift" | "bonus" | "refund",
   description: string,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
+  expirationDays?: number | null
 ) {
+  // Calculate expiration date
+  let expiresAt: Date | null = null;
+  
+  if (expirationDays !== null && expirationDays !== undefined) {
+    // Use custom expiration days if provided
+    expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + expirationDays);
+  } else if (type === "purchase") {
+    // Purchases always expire after 30 days
+    expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + DEFAULT_CREDIT_CONFIG.CREDIT_EXPIRATION_DAYS);
+  }
+  // For gifts: if expirationDays is null, credits never expire (super-admin only)
+  // If expirationDays is undefined, default to 30 days
+  else if (type === "gift" && expirationDays === undefined) {
+    expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + DEFAULT_CREDIT_CONFIG.CREDIT_EXPIRATION_DAYS);
+  }
+
   return createCreditTransaction({
     userId,
     type,
     amount, // positive for addition
     description,
     metadata,
+    expiresAt,
   });
+}
+
+// ============== ACTIVE CREDIT MANAGEMENT ==============
+
+/**
+ * Get all non-expired credit transactions for a user
+ * Returns transactions where expiresAt is null (never expires) or in the future
+ */
+export async function getUserActiveTransactions(userId: string) {
+  const now = new Date();
+  
+  return db.query.creditTransaction.findMany({
+    where: and(
+      eq(creditTransaction.userId, userId),
+      sql`${creditTransaction.expiresAt} IS NULL OR ${creditTransaction.expiresAt} > ${now}`
+    ),
+    orderBy: [asc(creditTransaction.createdAt)], // FIFO order
+  });
+}
+
+/**
+ * Get the active credit balance (excluding expired credits)
+ */
+export async function getActiveCreditBalance(userId: string): Promise<number> {
+  const activeTransactions = await getUserActiveTransactions(userId);
+  
+  // Sum up all active credits (positive amounts only)
+  const activeCredits = activeTransactions
+    .filter(t => t.amount > 0)
+    .reduce((sum, t) => sum + t.amount, 0);
+  
+  // Subtract used credits (negative amounts)
+  const usedCredits = activeTransactions
+    .filter(t => t.amount < 0)
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  
+  return Math.max(0, activeCredits - usedCredits);
+}
+
+/**
+ * Get detailed credit info including expired and expiring soon counts
+ */
+export async function getUserCreditDetails(userId: string) {
+  const now = new Date();
+  const warningDate = new Date();
+  warningDate.setDate(warningDate.getDate() + DEFAULT_CREDIT_CONFIG.EXPIRATION_WARNING_DAYS);
+  
+  // Get all transactions
+  const allTransactions = await db.query.creditTransaction.findMany({
+    where: eq(creditTransaction.userId, userId),
+    orderBy: [desc(creditTransaction.createdAt)],
+  });
+  
+  // Calculate expired credits
+  const expiredTransactions = allTransactions.filter(
+    t => t.expiresAt && t.expiresAt < now && t.amount > 0
+  );
+  const expiredCredits = expiredTransactions.reduce((sum, t) => sum + t.amount, 0);
+  
+  // Calculate expiring soon credits
+  const expiringSoonTransactions = allTransactions.filter(
+    t => t.expiresAt && t.expiresAt >= now && t.expiresAt <= warningDate && t.amount > 0
+  );
+  const expiringSoonCredits = expiringSoonTransactions.reduce((sum, t) => sum + t.amount, 0);
+  
+  // Calculate active balance
+  const activeBalance = await getActiveCreditBalance(userId);
+  
+  // Get total balance from userCredit record
+  const creditRecord = await getOrCreateUserCredit(userId);
+  
+  return {
+    activeBalance,
+    totalBalance: creditRecord.balance,
+    expiredCredits,
+    expiringSoonCredits,
+    expiringSoonCount: expiringSoonTransactions.length,
+  };
 }
 
 // ============== CREDIT PURCHASES ==============
@@ -376,7 +477,8 @@ export async function giftCredits(
   adminUserId: string,
   targetUserEmail: string,
   amount: number,
-  reason: string
+  reason: string,
+  expirationDays?: number | null
 ) {
   // Find target user by email
   const targetUser = await db.query.user.findFirst({
@@ -410,14 +512,28 @@ export async function giftCredits(
 
   // Check admin's credit balance (super admins bypass this check)
   if (!isSuperAdmin) {
+    // Check active credits (not total balance)
     const adminCredit = await getOrCreateUserCredit(adminUserId);
+    const activeBalance = await getActiveCreditBalance(adminUserId);
     const requiredBalance = amount + minimumBalance;
 
-    if (adminCredit.balance < requiredBalance) {
+    if (activeBalance < amount) {
+      // Not enough active credits - block the action with detailed warning
+      const expiredAmount = adminCredit.balance - activeBalance;
       throw new Error(
-        `Insufficient credits. You have ${adminCredit.balance} credits, but need ${amount} credits to gift ` +
-        `and must maintain a minimum balance of ${minimumBalance} credits. ` +
-        `Required: ${requiredBalance} credits.`
+        `Insufficient active credits. You have ${activeBalance} active credits available, ` +
+        `but ${expiredAmount > 0 ? `${expiredAmount} credits have expired` : 'all credits are expired'}. ` +
+        `You need ${amount} credits to gift and must maintain a minimum balance of ${minimumBalance} credits. ` +
+        `Please purchase more credits to continue.`
+      );
+    }
+
+    if (activeBalance < requiredBalance) {
+      // Enough active credits but would violate minimum balance requirement
+      throw new Error(
+        `Insufficient credits. You have ${activeBalance} active credits, but need ${amount} credits to gift ` +
+        `and must maintain a minimum balance of ${minimumBalance} active credits. ` +
+        `Required: ${requiredBalance} active credits.`
       );
     }
 
@@ -436,6 +552,10 @@ export async function giftCredits(
     });
   }
 
+  // For super-admins: if expirationDays is null/undefined, credits never expire
+  // For regular admins: always use default expiration (30 days) - they can't set custom expiration
+  const giftExpirationDays = isSuperAdmin ? expirationDays : undefined;
+
   // Add credits to target user (gift transaction)
   const transaction = await addCredits(
     targetUser.clerkId,
@@ -448,7 +568,9 @@ export async function giftCredits(
       reason,
       transferType: "gift_incoming",
       isFromSuperAdmin: isSuperAdmin,
-    }
+      expiresInDays: giftExpirationDays,
+    },
+    giftExpirationDays
   );
 
   // Get admin name for email
@@ -467,7 +589,7 @@ export async function giftCredits(
     // Don't throw - email failure shouldn't break the gift operation
   }
 
-  revalidatePath("/admin/manage-credits");
+  revalidatePath("/admin/rewards");
 
   return {
     success: true,
@@ -476,6 +598,7 @@ export async function giftCredits(
     email: targetUser.email,
     deductedFromAdmin: !isSuperAdmin,
     adminBalanceAfter: !isSuperAdmin ? await getUserCreditBalance(adminUserId) : undefined,
+    expiresAt: transaction.expiresAt,
   };
 }
 
@@ -488,15 +611,21 @@ export async function checkAndDeductCreditsForAIResponse(
   try {
     const creditsPerResponse = DEFAULT_CREDIT_CONFIG.creditsPerAIResponse;
     
-    // Check if user has enough credits
+    // Check if user has enough active credits
     const hasEnough = await hasEnoughCredits(userId, creditsPerResponse);
     
     if (!hasEnough) {
-      const balance = await getUserCreditBalance(userId);
+      const creditDetails = await getUserCreditDetails(userId);
+      let errorMessage = `Insufficient credits. You need ${creditsPerResponse} credits for an AI response. Your active balance is ${creditDetails.activeBalance} credits.`;
+      
+      if (creditDetails.expiredCredits > 0) {
+        errorMessage += ` ${creditDetails.expiredCredits} credits have expired.`;
+      }
+      
       return {
         success: false,
-        error: `Insufficient credits. You need ${creditsPerResponse} credits for an AI response. Your current balance is ${balance} credits.`,
-        remainingCredits: balance,
+        error: errorMessage,
+        remainingCredits: creditDetails.activeBalance,
       };
     }
 
@@ -511,7 +640,7 @@ export async function checkAndDeductCreditsForAIResponse(
       }
     );
 
-    const remainingCredits = await getUserCreditBalance(userId);
+    const remainingCredits = await getActiveCreditBalance(userId);
 
     return {
       success: true,

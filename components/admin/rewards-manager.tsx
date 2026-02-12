@@ -26,6 +26,7 @@ import {
   FolderOpen,
   ChevronDown,
   ChevronRight,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { 
@@ -108,6 +109,7 @@ function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
   const [email, setEmail] = useState("");
   const [amount, setAmount] = useState(50);
   const [reason, setReason] = useState("");
+  const [expirationDays, setExpirationDays] = useState<number>(30);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [adminBalance, setAdminBalance] = useState<number | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(true);
@@ -148,7 +150,12 @@ function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
       const response = await fetch("/api/admin/credits/gift", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, amount, reason }),
+        body: JSON.stringify({ 
+          email, 
+          amount, 
+          reason,
+          expirationDays: isSuperAdmin && expirationDays === 0 ? null : expirationDays 
+        }),
       });
 
       const data = await response.json();
@@ -156,7 +163,7 @@ function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
       if (response.ok && data.success) {
         setResult({
           success: true,
-          message: data.message || `Successfully gifted ${amount} credits to ${email}`,
+          message: data.message || `Successfully gifted ${amount} credits to ${email}${data.expiresAt ? ` (expires: ${new Date(data.expiresAt).toLocaleDateString()})` : ' (never expires)'}`,
           userId: data.userId,
           email: data.email,
         });
@@ -165,6 +172,7 @@ function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
         setEmail("");
         setAmount(50);
         setReason("");
+        setExpirationDays(30);
       } else {
         setResult({
           success: false,
@@ -293,6 +301,112 @@ function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
                 ? "Number of credits to gift (minimum 1)"
                 : `Number of credits to gift (minimum 1, maximum ${availableToGift > 0 ? availableToGift : 0})`}
             </p>
+          </div>
+
+          {/* Expiration Settings */}
+          <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <Label className="flex items-center gap-2 text-base font-semibold">
+              <RefreshCw className="h-4 w-4" />
+              Expiration Settings
+            </Label>
+            
+            {/* Expiration Type Selection */}
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Choose expiration type:</Label>
+              <div className="grid grid-cols-1 gap-2">
+                {/* Default 30 Days Option */}
+                <label className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-blue-400 transition-colors">
+                  <input
+                    type="radio"
+                    name="expirationType"
+                    checked={expirationDays === 30}
+                    onChange={() => setExpirationDays(30)}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <div className="flex-1">
+                    <span className="font-medium text-sm">Default (30 days)</span>
+                    <p className="text-xs text-muted-foreground">Credits expire 30 days from today</p>
+                  </div>
+                  <Badge variant="secondary">Standard</Badge>
+                </label>
+
+                {/* Custom Date Option */}
+                <label className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-blue-400 transition-colors">
+                  <input
+                    type="radio"
+                    name="expirationType"
+                    checked={expirationDays !== 30 && expirationDays !== 0}
+                    onChange={() => setExpirationDays(60)}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <div className="flex-1">
+                    <span className="font-medium text-sm">Custom Expiration</span>
+                    <p className="text-xs text-muted-foreground">Set a specific expiration date</p>
+                  </div>
+                  <Badge variant="outline">Custom</Badge>
+                </label>
+
+                {/* Super Admin Only - Never Expire Option */}
+                {isSuperAdmin && (
+                  <label className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-purple-400 transition-colors">
+                    <input
+                      type="radio"
+                      name="expirationType"
+                      checked={expirationDays === 0}
+                      onChange={() => setExpirationDays(0)}
+                      className="w-4 h-4 text-purple-600"
+                    />
+                    <div className="flex-1">
+                      <span className="font-medium text-sm text-purple-700">Never Expire</span>
+                      <p className="text-xs text-muted-foreground">Credits never expire (Super Admin only)</p>
+                    </div>
+                    <Badge className="bg-purple-100 text-purple-700 border-purple-300">Premium</Badge>
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Custom Days Input (shown when custom is selected) */}
+            {expirationDays !== 30 && expirationDays !== 0 && (
+              <div className="pt-2 border-t border-slate-200">
+                <Label htmlFor="customExpiration" className="text-sm mb-2 block">
+                  Custom Expiration (Days from today)
+                </Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    id="customExpiration"
+                    type="number"
+                    min={1}
+                    max={365}
+                    step={1}
+                    value={expirationDays}
+                    onChange={(e) => setExpirationDays(Number(e.target.value))}
+                    className="w-32"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    = Expires on {new Date(Date.now() + expirationDays * 24 * 60 * 60 * 1000).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Enter a number between 1 and 365 days
+                </p>
+              </div>
+            )}
+
+            {/* Summary Display */}
+            <div className="pt-3 border-t border-slate-200">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Expiration Date:</span>
+                <span className={cn(
+                  "text-sm font-semibold",
+                  expirationDays === 0 ? "text-purple-600" : "text-blue-600"
+                )}>
+                  {expirationDays === 0 
+                    ? "Never expires" 
+                    : new Date(Date.now() + expirationDays * 24 * 60 * 60 * 1000).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">

@@ -739,7 +739,7 @@ export default function LandingPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Check className="h-4 w-4 text-orange-600" />
-                      <span>Credits never expire</span>
+                      <span>Credits expire after 30 days</span>
                     </div>
                   </div>
                 </CardContent>

@@ -288,9 +288,9 @@ export const userRoleRelations = relations(userRoles, ({ one }) => ({
 // AI Chat tables
 export const chat = pgTable("chat", {
   id: uuid('id').defaultRandom().primaryKey(),
-  userId: varchar('user_id', { length: 255 })
+  userId: uuid('user_id')
     .notNull()
-    .references(() => user.clerkId, { onDelete: 'cascade' }),
+    .references(() => user.id, { onDelete: 'cascade' }),
   title: varchar('title', { length: 255 }).notNull(),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt,
@@ -311,9 +311,9 @@ export const chatMessage = pgTable("chat_message", {
 
 export const aiMemory = pgTable("ai_memory", {
   id: uuid('id').defaultRandom().primaryKey(),
-  userId: varchar('user_id', { length: 255 })
+  userId: uuid('user_id')
     .notNull()
-    .references(() => user.clerkId, { onDelete: 'cascade' }),
+    .references(() => user.id, { onDelete: 'cascade' }),
   title: varchar('title', { length: 255 }).notNull(),
   category: varchar('category', { length: 100 }),
   content: jsonb('content').notNull(), // structured data
@@ -327,7 +327,7 @@ export const aiMemory = pgTable("ai_memory", {
 export const chatRelations = relations(chat, ({ one, many }) => ({
   user: one(user, {
     fields: [chat.userId],
-    references: [user.clerkId],
+    references: [user.id],
   }),
   messages: many(chatMessage),
 }));
@@ -342,7 +342,7 @@ export const chatMessageRelations = relations(chatMessage, ({ one }) => ({
 export const aiMemoryRelations = relations(aiMemory, ({ one }) => ({
   user: one(user, {
     fields: [aiMemory.userId],
-    references: [user.clerkId],
+    references: [user.id],
   }),
 }));
 
@@ -359,9 +359,9 @@ export const userRelationsExtended = relations(user, ({ many }) => ({
 // Credit System Tables
 export const userCredit = pgTable("user_credit", {
   id: uuid('id').defaultRandom().primaryKey(),
-  userId: varchar('user_id', { length: 255 })
+  userId: uuid('user_id')
     .notNull()
-    .references(() => user.clerkId, { onDelete: 'cascade' }),
+    .references(() => user.id, { onDelete: 'cascade' }),
   balance: integer('balance').notNull().default(0),
   totalPurchased: integer('total_purchased').notNull().default(0),
   totalUsed: integer('total_used').notNull().default(0),
@@ -385,9 +385,9 @@ export const transactionTypeEnum = pgEnum("transaction_type", [
 // Credit transaction history
 export const creditTransaction = pgTable("credit_transaction", {
   id: uuid('id').defaultRandom().primaryKey(),
-  userId: varchar('user_id', { length: 255 })
+  userId: uuid('user_id')
     .notNull()
-    .references(() => user.clerkId, { onDelete: 'cascade' }),
+    .references(() => user.id, { onDelete: 'cascade' }),
   type: transactionTypeEnum('type').notNull(),
   amount: integer('amount').notNull(), // positive for credits added, negative for credits used
   balanceAfter: integer('balance_after').notNull(),
@@ -417,9 +417,9 @@ export const purchaseTypeEnum = pgEnum("purchase_type", [
 
 export const creditPurchase = pgTable("credit_purchase", {
   id: uuid('id').defaultRandom().primaryKey(),
-  userId: varchar('user_id', { length: 255 })
+  userId: uuid('user_id')
     .notNull()
-    .references(() => user.clerkId, { onDelete: 'cascade' }),
+    .references(() => user.id, { onDelete: 'cascade' }),
   mpesaReceiptNumber: varchar('mpesa_receipt_number', { length: 50 }),
   checkoutRequestId: varchar('checkout_request_id', { length: 100 }),
   merchantRequestId: varchar('merchant_request_id', { length: 100 }),
@@ -466,9 +466,9 @@ export const unlockFee = pgTable("unlock_fee", {
 // Credits are only used for AI chat responses
 export const unlockedContent = pgTable("unlocked_content", {
   id: uuid('id').defaultRandom().primaryKey(),
-  userId: varchar('user_id', { length: 255 })
+  userId: uuid('user_id')
     .notNull()
-    .references(() => user.clerkId, { onDelete: 'cascade' }),
+    .references(() => user.id, { onDelete: 'cascade' }),
   unlockFeeId: uuid('unlock_fee_id')
     .notNull()
     .references(() => unlockFee.id, { onDelete: 'cascade' }),
@@ -486,7 +486,7 @@ export const unlockedContent = pgTable("unlocked_content", {
 export const userCreditRelations = relations(userCredit, ({ one, many }) => ({
   user: one(user, {
     fields: [userCredit.userId],
-    references: [user.clerkId],
+    references: [user.id],
   }),
   transactions: many(creditTransaction),
 }));
@@ -494,14 +494,14 @@ export const userCreditRelations = relations(userCredit, ({ one, many }) => ({
 export const creditTransactionRelations = relations(creditTransaction, ({ one }) => ({
   user: one(user, {
     fields: [creditTransaction.userId],
-    references: [user.clerkId],
+    references: [user.id],
   }),
 }));
 
 export const creditPurchaseRelations = relations(creditPurchase, ({ one }) => ({
   user: one(user, {
     fields: [creditPurchase.userId],
-    references: [user.clerkId],
+    references: [user.id],
   }),
 }));
 
@@ -524,7 +524,7 @@ export const unlockFeeRelations = relations(unlockFee, ({ one, many }) => ({
 export const unlockedContentRelations = relations(unlockedContent, ({ one }) => ({
   user: one(user, {
     fields: [unlockedContent.userId],
-    references: [user.clerkId],
+    references: [user.id],
   }),
   unlockFee: one(unlockFee, {
     fields: [unlockedContent.unlockFeeId],
@@ -535,9 +535,9 @@ export const unlockedContentRelations = relations(unlockedContent, ({ one }) => 
 // AI Generated Assignments Table - for teacher-created printable assignments
 export const aiAssignment = pgTable("ai_assignment", {
   id: uuid('id').defaultRandom().primaryKey(),
-  userId: varchar('user_id', { length: 255 })
+  userId: uuid('user_id')
     .notNull()
-    .references(() => user.clerkId, { onDelete: 'cascade' }),
+    .references(() => user.id, { onDelete: 'cascade' }),
   chatId: uuid('chat_id')
     .references(() => chat.id, { onDelete: 'cascade' }),
   title: varchar('title', { length: 255 }).notNull(),
@@ -559,9 +559,9 @@ export const aiAssignment = pgTable("ai_assignment", {
 // AI Generated Quizzes Table - for learner interactive quizzes
 export const aiQuiz = pgTable("ai_quiz", {
   id: uuid('id').defaultRandom().primaryKey(),
-  userId: varchar('user_id', { length: 255 })
+  userId: uuid('user_id')
     .notNull()
-    .references(() => user.clerkId, { onDelete: 'cascade' }),
+    .references(() => user.id, { onDelete: 'cascade' }),
   chatId: uuid('chat_id')
     .references(() => chat.id, { onDelete: 'cascade' }),
   title: varchar('title', { length: 255 }).notNull(),
@@ -585,9 +585,9 @@ export const aiQuizAttempt = pgTable("ai_quiz_attempt", {
   quizId: uuid('quiz_id')
     .notNull()
     .references(() => aiQuiz.id, { onDelete: 'cascade' }),
-  userId: varchar('user_id', { length: 255 })
+  userId: uuid('user_id')
     .notNull()
-    .references(() => user.clerkId, { onDelete: 'cascade' }),
+    .references(() => user.id, { onDelete: 'cascade' }),
   answers: jsonb('answers').notNull(), // user's submitted answers
   score: integer('score').notNull(), // earned marks
   totalMarks: integer('total_marks').notNull(),
@@ -602,7 +602,7 @@ export const aiQuizAttempt = pgTable("ai_quiz_attempt", {
 export const aiAssignmentRelations = relations(aiAssignment, ({ one }) => ({
   user: one(user, {
     fields: [aiAssignment.userId],
-    references: [user.clerkId],
+    references: [user.id],
   }),
   chat: one(chat, {
     fields: [aiAssignment.chatId],
@@ -613,7 +613,7 @@ export const aiAssignmentRelations = relations(aiAssignment, ({ one }) => ({
 export const aiQuizRelations = relations(aiQuiz, ({ one, many }) => ({
   user: one(user, {
     fields: [aiQuiz.userId],
-    references: [user.clerkId],
+    references: [user.id],
   }),
   chat: one(chat, {
     fields: [aiQuiz.chatId],
@@ -629,6 +629,6 @@ export const aiQuizAttemptRelations = relations(aiQuizAttempt, ({ one }) => ({
   }),
   user: one(user, {
     fields: [aiQuizAttempt.userId],
-    references: [user.clerkId],
+    references: [user.id],
   }),
 }));

@@ -36,7 +36,7 @@ export default async function RegularLayout({
 
   return (
     <ContentLayoutClient 
-      userId={user.clerkId} 
+      userId={user.id} 
       dbUserId={user.id} 
       userRole="regular"
       initialLevels={levels}

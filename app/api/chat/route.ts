@@ -2,6 +2,7 @@ import { streamText, UIMessage, convertToModelMessages, tool, stepCountIs } from
 import { z } from 'zod';
 import { auth } from '@clerk/nextjs/server';
 import { getModel } from '@/lib/ai/providers';
+import { getUserByClerkId } from '@/lib/actions/auth';
 import {
   searchWeb,
   searchYouTube,
@@ -25,11 +26,18 @@ interface MemoryItem {
 }
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
+  const { userId: clerkId } = await auth();
   
-  if (!userId) {
+  if (!clerkId) {
     return new Response('Unauthorized', { status: 401 });
   }
+
+  // Get the database user ID from the clerk ID
+  const user = await getUserByClerkId(clerkId);
+  if (!user) {
+    return new Response('User not found', { status: 404 });
+  }
+  const dbUserId = user.id;
 
   const { messages, chatId }: { 
     messages: UIMessage[]; 
@@ -39,7 +47,7 @@ export async function POST(req: Request) {
   // Check and deduct credits for AI response
   try {
     const { checkAndDeductCreditsForAIResponse } = await import('@/lib/actions/credits');
-    const creditCheck = await checkAndDeductCreditsForAIResponse(userId, chatId);
+    const creditCheck = await checkAndDeductCreditsForAIResponse(dbUserId, chatId);
     
     if (!creditCheck.success) {
       return new Response(
@@ -105,7 +113,7 @@ export async function POST(req: Request) {
   let memoryItems: MemoryItem[] = [];
   try {
     const { getMemoryItems } = await import('@/lib/actions/ai');
-    memoryItems = await getMemoryItems(userId);
+    memoryItems = await getMemoryItems(dbUserId);
   } catch (error) {
     console.error('Failed to load memory items:', error);
   }
@@ -282,7 +290,7 @@ When responding:
           try {
             const { saveMemoryItem } = await import('@/lib/actions/ai');
             await saveMemoryItem({
-              userId,
+              userId: dbUserId,
               title,
               category,
               content,
@@ -339,9 +347,9 @@ When responding:
             
             let memories;
             if (category) {
-              memories = await getMemoryItemsByCategory(userId, category);
+              memories = await getMemoryItemsByCategory(dbUserId, category);
             } else {
-              memories = await getMemoryItems(userId);
+              memories = await getMemoryItems(dbUserId);
             }
             
             // Filter by search term if provided
@@ -411,7 +419,7 @@ When responding:
                     error: 'Missing required parameter: email is required',
                   };
                 }
-                await addMyLearner(userId, email as string, metadata as Record<string, unknown>);
+                await addMyLearner(clerkId, email as string, metadata as Record<string, unknown>);
                 return {
                   success: true,
                   action: 'add_regular',
@@ -421,7 +429,7 @@ When responding:
               
               case 'get_my_regulars': {
                 const { getMyLearners } = await import('@/lib/actions/admin');
-                const regulars = await getMyLearners(userId);
+                const regulars = await getMyLearners(clerkId);
                 return {
                   success: true,
                   action: 'get_my_regulars',
@@ -438,7 +446,6 @@ When responding:
               
               case 'create_resource': {
                 const { createResource } = await import('@/lib/actions/admin');
-                const { getUserByClerkId } = await import('@/lib/actions/auth');
                 const { subjectId, topicId, title, description, type, url, thumbnailUrl, metadata } = params;
                 if (!subjectId || !topicId || !title || !description || !type || !url) {
                   return {
@@ -446,8 +453,7 @@ When responding:
                     error: 'Missing required parameters: subjectId, topicId, title, description, type, and url are required',
                   };
                 }
-                // Get user info for ownership
-                const user = await getUserByClerkId(userId);
+                // User info already retrieved earlier
                 if (!user) {
                   return {
                     success: false,
@@ -654,7 +660,7 @@ When responding:
             // Save to database
             const { saveAIAssignment } = await import('@/lib/actions/ai');
             const savedAssignment = await saveAIAssignment({
-              userId,
+              userId: dbUserId,
               chatId,
               title,
               subject,
@@ -780,7 +786,7 @@ When responding:
             // Save to database
             const { saveAIQuiz } = await import('@/lib/actions/ai');
             const savedQuiz = await saveAIQuiz({
-              userId,
+              userId: dbUserId,
               chatId,
               title,
               subject,

@@ -32,7 +32,7 @@ export default async function AdminLayout({
 
   return (
     <AdminLayoutClient 
-      userId={user.clerkId}
+      userId={user.id}
       dbUserId={user.id}
       userRole={user.role}
       initialLevels={levels}

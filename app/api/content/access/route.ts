@@ -79,7 +79,7 @@ export async function GET(req: Request) {
     // Check if user has unlocked this content
     const unlockedRecord = await db.query.unlockedContent.findFirst({
       where: and(
-        eq(unlockedContent.userId, userId),
+        eq(unlockedContent.userId, currentUser.id),
         eq(unlockedContent.unlockFeeId, unlockFeeRecord.id)
       ),
     });

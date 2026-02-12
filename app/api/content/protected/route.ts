@@ -8,7 +8,7 @@ import { resource, unlockFee, unlockedContent, user } from "@/lib/db/schema";
  * Check if a user has access to a resource
  * All resources are locked by default and require unlock fee payment
  */
-export async function checkResourceAccess(userId: string, resourceId: string): Promise<{
+export async function checkResourceAccess(dbUserId: string, resourceId: string): Promise<{
   hasAccess: boolean;
   isLocked: boolean;
   resource?: typeof resource.$inferSelect;
@@ -46,7 +46,7 @@ export async function checkResourceAccess(userId: string, resourceId: string): P
     // Check if user has unlocked this content
     const unlockedRecord = await db.query.unlockedContent.findFirst({
       where: and(
-        eq(unlockedContent.userId, userId),
+        eq(unlockedContent.userId, dbUserId),
         eq(unlockedContent.unlockFeeId, unlockFeeRecord.id)
       ),
     });
@@ -80,12 +80,24 @@ export async function checkResourceAccess(userId: string, resourceId: string): P
  */
 export async function GET(req: Request) {
   try {
-    const { userId } = await auth();
+    const { userId: clerkId } = await auth();
     
-    if (!userId) {
+    if (!clerkId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // Get the database user ID from the clerk ID
+    const userData = await db.query.user.findFirst({
+      where: eq(user.clerkId, clerkId),
+    });
+    
+    if (!userData) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
       );
     }
 
@@ -99,8 +111,8 @@ export async function GET(req: Request) {
       );
     }
 
-    // Check resource access
-    const access = await checkResourceAccess(userId, resourceId);
+    // Check resource access using database user ID
+    const access = await checkResourceAccess(userData.id, resourceId);
 
     if (access.error) {
       return NextResponse.json(

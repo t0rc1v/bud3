@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
-import { unlockedContent, resource } from "@/lib/db/schema";
+import { unlockedContent, resource, user } from "@/lib/db/schema";
 import { getUnlockFeeByResource } from "@/lib/actions/credits";
 import { DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
 
@@ -13,14 +13,28 @@ import { DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
  */
 export async function POST(req: Request) {
   try {
-    const { userId } = await auth();
+    const { userId: clerkId } = await auth();
     
-    if (!userId) {
+    if (!clerkId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
+
+    // Get the database user ID from the clerk ID
+    const userData = await db.query.user.findFirst({
+      where: eq(user.clerkId, clerkId),
+    });
+    
+    if (!userData) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+    
+    const dbUserId = userData.id;
 
     const body = await req.json();
     const { resourceId, paymentReference } = body;
@@ -56,7 +70,7 @@ export async function POST(req: Request) {
     // Check if user has already unlocked this content
     const existingUnlock = await db.query.unlockedContent.findFirst({
       where: and(
-        eq(unlockedContent.userId, userId),
+        eq(unlockedContent.userId, dbUserId),
         eq(unlockedContent.unlockFeeId, unlockFeeRecord.id)
       ),
     });
@@ -78,7 +92,7 @@ export async function POST(req: Request) {
     // Create unlock record for direct M-Pesa payment
     // Note: All unlocks are via M-Pesa direct payment (credits are only for AI chat)
     const [newUnlock] = await db.insert(unlockedContent).values({
-      userId,
+      userId: dbUserId,
       unlockFeeId: unlockFeeRecord.id,
       paymentReference: paymentReference || null,
       amountPaidKes: unlockFeeRecord.feeAmount,
@@ -115,14 +129,28 @@ export async function POST(req: Request) {
  */
 export async function GET(req: Request) {
   try {
-    const { userId } = await auth();
+    const { userId: clerkId } = await auth();
     
-    if (!userId) {
+    if (!clerkId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
+
+    // Get the database user ID from the clerk ID
+    const userData = await db.query.user.findFirst({
+      where: eq(user.clerkId, clerkId),
+    });
+    
+    if (!userData) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+    
+    const dbUserId = userData.id;
 
     const { searchParams } = new URL(req.url);
     const resourceId = searchParams.get("resourceId");
@@ -149,7 +177,7 @@ export async function GET(req: Request) {
     // Check if unlocked
     const unlockedRecord = await db.query.unlockedContent.findFirst({
       where: and(
-        eq(unlockedContent.userId, userId),
+        eq(unlockedContent.userId, dbUserId),
         eq(unlockedContent.unlockFeeId, unlockFeeRecord.id)
       ),
     });

@@ -12,7 +12,6 @@ CREATE TABLE "admin_regulars" (
 	"admin_id" uuid NOT NULL,
 	"regular_id" uuid NOT NULL,
 	"regular_email" varchar(255) NOT NULL,
-	"level_id" uuid,
 	"metadata" jsonb,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -21,7 +20,7 @@ CREATE TABLE "admin_regulars" (
 --> statement-breakpoint
 CREATE TABLE "ai_assignment" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" varchar(255) NOT NULL,
+	"user_id" uuid NOT NULL,
 	"chat_id" uuid,
 	"title" varchar(255) NOT NULL,
 	"subject" varchar(100) NOT NULL,
@@ -41,7 +40,7 @@ CREATE TABLE "ai_assignment" (
 --> statement-breakpoint
 CREATE TABLE "ai_memory" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" varchar(255) NOT NULL,
+	"user_id" uuid NOT NULL,
 	"title" varchar(255) NOT NULL,
 	"category" varchar(100),
 	"content" jsonb NOT NULL,
@@ -53,7 +52,7 @@ CREATE TABLE "ai_memory" (
 --> statement-breakpoint
 CREATE TABLE "ai_quiz" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" varchar(255) NOT NULL,
+	"user_id" uuid NOT NULL,
 	"chat_id" uuid,
 	"title" varchar(255) NOT NULL,
 	"subject" varchar(100) NOT NULL,
@@ -73,7 +72,7 @@ CREATE TABLE "ai_quiz" (
 CREATE TABLE "ai_quiz_attempt" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"quiz_id" uuid NOT NULL,
-	"user_id" varchar(255) NOT NULL,
+	"user_id" uuid NOT NULL,
 	"answers" jsonb NOT NULL,
 	"score" integer NOT NULL,
 	"total_marks" integer NOT NULL,
@@ -86,7 +85,7 @@ CREATE TABLE "ai_quiz_attempt" (
 --> statement-breakpoint
 CREATE TABLE "chat" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" varchar(255) NOT NULL,
+	"user_id" uuid NOT NULL,
 	"title" varchar(255) NOT NULL,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -105,7 +104,7 @@ CREATE TABLE "chat_message" (
 --> statement-breakpoint
 CREATE TABLE "credit_purchase" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" varchar(255) NOT NULL,
+	"user_id" uuid NOT NULL,
 	"mpesa_receipt_number" varchar(50),
 	"checkout_request_id" varchar(100),
 	"merchant_request_id" varchar(100),
@@ -124,7 +123,7 @@ CREATE TABLE "credit_purchase" (
 --> statement-breakpoint
 CREATE TABLE "credit_transaction" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" varchar(255) NOT NULL,
+	"user_id" uuid NOT NULL,
 	"type" "transaction_type" NOT NULL,
 	"amount" integer NOT NULL,
 	"balance_after" integer NOT NULL,
@@ -229,7 +228,7 @@ CREATE TABLE "unlock_fee" (
 --> statement-breakpoint
 CREATE TABLE "unlocked_content" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" varchar(255) NOT NULL,
+	"user_id" uuid NOT NULL,
 	"unlock_fee_id" uuid NOT NULL,
 	"payment_reference" varchar(100),
 	"amount_paid_kes" integer DEFAULT 0 NOT NULL,
@@ -242,6 +241,8 @@ CREATE TABLE "user" (
 	"clerk_id" varchar(255) NOT NULL,
 	"email" varchar(255) NOT NULL,
 	"role" "user_role_enum" DEFAULT 'regular' NOT NULL,
+	"name" varchar(255),
+	"level" varchar(100),
 	"onboarding_completed" boolean DEFAULT false NOT NULL,
 	"institution_name" varchar(255),
 	"institution_type" varchar(100),
@@ -256,7 +257,7 @@ CREATE TABLE "user" (
 --> statement-breakpoint
 CREATE TABLE "user_credit" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" varchar(255) NOT NULL,
+	"user_id" uuid NOT NULL,
 	"balance" integer DEFAULT 0 NOT NULL,
 	"total_purchased" integer DEFAULT 0 NOT NULL,
 	"total_used" integer DEFAULT 0 NOT NULL,
@@ -287,18 +288,17 @@ CREATE TABLE "user_roles" (
 --> statement-breakpoint
 ALTER TABLE "admin_regulars" ADD CONSTRAINT "admin_regulars_admin_id_user_id_fk" FOREIGN KEY ("admin_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "admin_regulars" ADD CONSTRAINT "admin_regulars_regular_id_user_id_fk" FOREIGN KEY ("regular_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "admin_regulars" ADD CONSTRAINT "admin_regulars_level_id_level_id_fk" FOREIGN KEY ("level_id") REFERENCES "public"."level"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ai_assignment" ADD CONSTRAINT "ai_assignment_user_id_user_clerk_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("clerk_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ai_assignment" ADD CONSTRAINT "ai_assignment_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ai_assignment" ADD CONSTRAINT "ai_assignment_chat_id_chat_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chat"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ai_memory" ADD CONSTRAINT "ai_memory_user_id_user_clerk_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("clerk_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ai_quiz" ADD CONSTRAINT "ai_quiz_user_id_user_clerk_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("clerk_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ai_memory" ADD CONSTRAINT "ai_memory_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ai_quiz" ADD CONSTRAINT "ai_quiz_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ai_quiz" ADD CONSTRAINT "ai_quiz_chat_id_chat_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chat"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ai_quiz_attempt" ADD CONSTRAINT "ai_quiz_attempt_quiz_id_ai_quiz_id_fk" FOREIGN KEY ("quiz_id") REFERENCES "public"."ai_quiz"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ai_quiz_attempt" ADD CONSTRAINT "ai_quiz_attempt_user_id_user_clerk_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("clerk_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "chat" ADD CONSTRAINT "chat_user_id_user_clerk_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("clerk_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ai_quiz_attempt" ADD CONSTRAINT "ai_quiz_attempt_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "chat" ADD CONSTRAINT "chat_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "chat_message" ADD CONSTRAINT "chat_message_chat_id_chat_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chat"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "credit_purchase" ADD CONSTRAINT "credit_purchase_user_id_user_clerk_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("clerk_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "credit_transaction" ADD CONSTRAINT "credit_transaction_user_id_user_clerk_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("clerk_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "credit_purchase" ADD CONSTRAINT "credit_purchase_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "credit_transaction" ADD CONSTRAINT "credit_transaction_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "level" ADD CONSTRAINT "level_owner_id_user_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "resource" ADD CONSTRAINT "resource_subject_id_subject_id_fk" FOREIGN KEY ("subject_id") REFERENCES "public"."subject"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "resource" ADD CONSTRAINT "resource_topic_id_topic_id_fk" FOREIGN KEY ("topic_id") REFERENCES "public"."topic"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -311,9 +311,9 @@ ALTER TABLE "topic" ADD CONSTRAINT "topic_owner_id_user_id_fk" FOREIGN KEY ("own
 ALTER TABLE "unlock_fee" ADD CONSTRAINT "unlock_fee_resource_id_resource_id_fk" FOREIGN KEY ("resource_id") REFERENCES "public"."resource"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "unlock_fee" ADD CONSTRAINT "unlock_fee_topic_id_topic_id_fk" FOREIGN KEY ("topic_id") REFERENCES "public"."topic"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "unlock_fee" ADD CONSTRAINT "unlock_fee_subject_id_subject_id_fk" FOREIGN KEY ("subject_id") REFERENCES "public"."subject"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "unlocked_content" ADD CONSTRAINT "unlocked_content_user_id_user_clerk_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("clerk_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "unlocked_content" ADD CONSTRAINT "unlocked_content_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "unlocked_content" ADD CONSTRAINT "unlocked_content_unlock_fee_id_unlock_fee_id_fk" FOREIGN KEY ("unlock_fee_id") REFERENCES "public"."unlock_fee"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "user_credit" ADD CONSTRAINT "user_credit_user_id_user_clerk_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("clerk_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_credit" ADD CONSTRAINT "user_credit_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_permission" ADD CONSTRAINT "user_permission_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_permission" ADD CONSTRAINT "user_permission_granted_by_user_id_fk" FOREIGN KEY ("granted_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

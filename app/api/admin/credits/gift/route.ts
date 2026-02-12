@@ -2,21 +2,31 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { giftCredits } from "@/lib/actions/credits";
 import { checkUserPermission } from "@/lib/actions/admin-permissions";
+import { getUserByClerkId } from "@/lib/actions/auth";
 import { FinancePermissions } from "@/lib/permissions";
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await auth();
+    const { userId: clerkId } = await auth();
     
-    if (!userId) {
+    if (!clerkId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
+    // Get the database user ID from the clerk ID
+    const user = await getUserByClerkId(clerkId);
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
     // Check if user has permission to gift credits
-    const hasPermission = await checkUserPermission(userId, FinancePermissions.CREDITS_GIFT);
+    const hasPermission = await checkUserPermission(clerkId, FinancePermissions.CREDITS_GIFT);
     
     if (!hasPermission) {
       return NextResponse.json(
@@ -53,8 +63,8 @@ export async function POST(req: Request) {
       }
     }
 
-    // Execute gift
-    const result = await giftCredits(userId, email, amount, reason, expirationDays);
+    // Execute gift with database user ID
+    const result = await giftCredits(user.id, email, amount, reason, expirationDays);
 
     return NextResponse.json({
       ...result,

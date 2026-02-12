@@ -9,9 +9,9 @@ import { user } from "@/lib/db/schema";
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await auth();
+    const { userId: clerkId } = await auth();
     
-    if (!userId) {
+    if (!clerkId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -20,11 +20,18 @@ export async function POST(req: Request) {
 
     // Check if user is super_admin or has credit_reward permission
     const currentUser = await db.query.user.findFirst({
-      where: eq(user.clerkId, userId),
+      where: eq(user.clerkId, clerkId),
     });
 
-    const isSuperAdmin = currentUser?.role === "super_admin";
-    const hasPermission = isSuperAdmin || await checkUserPermission(userId, RewardPermissions.CREDIT_REWARD);
+    if (!currentUser) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    const isSuperAdmin = currentUser.role === "super_admin";
+    const hasPermission = isSuperAdmin || await checkUserPermission(clerkId, RewardPermissions.CREDIT_REWARD);
     
     if (!hasPermission) {
       return NextResponse.json(
@@ -63,13 +70,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // Unlock content
+    // Unlock content with database user IDs
     const result = await unlockContentForUser({
-      userId: targetUser.clerkId,
+      userId: targetUser.id,
       resourceId,
       topicId,
       subjectId,
-      unlockedBy: userId,
+      unlockedBy: currentUser.id,
       reason: body.reason || "Admin unlock",
     });
 

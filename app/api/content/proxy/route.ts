@@ -11,14 +11,28 @@ import { resource, unlockFee, unlockedContent, user } from "@/lib/db/schema";
  */
 export async function GET(req: Request) {
   try {
-    const { userId } = await auth();
+    const { userId: clerkId } = await auth();
     
-    if (!userId) {
+    if (!clerkId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
+
+    // Get the database user ID from the clerk ID
+    const userData = await db.query.user.findFirst({
+      where: eq(user.clerkId, clerkId),
+    });
+    
+    if (!userData) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+    
+    const dbUserId = userData.id;
 
     const { searchParams } = new URL(req.url);
     const resourceId = searchParams.get("resourceId");
@@ -54,7 +68,7 @@ export async function GET(req: Request) {
     if (unlockFeeRecord) {
       const unlockedRecord = await db.query.unlockedContent.findFirst({
         where: and(
-          eq(unlockedContent.userId, userId),
+          eq(unlockedContent.userId, dbUserId),
           eq(unlockedContent.unlockFeeId, unlockFeeRecord.id)
         ),
       });

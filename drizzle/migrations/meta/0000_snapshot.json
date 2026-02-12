@@ -1,5 +1,5 @@
 {
-  "id": "2ac72967-ff00-457a-b646-e6d9810a892b",
+  "id": "9b4c4660-8205-47d0-a99d-a6cae4c4d5fb",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -32,12 +32,6 @@
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
-        },
-        "level_id": {
-          "name": "level_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
         },
         "metadata": {
           "name": "metadata",
@@ -94,19 +88,6 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
-        },
-        "admin_regulars_level_id_level_id_fk": {
-          "name": "admin_regulars_level_id_level_id_fk",
-          "tableFrom": "admin_regulars",
-          "tableTo": "level",
-          "columnsFrom": [
-            "level_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -128,7 +109,7 @@
         },
         "user_id": {
           "name": "user_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -229,15 +210,15 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "ai_assignment_user_id_user_clerk_id_fk": {
-          "name": "ai_assignment_user_id_user_clerk_id_fk",
+        "ai_assignment_user_id_user_id_fk": {
+          "name": "ai_assignment_user_id_user_id_fk",
           "tableFrom": "ai_assignment",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
           "columnsTo": [
-            "clerk_id"
+            "id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -275,7 +256,7 @@
         },
         "user_id": {
           "name": "user_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -327,15 +308,15 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "ai_memory_user_id_user_clerk_id_fk": {
-          "name": "ai_memory_user_id_user_clerk_id_fk",
+        "ai_memory_user_id_user_id_fk": {
+          "name": "ai_memory_user_id_user_id_fk",
           "tableFrom": "ai_memory",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
           "columnsTo": [
-            "clerk_id"
+            "id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -360,7 +341,7 @@
         },
         "user_id": {
           "name": "user_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -455,15 +436,15 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "ai_quiz_user_id_user_clerk_id_fk": {
-          "name": "ai_quiz_user_id_user_clerk_id_fk",
+        "ai_quiz_user_id_user_id_fk": {
+          "name": "ai_quiz_user_id_user_id_fk",
           "tableFrom": "ai_quiz",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
           "columnsTo": [
-            "clerk_id"
+            "id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -507,7 +488,7 @@
         },
         "user_id": {
           "name": "user_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -577,15 +558,15 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "ai_quiz_attempt_user_id_user_clerk_id_fk": {
-          "name": "ai_quiz_attempt_user_id_user_clerk_id_fk",
+        "ai_quiz_attempt_user_id_user_id_fk": {
+          "name": "ai_quiz_attempt_user_id_user_id_fk",
           "tableFrom": "ai_quiz_attempt",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
           "columnsTo": [
-            "clerk_id"
+            "id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -610,7 +591,7 @@
         },
         "user_id": {
           "name": "user_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -644,15 +625,15 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "chat_user_id_user_clerk_id_fk": {
-          "name": "chat_user_id_user_clerk_id_fk",
+        "chat_user_id_user_id_fk": {
+          "name": "chat_user_id_user_id_fk",
           "tableFrom": "chat",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
           "columnsTo": [
-            "clerk_id"
+            "id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -749,7 +730,7 @@
         },
         "user_id": {
           "name": "user_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -846,15 +827,15 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "credit_purchase_user_id_user_clerk_id_fk": {
-          "name": "credit_purchase_user_id_user_clerk_id_fk",
+        "credit_purchase_user_id_user_id_fk": {
+          "name": "credit_purchase_user_id_user_id_fk",
           "tableFrom": "credit_purchase",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
           "columnsTo": [
-            "clerk_id"
+            "id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -879,7 +860,7 @@
         },
         "user_id": {
           "name": "user_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -930,15 +911,15 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "credit_transaction_user_id_user_clerk_id_fk": {
-          "name": "credit_transaction_user_id_user_clerk_id_fk",
+        "credit_transaction_user_id_user_id_fk": {
+          "name": "credit_transaction_user_id_user_id_fk",
           "tableFrom": "credit_transaction",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
           "columnsTo": [
-            "clerk_id"
+            "id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -1700,7 +1681,7 @@
         },
         "user_id": {
           "name": "user_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -1740,15 +1721,15 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "unlocked_content_user_id_user_clerk_id_fk": {
-          "name": "unlocked_content_user_id_user_clerk_id_fk",
+        "unlocked_content_user_id_user_id_fk": {
+          "name": "unlocked_content_user_id_user_id_fk",
           "tableFrom": "unlocked_content",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
           "columnsTo": [
-            "clerk_id"
+            "id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -1803,6 +1784,18 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'regular'"
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "level": {
+          "name": "level",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
         },
         "onboarding_completed": {
           "name": "onboarding_completed",
@@ -1894,7 +1887,7 @@
         },
         "user_id": {
           "name": "user_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -1936,15 +1929,15 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "user_credit_user_id_user_clerk_id_fk": {
-          "name": "user_credit_user_id_user_clerk_id_fk",
+        "user_credit_user_id_user_id_fk": {
+          "name": "user_credit_user_id_user_id_fk",
           "tableFrom": "user_credit",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
           "columnsTo": [
-            "clerk_id"
+            "id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"

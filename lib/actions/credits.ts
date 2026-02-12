@@ -491,7 +491,7 @@ export async function giftCredits(
 
   // Get admin user data
   const adminUserData = await db.query.user.findFirst({
-    where: eq(user.clerkId, adminUserId),
+    where: eq(user.id, adminUserId),
   });
 
   if (!adminUserData) {
@@ -499,7 +499,7 @@ export async function giftCredits(
   }
 
   // Prevent non-super-admin users from gifting to themselves
-  if (targetUser.clerkId === adminUserId && adminUserData.role !== "super_admin") {
+  if (targetUser.id === adminUserId && adminUserData.role !== "super_admin") {
     throw new Error("Admins cannot gift credits to their own account");
   }
 
@@ -544,7 +544,7 @@ export async function giftCredits(
       amount: -amount,
       description: `Transferred ${amount} credits to ${targetUserEmail}`,
       metadata: {
-        targetUserId: targetUser.clerkId,
+        targetUserId: targetUser.id,
         targetUserEmail,
         reason,
         transferType: "gift_outgoing",
@@ -558,7 +558,7 @@ export async function giftCredits(
 
   // Add credits to target user (gift transaction)
   const transaction = await addCredits(
-    targetUser.clerkId,
+    targetUser.id,
     amount,
     "gift",
     `Received ${amount} credits from ${isSuperAdmin ? "Super Admin" : "Admin"}`,
@@ -594,7 +594,7 @@ export async function giftCredits(
   return {
     success: true,
     transaction,
-    userId: targetUser.clerkId,
+    userId: targetUser.id,
     email: targetUser.email,
     deductedFromAdmin: !isSuperAdmin,
     adminBalanceAfter: !isSuperAdmin ? await getUserCreditBalance(adminUserId) : undefined,
@@ -798,11 +798,11 @@ export async function unlockContentForUser(params: UnlockContentForUserParams) {
 
   // Get recipient email and admin name for notification
   const recipient = await db.query.user.findFirst({
-    where: eq(user.clerkId, userId),
+    where: eq(user.id, userId),
   });
   
   const unlockedByUser = await db.query.user.findFirst({
-    where: eq(user.clerkId, unlockedBy),
+    where: eq(user.id, unlockedBy),
   });
   
   const senderName = unlockedByUser?.institutionName || unlockedByUser?.email || "Admin";

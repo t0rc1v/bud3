@@ -9,9 +9,9 @@ import { eq } from "drizzle-orm";
 
 export async function GET(req: Request) {
   try {
-    const { userId } = await auth();
+    const { userId: clerkId } = await auth();
     
-    if (!userId) {
+    if (!clerkId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     }
 
     // Check if user has permission to gift credits
-    const hasPermission = await checkUserPermission(userId, FinancePermissions.CREDITS_GIFT);
+    const hasPermission = await checkUserPermission(clerkId, FinancePermissions.CREDITS_GIFT);
     
     if (!hasPermission) {
       return NextResponse.json(
@@ -30,7 +30,7 @@ export async function GET(req: Request) {
 
     // Get user role
     const userData = await db.query.user.findFirst({
-      where: eq(user.clerkId, userId),
+      where: eq(user.clerkId, clerkId),
     });
 
     if (!userData) {
@@ -42,9 +42,9 @@ export async function GET(req: Request) {
 
     const isSuperAdmin = userData.role === "super_admin";
 
-    // Get credit details
-    const creditDetails = await getUserCreditDetails(userId);
-    const creditRecord = await getOrCreateUserCredit(userId);
+    // Get credit details using database user ID
+    const creditDetails = await getUserCreditDetails(userData.id);
+    const creditRecord = await getOrCreateUserCredit(userData.id);
 
     return NextResponse.json({
       success: true,

@@ -1,21 +1,31 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getUserCreditDetails, getUserTransactionHistory } from "@/lib/actions/credits";
+import { getUserByClerkId } from "@/lib/actions/auth";
 import { CREDIT_PRICING, DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
 
 export async function GET(req: Request) {
   try {
-    const { userId } = await auth();
+    const { userId: clerkId } = await auth();
     
-    if (!userId) {
+    if (!clerkId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    const creditDetails = await getUserCreditDetails(userId);
-    const history = await getUserTransactionHistory(userId, 10);
+    // Get the database user ID from the clerk ID
+    const user = await getUserByClerkId(clerkId);
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    const creditDetails = await getUserCreditDetails(user.id);
+    const history = await getUserTransactionHistory(user.id, 10);
 
     return NextResponse.json({
       success: true,

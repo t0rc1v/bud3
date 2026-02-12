@@ -28,7 +28,7 @@ export default async function SuperAdminLayout({
 
   return (
     <SuperAdminLayoutClient 
-      userId={user.clerkId}
+      userId={user.id}
       dbUserId={user.id}
       initialLevels={levels}
     >

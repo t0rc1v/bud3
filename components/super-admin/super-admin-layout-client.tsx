@@ -178,7 +178,8 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialGrad
                   </div>
                   <div className="flex-1 overflow-hidden">
                     <AIChat 
-                      userId={userId} 
+                      userId={dbUserId || userId} 
+                      userRole="super_admin"
                       isOpen={true} 
                       resourceToAdd={resourceToAddToChat}
                       onResourceAdded={() => setResourceToAddToChat(null)}
@@ -335,7 +336,8 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialGrad
         )}
       >
         <AIChat 
-          userId={userId} 
+          userId={dbUserId || userId} 
+          userRole="super_admin"
           isOpen={rightSidebarOpen} 
           resourceToAdd={resourceToAddToChat}
           onResourceAdded={() => setResourceToAddToChat(null)}

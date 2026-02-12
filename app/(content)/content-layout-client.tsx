@@ -131,9 +131,10 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole, init
                     <h2 className="font-semibold">AI Chat</h2>
                   </div>
                   <div className="flex-1 overflow-hidden">
-                    {userId && (
+                    {(dbUserId || userId) && (
                       <AIChat 
-                        userId={userId} 
+                        userId={dbUserId || userId || ""} 
+                        userRole={userRole}
                         isOpen={true} 
                         resourceToAdd={resourceToAddToChat}
                         onResourceAdded={() => setResourceToAddToChat(null)}
@@ -234,9 +235,10 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole, init
           !isClient ? "w-0 overflow-hidden" : rightSidebarOpen ? "w-96" : "w-0 overflow-hidden"
         )}
       >
-        {userId && (
+        {(dbUserId || userId) && (
           <AIChat 
-            userId={userId} 
+            userId={dbUserId || userId || ""} 
+            userRole={userRole}
             isOpen={rightSidebarOpen} 
             resourceToAdd={resourceToAddToChat}
             onResourceAdded={() => setResourceToAddToChat(null)}

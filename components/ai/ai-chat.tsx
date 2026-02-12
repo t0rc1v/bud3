@@ -36,7 +36,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { createChat, deleteChat, getUserChats, getChatMessages, type Chat } from "@/lib/actions/ai";
-import { AddResourceToChat, type Resource } from "./add-resource-to-chat";
+import { AddResourceToChat, type ChatResource as Resource } from "./add-resource-to-chat";
+import type { UserRole } from "@/lib/types";
 import { AssignmentModalTrigger } from "./assignment-modal";
 import { QuizModalTrigger } from "./quiz-modal";
 import { MarkdownRenderer } from "./markdown-renderer";
@@ -68,6 +69,7 @@ const TYPE_COLORS = {
 
 interface AIChatProps {
   userId: string;
+  userRole?: UserRole;
   initialChatId?: string;
   isOpen?: boolean;
   resourceToAdd?: Resource | null;
@@ -76,6 +78,7 @@ interface AIChatProps {
 
 export function AIChat({
   userId,
+  userRole,
   initialChatId,
   isOpen = true,
   resourceToAdd,
@@ -489,6 +492,7 @@ export function AIChat({
           <AddResourceToChat
             attachedResources={attachedResources}
             userId={userId}
+            userRole={userRole}
             onAddResource={handleAddResource}
             onRemoveResource={handleRemoveResource}
           />

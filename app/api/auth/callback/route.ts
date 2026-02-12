@@ -28,7 +28,7 @@ export async function GET() {
   } else if (user.role === "admin") {
     redirect("/admin");
   } else if (user.role === "regular") {
-    redirect("/regular/dashboard");
+    redirect("/regular");
   }
 
   // Fallback

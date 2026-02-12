@@ -215,7 +215,7 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole, init
             <div className={cn("mb-2 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
               <div className="flex items-center gap-2 text-sm font-semibold text-primary">
                 <GraduationCap className="h-4 w-4" />
-                Student Tools
+                Regular Tools
               </div>
             </div>
             <nav className={cn("space-y-1 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>

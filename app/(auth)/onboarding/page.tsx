@@ -164,7 +164,7 @@ export default function OnboardingPage() {
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
               <h4 className="font-semibold text-blue-900 mb-3">Institution Details</h4>
               <p className="text-sm text-blue-700 mb-4">
-                Your account will require verification before you can start adding regular users.
+                Fill in your institution details to get started.
               </p>
               
               <div className="space-y-3">

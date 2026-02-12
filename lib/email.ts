@@ -1,4 +1,4 @@
-import { Resend } from 'resend';
+import { Resend, CreateEmailOptions } from 'resend';
 
 // Initialize Resend with API key from environment
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -21,15 +21,15 @@ export async function sendEmail(data: EmailData) {
   try {
     const { to, subject, html, text, from = DEFAULT_FROM_EMAIL } = data;
     
-    const emailOptions = {
+    const emailOptions: CreateEmailOptions = {
       from,
       to,
       subject,
-      ...(html && { html }),
-      ...(text && { text }),
-    } as const;
+      ...(html ? { html } : {}),
+      ...(text ? { text } : {}),
+    } as CreateEmailOptions;
     
-    const result = await resend.emails.send(emailOptions as any);
+    const result = await resend.emails.send(emailOptions);
 
     if (result.error) {
       console.error('Resend email error:', result.error);

@@ -248,7 +248,7 @@ function GiftCreditsTab() {
             </div>
             {!hasEnoughCredits && (
               <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                <strong>Warning:</strong> You don't have enough active credits. You need {amount + 100} active credits (including 100 minimum balance).
+                <strong>Warning:</strong> You don&apos;t have enough active credits. You need {amount + 100} active credits (including 100 minimum balance).
               </div>
             )}
           </div>

@@ -487,16 +487,122 @@ export async function hasUserUnlockedContent(userId: string, unlockFeeId: string
 }
 
 /**
- * @deprecated This function is deprecated. All unlocks are now done via direct M-Pesa payment.
- * Use the API endpoint POST /api/content/unlock instead.
+ * Unlock content using credits
+ * This function handles credit-based unlocking when user chooses to pay with credits
+ * @param userId - The user's database ID
+ * @param unlockFeeId - The unlock fee record ID
+ * @param kesPrice - The price of content in KES (to calculate credits required)
+ * @returns Object with success status and unlock details
  */
-export async function unlockContent(
+export async function unlockContentWithCredits(
   userId: string,
-  unlockFeeId: string
+  unlockFeeId: string,
+  kesPrice: number
 ) {
-  throw new Error(
-    "Credit-based unlocks are no longer supported. All unlocks must be done via direct M-Pesa payment."
-  );
+  const { calculateCreditsRequired } = await import("@/lib/calculator");
+  const creditsRequired = calculateCreditsRequired(kesPrice);
+  
+  // Check if user has enough active credits
+  const hasEnough = await hasEnoughCredits(userId, creditsRequired);
+  
+  if (!hasEnough) {
+    const creditDetails = await getUserCreditDetails(userId);
+    let errorMessage = `Insufficient credits. You need ${creditsRequired} credits to unlock this content. Your active balance is ${creditDetails.activeBalance} credits.`;
+    
+    if (creditDetails.expiredCredits > 0) {
+      errorMessage += ` ${creditDetails.expiredCredits} credits have expired.`;
+    }
+    
+    throw new Error(errorMessage);
+  }
+
+  // Check if already unlocked
+  const alreadyUnlocked = await hasUserUnlockedContent(userId, unlockFeeId);
+  if (alreadyUnlocked) {
+    throw new Error("You have already unlocked this content");
+  }
+
+  // Get unlock fee details for metadata
+  const feeRecord = await db
+    .select()
+    .from(unlockFee)
+    .where(eq(unlockFee.id, unlockFeeId))
+    .limit(1)
+    .then(res => res[0] || null);
+
+  if (!feeRecord) {
+    throw new Error("Unlock fee record not found");
+  }
+
+  // Get resource/topic/subject name for description
+  let contentName = "Content";
+  const contentType = feeRecord.type;
+  
+  if (feeRecord.resourceId) {
+    const resourceData = await db
+      .select()
+      .from(resource)
+      .where(eq(resource.id, feeRecord.resourceId))
+      .limit(1)
+      .then(res => res[0] || null);
+    contentName = resourceData?.title || "Resource";
+  } else if (feeRecord.topicId) {
+    const topicData = await db
+      .select()
+      .from(topic)
+      .where(eq(topic.id, feeRecord.topicId))
+      .limit(1)
+      .then(res => res[0] || null);
+    contentName = topicData?.title || "Topic";
+  } else if (feeRecord.subjectId) {
+    const subjectData = await db
+      .select()
+      .from(subject)
+      .where(eq(subject.id, feeRecord.subjectId))
+      .limit(1)
+      .then(res => res[0] || null);
+    contentName = subjectData?.name || "Subject";
+  }
+
+  // Deduct credits for unlock
+  await createCreditTransaction({
+    userId,
+    type: "unlock",
+    amount: -creditsRequired,
+    description: `Unlocked ${contentName} (${contentType}) with credits`,
+    metadata: {
+      unlockFeeId,
+      creditsUsed: creditsRequired,
+      kesEquivalent: kesPrice,
+      contentType,
+      contentName,
+      paymentMethod: "credits",
+    },
+  });
+
+  // Create unlocked content record
+  // For credit unlocks, paymentReference is null and amountPaidKes is 0
+  // The credits were deducted via the transaction above
+  const [unlocked] = await db
+    .insert(unlockedContent)
+    .values({
+      userId,
+      unlockFeeId,
+      paymentReference: null, // Credit unlock - no M-Pesa reference
+      amountPaidKes: 0, // No KES paid - credits were used instead
+    })
+    .returning();
+
+  revalidatePath("/regular");
+  revalidatePath("/api/content");
+
+  return {
+    success: true,
+    unlockId: unlocked.id,
+    creditsUsed: creditsRequired,
+    contentType,
+    contentName,
+  };
 }
 
 export async function getUserUnlockedContent(userId: string) {
@@ -917,5 +1023,134 @@ export async function unlockContentForUser(params: UnlockContentForUserParams) {
     contentType,
     contentName,
     userId,
+  };
+}
+
+// ============== SYNC UNLOCK FEES WITH RESOURCE PRICES ==============
+
+/**
+ * Sync all unlock fee records with their corresponding resource prices
+ * This ensures unlock fees match the resource.unlockFee field
+ * Useful for fixing pricing discrepancies after the credit unlock feature was added
+ */
+export async function syncUnlockFeesWithResourcePrices() {
+  const { calculateCreditsRequired } = await import("@/lib/calculator");
+  
+  // Get all unlock fees that are linked to resources
+  const resourceFees = await db
+    .select({
+      unlockFee: unlockFee,
+      resource: resource,
+    })
+    .from(unlockFee)
+    .leftJoin(resource, eq(unlockFee.resourceId, resource.id))
+    .where(eq(unlockFee.type, "resource"));
+
+  let updatedCount = 0;
+  let skippedCount = 0;
+  let errorCount = 0;
+  const errors: string[] = [];
+
+  for (const { unlockFee: fee, resource: res } of resourceFees) {
+    if (!res) {
+      skippedCount++;
+      continue;
+    }
+
+    // If resource has a specific unlockFee set (> 0), use that
+    // Otherwise keep the current fee (don't change it)
+    if (res.unlockFee > 0 && fee.feeAmount !== res.unlockFee) {
+      try {
+        await updateUnlockFee(fee.id, {
+          feeAmount: res.unlockFee,
+          creditsRequired: calculateCreditsRequired(res.unlockFee),
+        });
+        updatedCount++;
+      } catch (error) {
+        errorCount++;
+        errors.push(`Failed to update fee ${fee.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    } else {
+      skippedCount++;
+    }
+  }
+
+  return {
+    success: true,
+    updated: updatedCount,
+    skipped: skippedCount,
+    errors: errorCount,
+    errorDetails: errors,
+    total: resourceFees.length,
+  };
+}
+
+/**
+ * Sync unlock fee for a specific resource
+ * Updates the unlock fee record to match the resource's unlockFee field
+ */
+export async function syncUnlockFeeForResource(resourceId: string) {
+  const { calculateCreditsRequired } = await import("@/lib/calculator");
+  
+  // Get the resource
+  const resourceData = await db
+    .select()
+    .from(resource)
+    .where(eq(resource.id, resourceId))
+    .limit(1)
+    .then(res => res[0] || null);
+
+  if (!resourceData) {
+    throw new Error(`Resource ${resourceId} not found`);
+  }
+
+  // Get the unlock fee record
+  const unlockFeeRecord = await getUnlockFeeByResource(resourceId);
+
+  if (!unlockFeeRecord) {
+    // No unlock fee exists yet - create one
+    if (resourceData.unlockFee > 0) {
+      const newFee = await createUnlockFee({
+        type: "resource",
+        resourceId,
+        feeAmount: resourceData.unlockFee,
+        creditsRequired: calculateCreditsRequired(resourceData.unlockFee),
+      });
+      return {
+        success: true,
+        action: "created",
+        feeAmount: newFee.feeAmount,
+        creditsRequired: newFee.creditsRequired,
+      };
+    } else {
+      return {
+        success: false,
+        action: "none",
+        message: "Resource has no unlock fee set and no record exists",
+      };
+    }
+  }
+
+  // Update existing unlock fee if resource price has changed
+  if (resourceData.unlockFee > 0 && unlockFeeRecord.feeAmount !== resourceData.unlockFee) {
+    await updateUnlockFee(unlockFeeRecord.id, {
+      feeAmount: resourceData.unlockFee,
+      creditsRequired: calculateCreditsRequired(resourceData.unlockFee),
+    });
+    
+    return {
+      success: true,
+      action: "updated",
+      previousFeeAmount: unlockFeeRecord.feeAmount,
+      newFeeAmount: resourceData.unlockFee,
+      newCreditsRequired: calculateCreditsRequired(resourceData.unlockFee),
+    };
+  }
+
+  return {
+    success: true,
+    action: "no_change",
+    feeAmount: unlockFeeRecord.feeAmount,
+    creditsRequired: unlockFeeRecord.creditsRequired,
   };
 }

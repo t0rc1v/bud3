@@ -31,8 +31,10 @@ import {
   Phone,
   Info,
   FileText,
+  Coins,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ResourceUnlockModalProps {
   resourceId: string;
@@ -97,6 +99,40 @@ export function ResourceUnlockModal({
   const [progress, setProgress] = useState(0);
   const [checkoutRequestId, setCheckoutRequestId] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState("");
+  
+  // Credit-related state
+  const [userCredits, setUserCredits] = useState(0);
+  const [creditsRequired, setCreditsRequired] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState<"credits" | "mpesa">("credits");
+  const [isLoadingCredits, setIsLoadingCredits] = useState(false);
+
+  // Fetch user credits and calculate required credits when modal opens
+  useEffect(() => {
+    const fetchCreditInfo = async () => {
+      setIsLoadingCredits(true);
+      try {
+        // Calculate credits required
+        const { calculateCreditsRequired } = await import("@/lib/calculator");
+        const required = calculateCreditsRequired(unlockFeeKes);
+        setCreditsRequired(required);
+
+        // Fetch user credit balance
+        const response = await fetch("/api/credits/balance");
+        if (response.ok) {
+          const data = await response.json();
+          setUserCredits(data.balance || 0);
+        }
+      } catch (err) {
+        console.error("Error fetching credit info:", err);
+      } finally {
+        setIsLoadingCredits(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchCreditInfo();
+    }
+  }, [isOpen, unlockFeeKes]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -111,6 +147,60 @@ export function ResourceUnlockModal({
     setCheckoutRequestId(null);
     setProgress(0);
     setPhoneNumber("");
+    setPaymentMethod("credits");
+  };
+
+  const hasEnoughCredits = userCredits >= creditsRequired;
+
+  // Handle credit-based unlock
+  const handleUnlockWithCredits = async () => {
+    if (!hasEnoughCredits) return;
+
+    setPaymentState({
+      status: "initiating",
+      title: "Unlocking with Credits...",
+      message: "Processing your credit unlock request...",
+      canRetry: false,
+    });
+
+    try {
+      const unlockResponse = await fetch("/api/content/unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resourceId,
+          paymentMethod: "credits",
+        }),
+      });
+
+      const unlockData = await unlockResponse.json();
+
+      if (unlockResponse.ok && unlockData.success) {
+        setPaymentState({
+          status: "success",
+          title: "Content Unlocked!",
+          message: `You have successfully unlocked "${resourceTitle}"`,
+          details: `${creditsRequired} credits have been deducted from your balance. You now have ${userCredits - creditsRequired} credits remaining.`,
+          canRetry: false,
+        });
+        setUserCredits(userCredits - creditsRequired);
+        onUnlockSuccess?.();
+      } else {
+        setPaymentState({
+          status: "error",
+          title: "Unlock Failed",
+          message: unlockData.error || "Failed to unlock content with credits. Please try again.",
+          canRetry: true,
+        });
+      }
+    } catch (err) {
+      setPaymentState({
+        status: "error",
+        title: "Connection Error",
+        message: "Unable to process credit unlock. Please check your internet connection and try again.",
+        canRetry: true,
+      });
+    }
   };
 
   // Handle M-Pesa payment for resource unlock
@@ -390,57 +480,167 @@ export function ResourceUnlockModal({
               </CardContent>
             </Card>
 
-            {/* Payment Info */}
-            <div className="space-y-3 sm:space-y-4">
-              <div className="flex items-center justify-between p-3 sm:p-4 bg-muted rounded-lg">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-                  <span className="font-medium text-sm sm:text-base">Unlock Fee</span>
+            {/* Payment Method Selection */}
+            <Tabs 
+              value={paymentMethod} 
+              onValueChange={(value) => setPaymentMethod(value as "credits" | "mpesa")}
+              className="w-full"
+            >
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="credits" className="flex items-center gap-2">
+                  <Coins className="h-4 w-4" />
+                  <span className="hidden sm:inline">Credits</span>
+                </TabsTrigger>
+                <TabsTrigger value="mpesa" className="flex items-center gap-2">
+                  <Smartphone className="h-4 w-4" />
+                  <span className="hidden sm:inline">M-Pesa</span>
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="credits" className="mt-4 space-y-4">
+                {/* Credits Info */}
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex items-center justify-between p-3 sm:p-4 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Coins className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
+                      <span className="font-medium text-sm sm:text-base">Credits Required</span>
+                    </div>
+                    <span className="text-base sm:text-lg font-bold">{creditsRequired} credits</span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 sm:p-4 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                      <span className="font-medium text-sm sm:text-base">Equivalent Value</span>
+                    </div>
+                    <span className="text-sm sm:text-base text-muted-foreground">Ksh {unlockFeeKes}</span>
+                  </div>
+
+                  <Alert className={cn(
+                    "py-2 sm:py-3",
+                    hasEnoughCredits ? "bg-blue-50 border-blue-200" : "bg-red-50 border-red-200"
+                  )}>
+                    <Info className={cn(
+                      "h-4 w-4 flex-shrink-0",
+                      hasEnoughCredits ? "text-blue-600" : "text-red-600"
+                    )} />
+                    <AlertTitle className={cn(
+                      "text-xs sm:text-sm",
+                      hasEnoughCredits ? "text-blue-800" : "text-red-800"
+                    )}>
+                      Your Credit Balance
+                    </AlertTitle>
+                    <AlertDescription className={cn(
+                      "text-xs sm:text-sm",
+                      hasEnoughCredits ? "text-blue-700" : "text-red-700"
+                    )}>
+                      {isLoadingCredits ? (
+                        "Loading..."
+                      ) : (
+                        <>
+                          You have <strong>{userCredits} credits</strong> available.
+                          {!hasEnoughCredits && (
+                            <> You need <strong>{creditsRequired - userCredits} more credits</strong> to unlock this content.</>
+                          )}
+                        </>
+                      )}
+                    </AlertDescription>
+                  </Alert>
                 </div>
-                <span className="text-base sm:text-lg font-bold">Ksh {unlockFeeKes}</span>
-              </div>
 
-              <Alert className="bg-blue-50 border-blue-200 py-2 sm:py-3">
-                <Info className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                <AlertTitle className="text-blue-800 text-xs sm:text-sm">What you get</AlertTitle>
-                <AlertDescription className="text-blue-700 text-xs sm:text-sm">
-                  Permanent access to view this resource
-                </AlertDescription>
-              </Alert>
-            </div>
+                {/* Credits Unlock Button */}
+                <Button
+                  onClick={handleUnlockWithCredits}
+                  className={cn(
+                    "w-full h-11 sm:h-12 text-sm sm:text-base touch-manipulation",
+                    hasEnoughCredits
+                      ? "bg-yellow-600 hover:bg-yellow-700"
+                      : "bg-gray-400 cursor-not-allowed"
+                  )}
+                  disabled={!hasEnoughCredits || isLoadingCredits}
+                >
+                  {isLoadingCredits ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                      Loading...
+                    </>
+                  ) : !hasEnoughCredits ? (
+                    <>
+                      <Lock className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                      Insufficient Credits
+                    </>
+                  ) : (
+                    <>
+                      <Unlock className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                      Unlock for {creditsRequired} Credits
+                    </>
+                  )}
+                </Button>
 
-            {/* Payment Form */}
-            <form onSubmit={handlePayAndUnlock} className="space-y-3 sm:space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="phone" className="flex items-center gap-2 text-sm sm:text-base">
-                  <Smartphone className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  M-Pesa Phone Number
-                </Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  inputMode="tel"
-                  placeholder="e.g., 0712345678"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  required
-                  className="h-10 sm:h-11 text-base"
-                  autoComplete="tel"
-                />
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  You will receive an M-Pesa STK push on this number
-                </p>
-              </div>
+                {!hasEnoughCredits && !isLoadingCredits && (
+                  <p className="text-xs text-center text-muted-foreground px-2">
+                    Need more credits?{" "}
+                    <a href="/regular" className="text-yellow-600 hover:underline">
+                      Buy Credits
+                    </a>
+                  </p>
+                )}
+              </TabsContent>
 
-              <Button
-                type="submit"
-                className="w-full bg-yellow-600 hover:bg-yellow-700 h-11 sm:h-12 text-sm sm:text-base touch-manipulation"
-                disabled={!phoneNumber}
-              >
-                <CreditCard className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                Pay Ksh {unlockFeeKes}
-              </Button>
-            </form>
+              <TabsContent value="mpesa" className="mt-4 space-y-4">
+                {/* M-Pesa Info */}
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex items-center justify-between p-3 sm:p-4 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                      <span className="font-medium text-sm sm:text-base">Unlock Fee</span>
+                    </div>
+                    <span className="text-base sm:text-lg font-bold">Ksh {unlockFeeKes}</span>
+                  </div>
+
+                  <Alert className="bg-blue-50 border-blue-200 py-2 sm:py-3">
+                    <Info className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                    <AlertTitle className="text-blue-800 text-xs sm:text-sm">What you get</AlertTitle>
+                    <AlertDescription className="text-blue-700 text-xs sm:text-sm">
+                      Permanent access to view this resource
+                    </AlertDescription>
+                  </Alert>
+                </div>
+
+                {/* M-Pesa Payment Form */}
+                <form onSubmit={handlePayAndUnlock} className="space-y-3 sm:space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="flex items-center gap-2 text-sm sm:text-base">
+                      <Smartphone className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      M-Pesa Phone Number
+                    </Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      inputMode="tel"
+                      placeholder="e.g., 0712345678"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      required
+                      className="h-10 sm:h-11 text-base"
+                      autoComplete="tel"
+                    />
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      You will receive an M-Pesa STK push on this number
+                    </p>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full bg-green-600 hover:bg-green-700 h-11 sm:h-12 text-sm sm:text-base touch-manipulation"
+                    disabled={!phoneNumber}
+                  >
+                    <CreditCard className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                    Pay Ksh {unlockFeeKes} with M-Pesa
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
 
             <p className="text-xs text-center text-muted-foreground px-2">
               Once unlocked, you can view this resource anytime.

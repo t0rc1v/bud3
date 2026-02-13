@@ -5,15 +5,25 @@ import {
   getCreditPurchaseByCheckoutId,
   updateCreditPurchaseStatus 
 } from "@/lib/actions/credits";
+import { getUserByClerkId } from "@/lib/actions/auth";
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await auth();
+    const { userId: clerkId } = await auth();
     
-    if (!userId) {
+    if (!clerkId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // Get database user record to compare with purchase.userId (UUID)
+    const dbUser = await getUserByClerkId(clerkId);
+    if (!dbUser) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
       );
     }
 
@@ -37,8 +47,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Verify user owns this purchase
-    if (purchase.userId !== userId) {
+    // Verify user owns this purchase (compare database UUIDs)
+    if (purchase.userId !== dbUser.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 403 }

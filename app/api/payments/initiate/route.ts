@@ -7,15 +7,25 @@ import {
   CREDIT_PRICING 
 } from "@/lib/mpesa";
 import { createCreditPurchase } from "@/lib/actions/credits";
+import { getUserByClerkId } from "@/lib/actions/auth";
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await auth();
+    const { userId: clerkId } = await auth();
     
-    if (!userId) {
+    if (!clerkId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // Get database user record (creditPurchase expects UUID, not Clerk ID)
+    const dbUser = await getUserByClerkId(clerkId);
+    if (!dbUser) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
       );
     }
 
@@ -49,8 +59,8 @@ export async function POST(req: Request) {
     const formattedPhone = formatPhoneNumber(phoneNumber);
     const credits = CREDIT_PRICING.calculateCredits(amount);
 
-    // Create purchase record
-    const purchase = await createCreditPurchase(userId, formattedPhone, amount, type);
+    // Create purchase record using database UUID, not Clerk ID
+    const purchase = await createCreditPurchase(dbUser.id, formattedPhone, amount, type);
 
     // Initiate STK Push
     const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/callback`;

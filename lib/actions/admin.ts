@@ -1377,6 +1377,135 @@ export async function removeMyLearner(adminId: string, regularId: string): Promi
   revalidatePath("/admin/regulars");
 }
 
+export interface BulkAddResult {
+  successfullyAdded: { email: string; userId: string }[];
+  alreadyExists: string[];
+  invalidEmails: string[];
+  notFound: string[];
+  notRegularRole: string[];
+  totalProcessed: number;
+}
+
+export async function bulkAddMyLearners(
+  adminId: string,
+  emails: string[],
+  metadata?: Record<string, unknown>
+): Promise<BulkAddResult> {
+  const { getUserByEmail } = await import("./auth");
+  
+  // Clean and deduplicate emails
+  const uniqueEmails = [...new Set(emails.map(e => e.trim().toLowerCase()).filter(e => e.length > 0))];
+  
+  const result: BulkAddResult = {
+    successfullyAdded: [],
+    alreadyExists: [],
+    invalidEmails: [],
+    notFound: [],
+    notRegularRole: [],
+    totalProcessed: uniqueEmails.length,
+  };
+  
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const validEmails: string[] = [];
+  
+  for (const email of uniqueEmails) {
+    if (!emailRegex.test(email)) {
+      result.invalidEmails.push(email);
+    } else {
+      validEmails.push(email);
+    }
+  }
+  
+  // Get existing regulars for this admin to check for duplicates
+  const existingRegulars = await db
+    .select()
+    .from(adminRegulars)
+    .where(eq(adminRegulars.adminId, adminId));
+  
+  const existingRegularIds = new Set(existingRegulars.map(r => r.regularId));
+  
+  // Process each valid email
+  for (const email of validEmails) {
+    try {
+      const regular = await getUserByEmail(email);
+      
+      if (!regular) {
+        result.notFound.push(email);
+        continue;
+      }
+      
+      if (regular.role !== "regular") {
+        result.notRegularRole.push(email);
+        continue;
+      }
+      
+      if (existingRegularIds.has(regular.id)) {
+        result.alreadyExists.push(email);
+        continue;
+      }
+      
+      // Add the regular
+      await db.insert(adminRegulars).values({
+        adminId,
+        regularId: regular.id,
+        regularEmail: email,
+        metadata: metadata || null,
+        isActive: true,
+      });
+      
+      result.successfullyAdded.push({ email, userId: regular.id });
+      existingRegularIds.add(regular.id);
+    } catch (error) {
+      console.error(`Error processing email ${email}:`, error);
+      result.notFound.push(email);
+    }
+  }
+  
+  revalidatePath("/admin/regulars");
+  return result;
+}
+
+export interface BulkRemoveResult {
+  deletedCount: number;
+  failedCount: number;
+}
+
+export async function bulkRemoveMyLearners(
+  adminId: string,
+  regularIds: string[]
+): Promise<BulkRemoveResult> {
+  // Use a transaction for atomic bulk delete
+  const result = await db.transaction(async (tx) => {
+    let deletedCount = 0;
+    
+    for (const regularId of regularIds) {
+      const deleteResult = await tx
+        .delete(adminRegulars)
+        .where(
+          and(
+            eq(adminRegulars.adminId, adminId),
+            eq(adminRegulars.regularId, regularId)
+          )
+        )
+        .returning({ id: adminRegulars.id });
+      
+      if (deleteResult.length > 0) {
+        deletedCount++;
+      }
+    }
+    
+    return { deletedCount };
+  });
+  
+  revalidatePath("/admin/regulars");
+  
+  return {
+    deletedCount: result.deletedCount,
+    failedCount: regularIds.length - result.deletedCount,
+  };
+}
+
 // ==========================================
 // SUPER ADMIN SYSTEM MANAGEMENT
 // ==========================================

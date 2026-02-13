@@ -20,7 +20,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 export default function ManageRegularsPage() {
@@ -30,6 +29,9 @@ export default function ManageRegularsPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [newRegularEmail, setNewRegularEmail] = useState("");
   const [adminUser, setAdminUser] = useState<{ id: string; email: string; institutionName?: string } | null>(null);
+  const [regularToDelete, setRegularToDelete] = useState<MyLearnerWithDetails | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -86,12 +88,15 @@ export default function ManageRegularsPage() {
     }
   };
 
-  const handleRemoveRegular = async (regularId: string) => {
-    if (!adminUser) return;
+  const handleRemoveRegular = async () => {
+    if (!adminUser || !regularToDelete) return;
 
     try {
-      await removeMyLearner(adminUser.id, regularId);
+      setIsDeleting(true);
+      await removeMyLearner(adminUser.id, regularToDelete.regularId);
       toast.success("Regular removed successfully");
+      setIsDeleteDialogOpen(false);
+      setRegularToDelete(null);
       
       // Refresh list
       const updatedRegulars = await getMyLearners(adminUser.id);
@@ -99,7 +104,14 @@ export default function ManageRegularsPage() {
     } catch (error) {
       console.error("Error removing regular:", error);
       toast.error("Failed to remove regular");
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const openDeleteDialog = (regular: MyLearnerWithDetails) => {
+    setRegularToDelete(regular);
+    setIsDeleteDialogOpen(true);
   };
 
   if (isLoading) {
@@ -206,15 +218,57 @@ export default function ManageRegularsPage() {
                             <span>Joined: {new Date(regular.regular.createdAt).toLocaleDateString()}</span>
                           </>
                         )}
-                       </div>
+                      </div>
                     </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => openDeleteDialog(regular)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Regular User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove {regularToDelete?.regular?.name || regularToDelete?.regularEmail} from your institution? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setIsDeleteDialogOpen(false);
+              setRegularToDelete(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoveRegular}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Removing...
+                </>
+              ) : (
+                "Remove"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

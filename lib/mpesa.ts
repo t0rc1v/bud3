@@ -10,6 +10,7 @@ const MPESA_CONFIG = {
     passkey: process.env.MPESA_SANDBOX_PASSKEY || 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919',
     consumerKey: process.env.MPESA_SANDBOX_CONSUMER_KEY || '',
     consumerSecret: process.env.MPESA_SANDBOX_CONSUMER_SECRET || '',
+    tillNumber: process.env.MPESA_TILL_NUMBER || '',
   },
   production: {
     baseUrl: 'https://api.safaricom.co.ke',
@@ -17,6 +18,7 @@ const MPESA_CONFIG = {
     passkey: process.env.MPESA_PRODUCTION_PASSKEY || '',
     consumerKey: process.env.MPESA_PRODUCTION_CONSUMER_KEY || '',
     consumerSecret: process.env.MPESA_PRODUCTION_CONSUMER_SECRET || '',
+    tillNumber: process.env.MPESA_TILL_NUMBER || '',
   },
 };
 
@@ -146,7 +148,7 @@ export async function initiateSTKPush(
       TransactionType: MPESA_CONFIG.environment === 'production' ? 'CustomerBuyGoodsOnline' : 'CustomerPayBillOnline',
       Amount: Math.ceil(request.amount), // M-Pesa expects whole numbers
       PartyA: formattedPhone,
-      PartyB: config.shortcode,
+      PartyB: MPESA_CONFIG.environment === 'production' ? MPESA_CONFIG.production.tillNumber : config.shortcode,
       PhoneNumber: formattedPhone,
       CallBackURL: request.callbackUrl,
       AccountReference: request.accountReference.substring(0, 12), // Max 12 chars

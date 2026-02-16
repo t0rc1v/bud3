@@ -534,33 +534,33 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "my" | "institution" | "public")} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-lg">
-          <TabsTrigger value="my" className="flex items-center gap-2">
-            <User className="h-4 w-4" />
-            My Content
-            <Badge variant="secondary" className="ml-1">{myStats.levels}</Badge>
+        <TabsList className="grid w-full grid-cols-3 h-10 sm:h-11">
+          <TabsTrigger value="my" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2">
+            <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+            <span className="text-xs sm:text-sm whitespace-nowrap leading-none">My Content</span>
+            <Badge variant="secondary" className="ml-0.5 sm:ml-1 text-xs hidden sm:inline h-5 min-w-0 px-1.5">{myStats.levels}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="institution" className="flex items-center gap-2" disabled={adminIds.length === 0}>
-            <Building2 className="h-4 w-4" />
-            Institution
-            {adminIds.length > 0 && <Badge variant="secondary" className="ml-1 bg-green-100 text-green-800">{adminStats.levels}</Badge>}
+          <TabsTrigger value="institution" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2" disabled={adminIds.length === 0}>
+            <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+            <span className="text-xs sm:text-sm whitespace-nowrap leading-none">Institution</span>
+            {adminIds.length > 0 && <Badge variant="secondary" className="ml-0.5 sm:ml-1 bg-green-100 text-green-800 text-xs hidden sm:inline h-5 min-w-0 px-1.5">{adminStats.levels}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="public" className="flex items-center gap-2">
-            <Shield className="h-4 w-4 text-purple-500" />
-            Public
-            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800">{superAdminLevels.length}</Badge>
+          <TabsTrigger value="public" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2">
+            <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500 flex-shrink-0" />
+            <span className="text-xs sm:text-sm whitespace-nowrap leading-none">Public</span>
+            <Badge variant="secondary" className="ml-0.5 sm:ml-1 bg-purple-100 text-purple-800 text-xs hidden sm:inline h-5 min-w-0 px-1.5">{superAdminLevels.length}</Badge>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="my" className="space-y-4 mt-6">
           {/* Quick Actions & Search - Only show in My Content tab */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               <Dialog open={isCreateLevelOpen} onOpenChange={setIsCreateLevelOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="h-9 sm:h-10 gap-1.5">
-                    <Plus className="h-4 w-4" />
-                    <span>Add Level</span>
+                  <Button size="sm" className="h-8 sm:h-9 sm:h-10 gap-1">
+                    <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="text-xs sm:text-sm">Add Level</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
@@ -572,9 +572,9 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
               </Dialog>
               <Dialog open={isCreateSubjectOpen} onOpenChange={setIsCreateSubjectOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={allLevels.length === 0}>
-                    <Plus className="h-4 w-4" />
-                    <span>Add Subject</span>
+                  <Button variant="outline" size="sm" className="h-8 sm:h-9 sm:h-10 gap-1" disabled={allLevels.length === 0}>
+                    <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="text-xs sm:text-sm">Add Subject</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
@@ -589,9 +589,9 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
               </Dialog>
               <Dialog open={isCreateTopicOpen} onOpenChange={setIsCreateTopicOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={allSubjects.length === 0}>
-                    <Plus className="h-4 w-4" />
-                    <span>Add Topic</span>
+                  <Button variant="outline" size="sm" className="h-8 sm:h-9 sm:h-10 gap-1" disabled={allSubjects.length === 0}>
+                    <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="text-xs sm:text-sm">Add Topic</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
@@ -606,9 +606,9 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
               </Dialog>
               <Dialog open={isCreateResourceOpen} onOpenChange={setIsCreateResourceOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={allTopics.length === 0}>
-                    <Plus className="h-4 w-4" />
-                    <span>Add Resource</span>
+                  <Button variant="outline" size="sm" className="h-8 sm:h-9 sm:h-10 gap-1" disabled={allTopics.length === 0}>
+                    <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="text-xs sm:text-sm">Add Resource</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[600px]">
@@ -623,14 +623,14 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
                 </DialogContent>
               </Dialog>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={expandAll} className="h-9 sm:h-10 gap-1.5">
-                <ChevronDownSquare className="h-4 w-4" />
-                <span>Expand</span>
+            <div className="flex gap-1.5 sm:gap-2">
+              <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={expandAll}>
+                <ChevronDownSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Expand</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={collapseAll} className="h-9 sm:h-10 gap-1.5">
-                <ChevronRightSquare className="h-4 w-4" />
-                <span>Collapse</span>
+              <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={collapseAll}>
+                <ChevronRightSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Collapse</span>
               </Button>
               <div className="relative w-full sm:w-auto sm:min-w-[250px]">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -638,7 +638,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
                   placeholder="Search my content..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8"
+                  className="pl-8 h-9 sm:h-10"
                 />
               </div>
             </div>
@@ -699,15 +699,15 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
 
         <TabsContent value="institution" className="space-y-4 mt-6">
           {/* Search and controls for institution content */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={expandAll} className="h-9 sm:h-10 gap-1.5">
-                <ChevronDownSquare className="h-4 w-4" />
-                <span>Expand</span>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
+            <div className="flex gap-1.5 sm:gap-2">
+              <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={expandAll}>
+                <ChevronDownSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Expand</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={collapseAll} className="h-9 sm:h-10 gap-1.5">
-                <ChevronRightSquare className="h-4 w-4" />
-                <span>Collapse</span>
+              <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={collapseAll}>
+                <ChevronRightSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Collapse</span>
               </Button>
             </div>
             <div className="relative w-full sm:w-auto sm:min-w-[250px]">
@@ -716,7 +716,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
                 placeholder="Search institution content..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
+                className="pl-8 h-9 sm:h-10"
               />
             </div>
           </div>
@@ -775,15 +775,15 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
 
         <TabsContent value="public" className="space-y-4 mt-6">
           {/* Search and controls for public content */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={expandAll} className="h-9 sm:h-10 gap-1.5">
-                <ChevronDownSquare className="h-4 w-4" />
-                <span>Expand</span>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
+            <div className="flex gap-1.5 sm:gap-2">
+              <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={expandAll}>
+                <ChevronDownSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Expand</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={collapseAll} className="h-9 sm:h-10 gap-1.5">
-                <ChevronRightSquare className="h-4 w-4" />
-                <span>Collapse</span>
+              <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={collapseAll}>
+                <ChevronRightSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Collapse</span>
               </Button>
             </div>
             <div className="relative w-full sm:w-auto sm:min-w-[250px]">
@@ -792,7 +792,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
                 placeholder="Search public content..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
+                className="pl-8 h-9 sm:h-10"
               />
             </div>
           </div>
@@ -1012,38 +1012,40 @@ function ResourceItem({ resource, canDelete, currentUserId, onViewResource, onDe
 
   if (isChecking) {
     return (
-      <div className="flex items-center justify-between p-2 hover:bg-muted/20 rounded">
-        <div className="flex items-center gap-3">
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm">{resource.title}</span>
-          <span className="text-xs text-muted-foreground capitalize">
+      <div className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-muted/20 rounded gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+          <span className="text-xs sm:text-sm truncate">{resource.title}</span>
+          <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 hidden sm:inline">
             ({resource.type})
           </span>
         </div>
-        <div className="h-8 w-8 animate-pulse bg-muted rounded" />
+        <div className="h-7 w-7 sm:h-8 sm:w-8 animate-pulse bg-muted rounded flex-shrink-0" />
       </div>
     );
   }
 
   return (
-    <div className="flex items-center justify-between p-2 hover:bg-muted/20 rounded">
-      <div className="flex items-center gap-3">
+    <div className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-muted/20 rounded gap-2">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
         {resource.isLocked ? (
-          <Lock className="h-4 w-4 text-yellow-600" />
+          <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
         ) : (
-          <FileText className="h-4 w-4 text-muted-foreground" />
+          <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
         )}
-        <span className="text-sm">{resource.title}</span>
-        <span className="text-xs text-muted-foreground capitalize">
+        <span className="text-xs sm:text-sm truncate">{resource.title}</span>
+        <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 hidden sm:inline">
           ({resource.type})
         </span>
         {resource.isLocked && (
-          <span className="text-xs text-yellow-600 font-medium">
-            Ksh {resource.unlockFee}
+          <span className="text-[10px] sm:text-xs text-yellow-600 font-medium flex-shrink-0">
+            <span className="hidden sm:inline">Ksh </span>
+            <span className="sm:hidden">K</span>
+            {resource.unlockFee}
           </span>
         )}
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
         {resource.isLocked && !isUnlocked ? (
           <ResourceUnlockModal
             resourceId={resource.id}
@@ -1054,10 +1056,10 @@ function ResourceItem({ resource, canDelete, currentUserId, onViewResource, onDe
             trigger={
               <Button 
                 variant="ghost" 
-                size="sm"
-                className="text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                size="icon"
+                className="h-7 w-7 sm:h-9 sm:w-9 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
               >
-                <CreditCard className="h-4 w-4" />
+                <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </Button>
             }
             onUnlockSuccess={handleUnlockSuccess}
@@ -1065,17 +1067,18 @@ function ResourceItem({ resource, canDelete, currentUserId, onViewResource, onDe
         ) : (
           <Button 
             variant="ghost" 
-            size="sm"
+            size="icon"
+            className="h-7 w-7 sm:h-9 sm:w-9"
             onClick={handleView}
           >
-            <Eye className="h-4 w-4" />
+            <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </Button>
         )}
         {(canDelete && resource.ownerId === currentUserId) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreVertical className="h-4 w-4" />
+              <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-9 sm:w-9">
+                <MoreVertical className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -1167,52 +1170,54 @@ function LevelCard({
       {/* Level Header */}
       <div 
         className={cn(
-          "flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50",
+          "flex items-center justify-between p-2 sm:p-4 cursor-pointer hover:bg-muted/50 gap-2",
           isPublicContent && "bg-purple-50/50",
           isInstitutionContent && "bg-green-50/50"
         )}
         onClick={onToggle}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           {isExpanded ? (
-            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+            <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
           ) : (
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
           )}
           <div 
-            className="w-4 h-4 rounded-full" 
+            className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0" 
             style={{ backgroundColor: level.color }}
-          />
-          <div>
-            <span className="font-semibold">{level.title}</span>
+          >
+            {level.levelNumber}
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="font-semibold text-sm sm:text-base truncate block">{level.title}</span>
             {isPublicContent && (
-              <Badge variant="outline" className="ml-2 text-xs bg-purple-100 text-purple-800 border-purple-300">
+              <Badge variant="outline" className="mt-0.5 text-xs bg-purple-100 text-purple-800 border-purple-300 sm:ml-2 sm:mt-0">
                 Public
               </Badge>
             )}
             {isInstitutionContent && (
-              <Badge variant="outline" className="ml-2 text-xs bg-green-100 text-green-800 border-green-300">
+              <Badge variant="outline" className="mt-0.5 text-xs bg-green-100 text-green-800 border-green-300 sm:ml-2 sm:mt-0">
                 From Institution
               </Badge>
             )}
           </div>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
             ({level.subjects?.length || 0} subjects)
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           {/* Add Subject button - only for owners */}
           {canDeleteLevel && (
             <Dialog open={isAddSubjectOpen} onOpenChange={setIsAddSubjectOpen}>
               <DialogTrigger asChild>
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="icon"
                   onClick={(e) => e.stopPropagation()}
-                  className="gap-1"
+                  className="sm:h-9 sm:w-auto sm:px-3 sm:py-2"
                 >
-                  <Plus className="h-4 w-4" />
-                  Add Subject
+                  <Plus className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Add Subject</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
@@ -1255,7 +1260,7 @@ function LevelCard({
       {isExpanded && (
         <div className="border-t">
           {level.subjects?.length === 0 ? (
-            <div className="p-4 pl-12 text-sm text-muted-foreground">
+            <div className="p-2 pl-8 sm:p-4 sm:pl-12 text-xs sm:text-sm text-muted-foreground">
               {canDelete ? "No subjects yet. Add your first subject." : "No subjects available from this level?."}
             </div>
           ) : (
@@ -1264,42 +1269,37 @@ function LevelCard({
                 {/* Subject Header */}
                 <div 
                   className={cn(
-                    "flex items-center justify-between p-3 pl-12 border-b cursor-pointer hover:bg-muted/30",
+                    "flex items-center justify-between p-2 pl-6 sm:p-3 sm:pl-12 border-b cursor-pointer hover:bg-muted/30 gap-2",
                     isPublicContent && "hover:bg-purple-50/30",
                     isInstitutionContent && "hover:bg-green-50/30"
                   )}
                   onClick={() => onToggleSubject(subject.id)}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                     {expandedSubjects.has(subject.id) ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                     ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                     )}
-                    <div 
-                      className="w-8 h-8 rounded flex items-center justify-center text-sm"
-                      style={{ backgroundColor: subject.color }}
-                    >
-                      {subject.icon}
-                    </div>
-                    <span className="font-medium">{subject.name}</span>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-lg sm:text-2xl flex-shrink-0">{subject.icon}</span>
+                    <span className="font-medium text-sm sm:text-base truncate">{subject.name}</span>
+                    <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
                       ({subject.topics?.length || 0} topics)
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                     {/* Add Topic button - only for owners */}
                     {(canDelete && subject.ownerId === currentUserId) && (
                       <Dialog open={addTopicForSubject === subject.id} onOpenChange={(open) => setAddTopicForSubject(open ? subject.id : null)}>
                         <DialogTrigger asChild>
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={(e) => e.stopPropagation()}
-                            className="gap-1"
+                            className="sm:h-9 sm:w-auto sm:px-3 sm:py-2"
                           >
-                            <Plus className="h-4 w-4" />
-                            Add Topic
+                            <Plus className="h-4 w-4 sm:mr-1" />
+                            <span className="hidden sm:inline">Add Topic</span>
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[425px]">
@@ -1342,7 +1342,7 @@ function LevelCard({
                 {expandedSubjects.has(subject.id) && (
                   <div>
                     {subject.topics?.length === 0 ? (
-                      <div className="p-3 pl-20 text-sm text-muted-foreground border-b">
+                      <div className="p-2 pl-10 sm:p-3 sm:pl-20 text-xs sm:text-sm text-muted-foreground border-b">
                         No topics available.
                       </div>
                     ) : (
@@ -1351,37 +1351,37 @@ function LevelCard({
                           {/* Topic Header */}
                           <div 
                             className={cn(
-                              "flex items-center justify-between p-3 pl-16 cursor-pointer hover:bg-muted/20",
+                              "flex items-center justify-between p-2 pl-8 sm:p-3 sm:pl-16 cursor-pointer hover:bg-muted/20 gap-2",
                               isPublicContent && "hover:bg-purple-50/20",
                               isInstitutionContent && "hover:bg-green-50/20"
                             )}
                             onClick={() => onToggleTopic(topic.id)}
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                               {expandedTopics.has(topic.id) ? (
-                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                               ) : (
-                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                               )}
-                              <FolderOpen className="h-4 w-4 text-blue-500" />
-                              <span className="font-medium">{topic.title}</span>
-                              <span className="text-sm text-muted-foreground">
+                              <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
+                              <span className="font-medium text-sm sm:text-base truncate">{topic.title}</span>
+                              <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
                                 ({topic.resources?.length || 0} resources)
                               </span>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                               {/* Add Resource button - only for owners */}
                               {(canDelete && topic.ownerId === currentUserId) && (
                                 <Dialog open={addResourceForTopic === topic.id} onOpenChange={(open) => setAddResourceForTopic(open ? topic.id : null)}>
                                   <DialogTrigger asChild>
                                     <Button
                                       variant="ghost"
-                                      size="sm"
+                                      size="icon"
                                       onClick={(e) => e.stopPropagation()}
-                                      className="gap-1"
+                                      className="sm:h-9 sm:w-auto sm:px-3 sm:py-2"
                                     >
-                                      <Plus className="h-4 w-4" />
-                                      Add Resource
+                                      <Plus className="h-4 w-4 sm:mr-1" />
+                                      <span className="hidden sm:inline">Add Resource</span>
                                     </Button>
                                   </DialogTrigger>
                                   <DialogContent className="sm:max-w-[600px]">
@@ -1423,9 +1423,9 @@ function LevelCard({
 
                           {/* Resources */}
                           {expandedTopics.has(topic.id) && (
-                            <div className="pl-20">
+                            <div className="pl-10 sm:pl-20">
                               {topic.resources?.length === 0 ? (
-                                <div className="p-2 text-sm text-muted-foreground">
+                                <div className="p-1.5 sm:p-2 text-xs sm:text-sm text-muted-foreground">
                                   No resources available.
                                 </div>
                               ) : (

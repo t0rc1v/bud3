@@ -502,21 +502,22 @@ export function UnifiedAdminPageClient({
       </div>
 
       {/* Manage Regulars Card */}
-      <Card className="bg-level?ient-to-r from-blue-50 to-indigo-50 border-blue-200">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                <Users className="h-5 w-5 text-blue-600" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
               </div>
-              <div>
-                <p className="font-medium text-blue-900">Manage Regular Users</p>
-                <p className="text-sm text-blue-700">Add and manage regular users for your institution</p>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-blue-900 text-sm sm:text-base">Manage Regular Users</p>
+                <p className="text-xs sm:text-sm text-blue-700 hidden sm:block">Add and manage regular users for your institution</p>
               </div>
             </div>
             <Button 
               variant="outline" 
-              className="border-blue-300 hover:bg-blue-100"
+              size="sm"
+              className="border-blue-300 hover:bg-blue-100 w-full sm:w-auto"
               onClick={() => router.push("/admin/regulars")}
             >
               <Users className="h-4 w-4 mr-2" />
@@ -528,28 +529,28 @@ export function UnifiedAdminPageClient({
 
       {/* Tabs for My Content and Public Content */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "my" | "public")} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
-          <TabsTrigger value="my" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="my" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3">
             <User className="h-4 w-4" />
-            My Content
-            <Badge variant="secondary" className="ml-1">{myStats.levels}</Badge>
+            <span className="text-xs sm:text-sm whitespace-nowrap">My Content</span>
+            <Badge variant="secondary" className="ml-1 text-xs hidden sm:inline">{myStats.levels}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="public" className="flex items-center gap-2">
+          <TabsTrigger value="public" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3">
             <Shield className="h-4 w-4 text-purple-500" />
-            Public Content
-            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800">{publicStats.levels}</Badge>
+            <span className="text-xs sm:text-sm whitespace-nowrap">Public Content</span>
+            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800 text-xs hidden sm:inline">{publicStats.levels}</Badge>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="my" className="space-y-4 mt-6">
           {/* Quick Actions & Search - Only show in My Content tab */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               <Dialog open={isCreateLevelOpen} onOpenChange={setIsCreateLevelOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="h-9 sm:h-10 gap-1.5">
-                    <Plus className="h-4 w-4" />
-                    <span>Add Level</span>
+                  <Button size="sm" className="h-8 sm:h-9 sm:h-10 gap-1">
+                    <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="text-xs sm:text-sm">Add Level</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
@@ -561,9 +562,9 @@ export function UnifiedAdminPageClient({
               </Dialog>
               <Dialog open={isCreateSubjectOpen} onOpenChange={setIsCreateSubjectOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={levels.length === 0}>
-                    <Plus className="h-4 w-4" />
-                    <span>Add Subject</span>
+                  <Button variant="outline" size="sm" className="h-8 sm:h-9 sm:h-10 gap-1" disabled={levels.length === 0}>
+                    <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="text-xs sm:text-sm">Add Subject</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
@@ -575,9 +576,9 @@ export function UnifiedAdminPageClient({
               </Dialog>
               <Dialog open={isCreateTopicOpen} onOpenChange={setIsCreateTopicOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={allSubjects.length === 0}>
-                    <Plus className="h-4 w-4" />
-                    <span>Add Topic</span>
+                  <Button variant="outline" size="sm" className="h-8 sm:h-9 sm:h-10 gap-1" disabled={allSubjects.length === 0}>
+                    <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="text-xs sm:text-sm">Add Topic</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
@@ -589,9 +590,9 @@ export function UnifiedAdminPageClient({
               </Dialog>
               <Dialog open={isCreateResourceOpen} onOpenChange={setIsCreateResourceOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={allTopics.length === 0}>
-                    <Plus className="h-4 w-4" />
-                    <span>Add Resource</span>
+                  <Button variant="outline" size="sm" className="h-8 sm:h-9 sm:h-10 gap-1" disabled={allTopics.length === 0}>
+                    <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="text-xs sm:text-sm">Add Resource</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[600px]">
@@ -601,13 +602,13 @@ export function UnifiedAdminPageClient({
                   <CreateResourceForm subjects={allSubjects} topics={allTopics} onSuccess={() => setIsCreateResourceOpen(false)} />
                 </DialogContent>
               </Dialog>
-              <Button variant="outline" size="sm" onClick={expandAll} className="h-9 sm:h-10 gap-1.5">
-                <ChevronDownSquare className="h-4 w-4" />
-                <span>Expand</span>
+              <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={expandAll}>
+                <ChevronDownSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Expand</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={collapseAll} className="h-9 sm:h-10 gap-1.5">
-                <ChevronRightSquare className="h-4 w-4" />
-                <span>Collapse</span>
+              <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={collapseAll}>
+                <ChevronRightSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Collapse</span>
               </Button>
             </div>
             <div className="relative w-full sm:w-auto sm:min-w-[300px]">
@@ -644,34 +645,34 @@ export function UnifiedAdminPageClient({
             <Card key={level.id} className="overflow-hidden">
               {/* Level Header */}
               <div 
-                className="flex items-center justify-between p-4 bg-muted/50 cursor-pointer hover:bg-muted"
+                className="flex items-center justify-between p-2 sm:p-4 bg-muted/50 cursor-pointer hover:bg-muted gap-2"
                 onClick={() => toggleLevel(level.id)}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                   {expandedLevels.has(level.id) ? (
-                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
                   ) : (
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
                   )}
                   <div 
-                    className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
+                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm sm:text-base flex-shrink-0"
                     style={{ backgroundColor: level.color }}
                   >
                     {level.levelNumber}
                   </div>
-                  <div>
-                    <span className="font-semibold text-lg">{level.title}</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="font-semibold text-base sm:text-lg truncate block">{level.title}</span>
                   </div>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
                     ({level.subjects.length} subjects)
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Subject
+                      <Button variant="outline" size="icon" className="sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={(e) => e.stopPropagation()}>
+                        <Plus className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Add Subject</span>
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[425px]">
@@ -716,27 +717,27 @@ export function UnifiedAdminPageClient({
                       <div key={subject.id}>
                         {/* Subject Header */}
                         <div 
-                          className="flex items-center justify-between p-3 pl-8 border-b cursor-pointer hover:bg-muted/30"
+                          className="flex items-center justify-between p-2 pl-4 sm:p-3 sm:pl-8 border-b cursor-pointer hover:bg-muted/30 gap-2"
                           onClick={() => toggleSubject(subject.id)}
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                             {expandedSubjects.has(subject.id) ? (
-                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                             ) : (
-                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                             )}
-                            <span className="text-2xl">{subject.icon}</span>
-                            <span className="font-medium">{subject.name}</span>
-                            <span className="text-sm text-muted-foreground">
+                            <span className="text-lg sm:text-2xl flex-shrink-0">{subject.icon}</span>
+                            <span className="font-medium text-sm sm:text-base truncate">{subject.name}</span>
+                            <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
                               ({subject.topics.length} topics)
                             </span>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                             <Dialog>
                               <DialogTrigger asChild>
-                                <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
-                                  <Plus className="h-4 w-4 mr-1" />
-                                  Add Topic
+                                <Button variant="ghost" size="icon" className="sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={(e) => e.stopPropagation()}>
+                                  <Plus className="h-4 w-4 sm:mr-1" />
+                                  <span className="hidden sm:inline">Add Topic</span>
                                 </Button>
                               </DialogTrigger>
                               <DialogContent className="sm:max-w-[425px]">
@@ -781,27 +782,27 @@ export function UnifiedAdminPageClient({
                                 <div key={topic.id} className="border-b last:border-b-0">
                                   {/* Topic Header */}
                                   <div 
-                                    className="flex items-center justify-between p-3 pl-12 cursor-pointer hover:bg-muted/20"
+                                    className="flex items-center justify-between p-2 pl-6 sm:p-3 sm:pl-12 cursor-pointer hover:bg-muted/20 gap-2"
                                     onClick={() => toggleTopic(topic.id)}
                                   >
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                                       {expandedTopics.has(topic.id) ? (
-                                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                        <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                                       ) : (
-                                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                        <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                                       )}
-                                      <FileText className="h-4 w-4 text-blue-500" />
-                                      <span className="font-medium">{topic.title}</span>
-                                      <span className="text-sm text-muted-foreground">
+                                      <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
+                                      <span className="font-medium text-sm sm:text-base truncate">{topic.title}</span>
+                                      <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
                                         ({topic.resources?.length || 0} resources)
                                       </span>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                                       <Dialog>
                                         <DialogTrigger asChild>
-                                          <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
-                                            <Plus className="h-4 w-4 mr-1" />
-                                            Add Resource
+                                          <Button variant="ghost" size="icon" className="sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={(e) => e.stopPropagation()}>
+                                            <Plus className="h-4 w-4 sm:mr-1" />
+                                            <span className="hidden sm:inline">Add Resource</span>
                                           </Button>
                                         </DialogTrigger>
                                         <DialogContent className="sm:max-w-[425px]">
@@ -836,53 +837,57 @@ export function UnifiedAdminPageClient({
 
                                     {/* Resources */}
                                     {expandedTopics.has(topic.id) && (
-                                      <div className="pl-16">
+                                      <div className="pl-8 sm:pl-16">
                                         {!topic.resources || topic.resources.length === 0 ? (
-                                          <div className="p-2 text-sm text-muted-foreground">
+                                          <div className="p-1.5 sm:p-2 text-xs sm:text-sm text-muted-foreground">
                                             No resources yet.
                                           </div>
                                         ) : (
                                           topic.resources.map((resource) => (
                                           <div 
                                             key={resource.id}
-                                            className="flex items-center justify-between p-2 hover:bg-muted/20 rounded"
+                                            className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-muted/20 rounded gap-2"
                                           >
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                                               {resource.isLocked ? (
-                                                <Lock className="h-4 w-4 text-yellow-600" />
+                                                <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
                                               ) : (
-                                                <Unlock className="h-4 w-4 text-green-600" />
+                                                <Unlock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
                                               )}
-                                              <span className="text-sm">{resource.title}</span>
-                                              <span className="text-xs text-muted-foreground capitalize">
+                                              <span className="text-xs sm:text-sm truncate">{resource.title}</span>
+                                              <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 hidden sm:inline">
                                                 ({resource.type})
                                               </span>
                                               {resource.isLocked && (
-                                                <span className="text-xs text-yellow-600 font-medium flex items-center gap-1">
-                                                  <CreditCard className="h-3 w-3" />
-                                                  Ksh {resource.unlockFee}
+                                                <span className="text-[10px] sm:text-xs text-yellow-600 font-medium flex items-center gap-1 flex-shrink-0">
+                                                  <CreditCard className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                                                  <span className="hidden sm:inline">Ksh </span>
+                                                  <span className="sm:hidden">K</span>
+                                                  {resource.unlockFee}
                                                 </span>
                                               )}
                                             </div>
-                                            <div className="flex items-center gap-1">
+                                            <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
                                               <Button 
                                                 variant="ghost" 
-                                                size="sm"
+                                                size="icon"
+                                                className="h-7 w-7 sm:h-9 sm:w-9"
                                                 onClick={() => handleViewResource(resource)}
                                               >
-                                                <Eye className="h-4 w-4" />
+                                                <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                               </Button>
                                               <Button
                                                 variant="ghost"
-                                                size="sm"
+                                                size="icon"
+                                                className="h-7 w-7 sm:h-9 sm:w-9"
                                                 onClick={() => window.open(resource.url, "_blank")}
                                               >
-                                                <ExternalLink className="h-4 w-4" />
+                                                <ExternalLink className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                               </Button>
                                               <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                  <Button variant="ghost" size="sm">
-                                                    <MoreVertical className="h-4 w-4" />
+                                                  <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-9 sm:w-9">
+                                                    <MoreVertical className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                   </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
@@ -926,15 +931,15 @@ export function UnifiedAdminPageClient({
 
         <TabsContent value="public" className="space-y-4 mt-6">
           {/* Search - Only show search in Public Content tab */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={expandAll} className="h-9 sm:h-10 gap-1.5">
-                <ChevronDownSquare className="h-4 w-4" />
-                <span>Expand</span>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
+              <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={expandAll}>
+                <ChevronDownSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Expand</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={collapseAll} className="h-9 sm:h-10 gap-1.5">
-                <ChevronRightSquare className="h-4 w-4" />
-                <span>Collapse</span>
+              <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={collapseAll}>
+                <ChevronRightSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Collapse</span>
               </Button>
             </div>
             <div className="relative w-full sm:w-auto sm:min-w-[300px]">
@@ -975,28 +980,28 @@ export function UnifiedAdminPageClient({
               <Card key={level.id} className="overflow-hidden border-purple-200">
                 {/* Level Header */}
                 <div 
-                  className="flex items-center justify-between p-4 bg-purple-50/50 cursor-pointer hover:bg-purple-50"
+                  className="flex items-center justify-between p-2 sm:p-4 bg-purple-50/50 cursor-pointer hover:bg-purple-50 gap-2"
                   onClick={() => toggleLevel(level.id)}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                     {expandedLevels.has(level.id) ? (
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
                     ) : (
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
                     )}
                     <div 
-                      className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm sm:text-base flex-shrink-0"
                       style={{ backgroundColor: level.color }}
                     >
                       {level.levelNumber}
                     </div>
-                    <div>
-                      <span className="font-semibold text-lg">{level.title}</span>
-                      <Badge variant="outline" className="ml-2 bg-purple-100 text-purple-800 border-purple-300">
+                    <div className="min-w-0 flex-1">
+                      <span className="font-semibold text-base sm:text-lg truncate block">{level.title}</span>
+                      <Badge variant="outline" className="mt-0.5 bg-purple-100 text-purple-800 border-purple-300 text-xs sm:ml-2 sm:mt-0">
                         Public
                       </Badge>
                     </div>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
                       ({level.subjects.length} subjects)
                     </span>
                   </div>
@@ -1013,18 +1018,18 @@ export function UnifiedAdminPageClient({
                       level.subjects.map((subject: SubjectWithTopics) => (
                         <div key={subject.id}>
                           <div 
-                            className="flex items-center justify-between p-3 pl-8 border-b cursor-pointer hover:bg-purple-50/30"
+                            className="flex items-center justify-between p-2 pl-4 sm:p-3 sm:pl-8 border-b cursor-pointer hover:bg-purple-50/30 gap-2"
                             onClick={() => toggleSubject(subject.id)}
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                               {expandedSubjects.has(subject.id) ? (
-                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                               ) : (
-                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                               )}
-                              <span className="text-2xl">{subject.icon}</span>
-                              <span className="font-medium">{subject.name}</span>
-                              <span className="text-sm text-muted-foreground">
+                              <span className="text-lg sm:text-2xl flex-shrink-0">{subject.icon}</span>
+                              <span className="font-medium text-sm sm:text-base truncate">{subject.name}</span>
+                              <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
                                 ({subject.topics.length} topics)
                               </span>
                             </div>
@@ -1041,18 +1046,18 @@ export function UnifiedAdminPageClient({
                                 subject.topics.map((topic: TopicWithResources) => (
                                   <div key={topic.id} className="border-b last:border-b-0">
                                     <div 
-                                      className="flex items-center justify-between p-3 pl-12 cursor-pointer hover:bg-purple-50/20"
+                                      className="flex items-center justify-between p-2 pl-6 sm:p-3 sm:pl-12 cursor-pointer hover:bg-purple-50/20 gap-2"
                                       onClick={() => toggleTopic(topic.id)}
                                     >
-                                      <div className="flex items-center gap-3">
+                                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                                         {expandedTopics.has(topic.id) ? (
-                                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                          <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                                         ) : (
-                                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                          <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                                         )}
-                                        <FolderOpen className="h-4 w-4 text-purple-500" />
-                                        <span className="font-medium">{topic.title}</span>
-                                        <span className="text-sm text-muted-foreground">
+                                        <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500 flex-shrink-0" />
+                                        <span className="font-medium text-sm sm:text-base truncate">{topic.title}</span>
+                                        <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
                                           ({topic.resources?.length || 0} resources)
                                         </span>
                                       </div>
@@ -1060,9 +1065,9 @@ export function UnifiedAdminPageClient({
 
                                       {/* Resources */}
                                       {expandedTopics.has(topic.id) && (
-                                        <div className="pl-16">
+                                        <div className="pl-8 sm:pl-16">
                                           {!topic.resources || topic.resources.length === 0 ? (
-                                            <div className="p-2 text-sm text-muted-foreground">
+                                            <div className="p-1.5 sm:p-2 text-xs sm:text-sm text-muted-foreground">
                                               No resources available.
                                             </div>
                                           ) : (
@@ -1076,22 +1081,24 @@ export function UnifiedAdminPageClient({
                                               return (
                                                 <div 
                                                   key={resource.id}
-                                                  className="flex items-center justify-between p-2 hover:bg-purple-50/10 rounded"
+                                                  className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-purple-50/10 rounded gap-2"
                                                 >
-                                                  <div className="flex items-center gap-3">
+                                                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                                                     {resource.isLocked ? (
-                                                      <Lock className="h-4 w-4 text-yellow-600" />
+                                                      <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
                                                     ) : (
-                                                      <Unlock className="h-4 w-4 text-green-600" />
+                                                      <Unlock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
                                                     )}
-                                                    <span className="text-sm">{resource.title}</span>
-                                                    <span className="text-xs text-muted-foreground capitalize">
+                                                    <span className="text-xs sm:text-sm truncate">{resource.title}</span>
+                                                    <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 hidden sm:inline">
                                                       ({resource.type})
                                                     </span>
                                                     {resource.isLocked && (
-                                                      <span className="text-xs text-yellow-600 font-medium flex items-center gap-1">
-                                                        <CreditCard className="h-3 w-3" />
-                                                        Ksh {resource.unlockFee}
+                                                      <span className="text-[10px] sm:text-xs text-yellow-600 font-medium flex items-center gap-1 flex-shrink-0">
+                                                        <CreditCard className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                                                        <span className="hidden sm:inline">Ksh </span>
+                                                        <span className="sm:hidden">K</span>
+                                                        {resource.unlockFee}
                                                       </span>
                                                     )}
                                                   </div>
@@ -1105,11 +1112,11 @@ export function UnifiedAdminPageClient({
                                                       trigger={
                                                         <Button 
                                                           variant="ghost" 
-                                                          size="sm"
-                                                          className="h-7 text-xs text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                                                          size="icon"
+                                                          className="h-7 w-7 sm:h-9 sm:w-auto sm:px-3 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
                                                         >
-                                                          <Lock className="h-3 w-3 mr-1" />
-                                                          Unlock
+                                                          <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
+                                                          <span className="hidden sm:inline">Unlock</span>
                                                         </Button>
                                                       }
                                                       onUnlockSuccess={() => {
@@ -1119,10 +1126,11 @@ export function UnifiedAdminPageClient({
                                                   ) : (
                                                     <Button 
                                                       variant="ghost" 
-                                                      size="sm"
+                                                      size="icon"
+                                                      className="h-7 w-7 sm:h-9 sm:w-9"
                                                       onClick={() => handleViewResource(resource)}
                                                     >
-                                                      <Eye className="h-4 w-4" />
+                                                      <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                     </Button>
                                                   )}
                                                 </div>

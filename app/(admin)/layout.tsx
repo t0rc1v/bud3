@@ -1,6 +1,5 @@
 import { type ReactNode } from "react";
 import { AdminLayoutClient } from "./admin-layout-client";
-import { UnifiedAdminPageClient } from "@/components/admin/unified-admin-page-client";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getUserByClerkId } from "@/lib/actions/auth";
@@ -38,11 +37,7 @@ export default async function AdminLayout({
       userRole={user.role}
       initialLevels={levels}
     >
-      <UnifiedAdminPageClient 
-        initialLevels={levels} 
-        userId={user.id} 
-        userRole={user.role} 
-      />
+      {children}
     </AdminLayoutClient>
   );
 }

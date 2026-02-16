@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
-import { unlockedContent, resource, user } from "@/lib/db/schema";
-import { getUnlockFeeByResource } from "@/lib/actions/credits";
+import { unlockedContent, resource, user, unlockFee } from "@/lib/db/schema";
+import { getResourceUnlockFee, verifyPaymentForResource } from "@/lib/actions/credits";
 import { DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 /**
  * POST /api/content/unlock
@@ -19,6 +20,19 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // Rate limiting: 5 unlock attempts per minute per user
+    const rateLimitResult = checkRateLimit(`unlock:${clerkId}`, {
+      maxRequests: 5,
+      windowMs: 60 * 1000, // 1 minute
+    });
+
+    if (!rateLimitResult.isAllowed) {
+      return NextResponse.json(
+        { error: "Too many unlock attempts. Please try again later." },
+        { status: 429, headers: rateLimitResult.headers }
       );
     }
 
@@ -64,26 +78,23 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get unlock fee for this resource
-    let unlockFeeRecord = await getUnlockFeeByResource(resourceId);
+    // Get unlock fee for this resource using single source of truth
+    const unlockFeeData = await getResourceUnlockFee(resourceId);
     
-    if (!unlockFeeRecord) {
-      // Auto-create unlock fee with resource's price (if set) or default
-      const { createUnlockFee } = await import("@/lib/actions/credits");
-      const { calculateCreditsRequired } = await import("@/lib/calculator");
-      
-      // Use resource's unlockFee if it's greater than 0, otherwise use default
-      const feeAmount = resourceData.unlockFee > 0 
-        ? resourceData.unlockFee 
-        : DEFAULT_CREDIT_CONFIG.defaultUnlockFeeKes;
-      
-      unlockFeeRecord = await createUnlockFee({
-        type: "resource",
-        resourceId,
-        feeAmount,
-        creditsRequired: calculateCreditsRequired(feeAmount),
-      });
+    if (!unlockFeeData.unlockFeeId) {
+      return NextResponse.json(
+        { error: "Failed to create unlock fee for this resource" },
+        { status: 500 }
+      );
     }
+    
+    // For database queries, we still need the full record
+    const unlockFeeRecord = await db
+      .select()
+      .from(unlockFee)
+      .where(eq(unlockFee.id, unlockFeeData.unlockFeeId))
+      .limit(1)
+      .then(res => res[0]);
 
     if (!unlockFeeRecord) {
       return NextResponse.json(
@@ -127,10 +138,32 @@ export async function POST(req: Request) {
       newUnlock = { id: paymentResult.unlockId };
     } else {
       // Default: Use M-Pesa direct payment
+      // SECURITY: Verify the payment was actually completed before unlocking
+      if (!paymentReference) {
+        return NextResponse.json(
+          { error: "Payment reference is required for M-Pesa payment" },
+          { status: 400 }
+        );
+      }
+      
+      const verification = await verifyPaymentForResource(
+        paymentReference,
+        unlockFeeRecord.feeAmount,
+        dbUserId
+      );
+      
+      if (!verification.isValid) {
+        console.error(`Payment verification failed for user ${dbUserId}: ${verification.error}`);
+        return NextResponse.json(
+          { error: verification.error || "Payment verification failed" },
+          { status: 400 }
+        );
+      }
+      
       [newUnlock] = await db.insert(unlockedContent).values({
         userId: dbUserId,
         unlockFeeId: unlockFeeRecord.id,
-        paymentReference: paymentReference || null,
+        paymentReference: paymentReference,
         amountPaidKes: unlockFeeRecord.feeAmount,
         unlockedAt: new Date(),
       }).returning();
@@ -177,6 +210,19 @@ export async function GET(req: Request) {
       );
     }
 
+    // Rate limiting: 30 status checks per minute per user
+    const rateLimitResult = checkRateLimit(`unlock_status:${clerkId}`, {
+      maxRequests: 30,
+      windowMs: 60 * 1000, // 1 minute
+    });
+
+    if (!rateLimitResult.isAllowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     // Get the database user ID from the clerk ID
     const userData = await db
       .select()
@@ -219,40 +265,26 @@ export async function GET(req: Request) {
       );
     }
 
-    // Get unlock fee record
-    const unlockFeeRecord = await getUnlockFeeByResource(resourceId);
+    // Get unlock fee using single source of truth
     const { calculateCreditsRequired } = await import("@/lib/calculator");
+    const unlockFeeData = await getResourceUnlockFee(resourceId);
     
-    // Determine the actual fee amount:
-    // 1. Use resource's unlockFee if set (> 0)
-    // 2. Fall back to unlockFeeRecord if exists
-    // 3. Finally fall back to default
-    let feeAmount: number;
-    let effectiveUnlockFeeId: string | null = null;
-    
-    if (resourceData.unlockFee > 0) {
-      // Resource has a specific price set - use that
-      feeAmount = resourceData.unlockFee;
-    } else if (unlockFeeRecord) {
-      // Use existing unlock fee record
-      feeAmount = unlockFeeRecord.feeAmount;
-      effectiveUnlockFeeId = unlockFeeRecord.id;
-    } else {
-      // No price set anywhere - use default
-      feeAmount = DEFAULT_CREDIT_CONFIG.defaultUnlockFeeKes;
-    }
+    // Use only unlockFee table as source of truth
+    const feeAmount = unlockFeeData.feeAmount;
+    const effectiveUnlockFeeId = unlockFeeData.unlockFeeId;
+    const creditsRequired = unlockFeeData.creditsRequired;
 
-    // Check if unlocked (only if we have an unlock fee record)
+    // Check if unlocked
     let isUnlocked = false;
     let unlockedAt: Date | null = null;
     
-    if (unlockFeeRecord) {
+    if (effectiveUnlockFeeId) {
       const unlockedRecord = await db
         .select()
         .from(unlockedContent)
         .where(and(
           eq(unlockedContent.userId, dbUserId),
-          eq(unlockedContent.unlockFeeId, unlockFeeRecord.id)
+          eq(unlockedContent.unlockFeeId, effectiveUnlockFeeId)
         ))
         .limit(1)
         .then(res => res[0] || null);
@@ -264,7 +296,7 @@ export async function GET(req: Request) {
     // Get user credit balance
     const { getActiveCreditBalance } = await import("@/lib/actions/credits");
     const userCredits = await getActiveCreditBalance(dbUserId);
-    const creditsRequired = calculateCreditsRequired(feeAmount);
+    // Use creditsRequired from unlockFeeData (single source of truth)
 
     return NextResponse.json({
       isUnlocked,

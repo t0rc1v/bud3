@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getLevelsFullHierarchy } from "@/lib/actions/admin";
-import { hasUserUnlockedContent, getUnlockFeeByResource } from "@/lib/actions/credits";
+import { hasUserUnlockedContent, getResourceUnlockFee } from "@/lib/actions/credits";
 import { getUserByClerkId } from "@/lib/actions/auth";
 import { getRegularAdminIds } from "@/lib/actions/admin";
 import { DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
@@ -236,25 +236,23 @@ export async function GET(req: Request) {
                 ownerId: topic.ownerId,
                 resources: await Promise.all(
                   (topic.resources || []).map(async (resource) => {
-                    // Get unlock fee for this resource
-                    const unlockFee = await getUnlockFeeByResource(resource.id);
-
-                    // Use default values if no unlock fee exists
-                    const feeAmount = unlockFee?.feeAmount || DEFAULT_CREDIT_CONFIG.defaultUnlockFeeKes;
-
+                    // Get unlock fee using single source of truth
+                    const unlockFeeData = await getResourceUnlockFee(resource.id);
+                    
                     // Check if user has unlocked this resource
                     let isUnlocked = false;
-                    if (unlockFee) {
-                      isUnlocked = await hasUserUnlockedContent(clerkId, unlockFee.id);
+                    if (unlockFeeData.unlockFeeId) {
+                      isUnlocked = await hasUserUnlockedContent(clerkId, unlockFeeData.unlockFeeId);
                     }
 
                     return {
                       id: resource.id,
                       title: resource.title,
                       type: resource.type,
-                      url: resource.url,
+                      // SECURITY: Only expose URL if content is unlocked
+                      url: isUnlocked ? resource.url : null,
                       description: resource.description,
-                      unlockFee: feeAmount,
+                      unlockFee: unlockFeeData.feeAmount,
                       isUnlocked,
                       ownerId: resource.ownerId,
                     };

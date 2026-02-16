@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { resource, unlockFee, unlockedContent, user } from "@/lib/db/schema";
+import { getResourceUnlockFee } from "@/lib/actions/credits";
 
 /**
  * Check if a user has access to a resource
@@ -12,7 +13,11 @@ export async function checkResourceAccess(dbUserId: string, resourceId: string):
   hasAccess: boolean;
   isLocked: boolean;
   resource?: typeof resource.$inferSelect;
-  unlockFee?: typeof unlockFee.$inferSelect;
+  unlockFee?: {
+    feeAmount: number;
+    creditsRequired: number;
+    unlockFeeId: string | null;
+  };
   error?: string;
 }> {
   try {
@@ -28,20 +33,11 @@ export async function checkResourceAccess(dbUserId: string, resourceId: string):
       return { hasAccess: false, isLocked: true, error: "Resource not found" };
     }
 
-    // Check if there's an active unlock fee
-    const unlockFeeRecord = await db
-      .select()
-      .from(unlockFee)
-      .where(and(
-        eq(unlockFee.resourceId, resourceId),
-        eq(unlockFee.isActive, true)
-      ))
-      .limit(1)
-      .then(res => res[0] || null);
-
+    // Get unlock fee using single source of truth
+    const unlockFeeData = await getResourceUnlockFee(resourceId);
+    
     // If no unlock fee exists, the resource is effectively locked
-    // (all resources should have unlock fees configured)
-    if (!unlockFeeRecord) {
+    if (!unlockFeeData.unlockFeeId) {
       return {
         hasAccess: false,
         isLocked: true,
@@ -55,7 +51,7 @@ export async function checkResourceAccess(dbUserId: string, resourceId: string):
       .from(unlockedContent)
       .where(and(
         eq(unlockedContent.userId, dbUserId),
-        eq(unlockedContent.unlockFeeId, unlockFeeRecord.id)
+        eq(unlockedContent.unlockFeeId, unlockFeeData.unlockFeeId)
       ))
       .limit(1)
       .then(res => res[0] || null);
@@ -65,7 +61,7 @@ export async function checkResourceAccess(dbUserId: string, resourceId: string):
         hasAccess: true,
         isLocked: false,
         resource: resourceData,
-        unlockFee: unlockFeeRecord,
+        unlockFee: unlockFeeData,
       };
     }
 
@@ -74,7 +70,7 @@ export async function checkResourceAccess(dbUserId: string, resourceId: string):
       hasAccess: false,
       isLocked: true,
       resource: resourceData,
-      unlockFee: unlockFeeRecord,
+      unlockFee: unlockFeeData,
     };
 
   } catch (error) {

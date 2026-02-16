@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { resource, unlockFee, unlockedContent, user } from "@/lib/db/schema";
+import { getResourceUnlockFee } from "@/lib/actions/credits";
 
 /**
  * GET /api/content/proxy?resourceId={id}
@@ -62,25 +63,17 @@ export async function GET(req: Request) {
       );
     }
 
-    // Check for unlock fee
-    const unlockFeeRecord = await db
-      .select()
-      .from(unlockFee)
-      .where(and(
-        eq(unlockFee.resourceId, resourceId),
-        eq(unlockFee.isActive, true)
-      ))
-      .limit(1)
-      .then(res => res[0] || null);
+    // Get unlock fee using single source of truth
+    const unlockFeeData = await getResourceUnlockFee(resourceId);
 
     // If there's an unlock fee, verify the user has unlocked it
-    if (unlockFeeRecord) {
+    if (unlockFeeData.unlockFeeId) {
       const unlockedRecord = await db
         .select()
         .from(unlockedContent)
         .where(and(
           eq(unlockedContent.userId, dbUserId),
-          eq(unlockedContent.unlockFeeId, unlockFeeRecord.id)
+          eq(unlockedContent.unlockFeeId, unlockFeeData.unlockFeeId)
         ))
         .limit(1)
         .then(res => res[0] || null);
@@ -91,8 +84,8 @@ export async function GET(req: Request) {
             error: "This content is locked. Please unlock it to access.",
             isLocked: true,
             unlockFee: {
-              feeAmount: unlockFeeRecord.feeAmount,
-              creditsRequired: unlockFeeRecord.creditsRequired,
+              feeAmount: unlockFeeData.feeAmount,
+              creditsRequired: unlockFeeData.creditsRequired,
             }
           },
           { status: 403 }

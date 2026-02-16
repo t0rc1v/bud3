@@ -1250,7 +1250,7 @@ export async function getResourceById(id: string): Promise<ResourceWithRelations
 }
 
 export async function createResource(input: CreateResourceInput): Promise<void> {
-  await db.insert(resource).values({
+  const [newResource] = await db.insert(resource).values({
     subjectId: input.subjectId,
     topicId: input.topicId,
     title: input.title,
@@ -1267,13 +1267,29 @@ export async function createResource(input: CreateResourceInput): Promise<void> 
     unlockFee: input.unlockFee ?? 0,
     isActive: true,
     createdAt: new Date(),
-  });
+  }).returning();
+  
+  // Sync unlock fee if price is set and resource is locked
+  if (input.isLocked && input.unlockFee && input.unlockFee > 0 && newResource) {
+    const { syncUnlockFeeForResource } = await import("@/lib/actions/credits");
+    await syncUnlockFeeForResource(newResource.id);
+  }
+  
   revalidatePath("/admin");
   revalidatePath("/regular");
 }
 
 export async function updateResource(input: UpdateResourceInput): Promise<void> {
   const { id, ...data } = input;
+  
+  // Get current resource data to check if unlockFee changed
+  const currentResource = await db
+    .select()
+    .from(resource)
+    .where(eq(resource.id, id))
+    .limit(1)
+    .then(res => res[0] || null);
+  
   await db
     .update(resource)
     .set({
@@ -1281,6 +1297,13 @@ export async function updateResource(input: UpdateResourceInput): Promise<void> 
       updatedAt: new Date(),
     })
     .where(eq(resource.id, id));
+  
+  // Sync unlock fee if price changed or lock status changed
+  if (data.unlockFee !== undefined || data.isLocked !== undefined) {
+    const { syncUnlockFeeForResource } = await import("@/lib/actions/credits");
+    await syncUnlockFeeForResource(id);
+  }
+  
   revalidatePath("/admin");
   revalidatePath("/regular");
 }
@@ -1323,6 +1346,10 @@ export async function updateResourceLockStatus(
       updatedAt: new Date(),
     })
     .where(eq(resource.id, resourceId));
+  
+  // Sync unlock fee to ensure single source of truth
+  const { syncUnlockFeeForResource } = await import("@/lib/actions/credits");
+  await syncUnlockFeeForResource(resourceId);
 
   revalidatePath("/admin");
   revalidatePath("/regular");

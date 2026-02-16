@@ -3,6 +3,8 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { resource, unlockFee, unlockedContent, user } from "@/lib/db/schema";
+import { getResourceUnlockFee } from "@/lib/actions/credits";
+import { DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
 
 export async function GET(req: Request) {
   try {
@@ -56,45 +58,22 @@ export async function GET(req: Request) {
       );
     }
 
-    // Check for unlock fee record
-    const unlockFeeRecord = await db
-      .select()
-      .from(unlockFee)
-      .where(and(
-        eq(unlockFee.resourceId, resourceId),
-        eq(unlockFee.isActive, true)
-      ))
-      .limit(1)
-      .then(res => res[0] || null);
-
-    if (!unlockFeeRecord) {
-      // No unlock fee set yet - resource is effectively locked but no fee configured
-      // Return as locked with default fee information
-      return NextResponse.json({
-        hasAccess: false,
-        isLocked: true,
-        unlockFee: {
-          creditsRequired: 50, // Default
-          feeAmount: 100, // Default Ksh 100
-        },
-        resource: {
-          id: resourceData.id,
-          title: resourceData.title,
-          type: resourceData.type,
-        },
-      });
-    }
-
+    // Get unlock fee using single source of truth
+    const unlockFeeData = await getResourceUnlockFee(resourceId);
+    
     // Check if user has unlocked this content
-    const unlockedRecord = await db
-      .select()
-      .from(unlockedContent)
-      .where(and(
-        eq(unlockedContent.userId, currentUser.id),
-        eq(unlockedContent.unlockFeeId, unlockFeeRecord.id)
-      ))
-      .limit(1)
-      .then(res => res[0] || null);
+    let unlockedRecord = null;
+    if (unlockFeeData.unlockFeeId) {
+      unlockedRecord = await db
+        .select()
+        .from(unlockedContent)
+        .where(and(
+          eq(unlockedContent.userId, currentUser.id),
+          eq(unlockedContent.unlockFeeId, unlockFeeData.unlockFeeId)
+        ))
+        .limit(1)
+        .then(res => res[0] || null);
+    }
 
     if (unlockedRecord) {
       return NextResponse.json({
@@ -114,8 +93,8 @@ export async function GET(req: Request) {
       hasAccess: false,
       isLocked: true,
       unlockFee: {
-        creditsRequired: unlockFeeRecord.creditsRequired,
-        feeAmount: unlockFeeRecord.feeAmount,
+        creditsRequired: unlockFeeData.creditsRequired,
+        feeAmount: unlockFeeData.feeAmount,
       },
       resource: {
         id: resourceData.id,

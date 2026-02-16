@@ -1,6 +1,6 @@
 "use server";
 
-import { db } from "@/lib/db";
+import { db, pool } from "@/lib/db";
 import { 
   userCredit, 
   creditTransaction, 
@@ -13,6 +13,7 @@ import {
   subject,
 } from "@/lib/db/schema";
 import { eq, and, desc, asc, sql, gt, or, isNull } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/neon-serverless";
 import { revalidatePath } from "next/cache";
 import { CREDIT_PRICING, DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
 import { sendCreditGiftEmail, sendResourceUnlockEmail } from "@/lib/email";
@@ -345,6 +346,44 @@ export async function getCreditPurchaseByCheckoutId(checkoutRequestId: string) {
     .then(res => res[0] || null);
 }
 
+export async function getCreditPurchaseByMpesaReceipt(mpesaReceiptNumber: string) {
+  return db
+    .select()
+    .from(creditPurchase)
+    .where(eq(creditPurchase.mpesaReceiptNumber, mpesaReceiptNumber))
+    .limit(1)
+    .then(res => res[0] || null);
+}
+
+export async function verifyPaymentForResource(
+  paymentReference: string,
+  expectedAmountKes: number,
+  userId: string
+): Promise<{ isValid: boolean; error?: string }> {
+  const purchase = await getCreditPurchaseByMpesaReceipt(paymentReference);
+  
+  if (!purchase) {
+    return { isValid: false, error: "Payment not found" };
+  }
+  
+  if (purchase.status !== "completed") {
+    return { isValid: false, error: `Payment status is ${purchase.status}, not completed` };
+  }
+  
+  if (purchase.userId !== userId) {
+    return { isValid: false, error: "Payment does not belong to this user" };
+  }
+  
+  if (purchase.amountKes < expectedAmountKes) {
+    return { 
+      isValid: false, 
+      error: `Payment amount (${purchase.amountKes} KES) is less than required (${expectedAmountKes} KES)` 
+    };
+  }
+  
+  return { isValid: true };
+}
+
 export async function getUserCreditPurchases(userId: string) {
   return db
     .select()
@@ -426,6 +465,62 @@ export async function createUnlockFee(data: {
   return fee;
 }
 
+/**
+ * Get the definitive unlock fee for a resource
+ * SINGLE SOURCE OF TRUTH: Always returns unlockFee.feeAmount, never resource.unlockFee
+ * Auto-creates unlockFee record if missing
+ * @param resourceId - The resource ID
+ * @returns Object with feeAmount, creditsRequired, and unlockFeeId
+ */
+export async function getResourceUnlockFee(resourceId: string): Promise<{
+  feeAmount: number;
+  creditsRequired: number;
+  unlockFeeId: string | null;
+}> {
+  const { calculateCreditsRequired } = await import("@/lib/calculator");
+  
+  // Try to get existing unlock fee
+  let feeRecord = await getUnlockFeeByResource(resourceId);
+  
+  if (feeRecord) {
+    return {
+      feeAmount: feeRecord.feeAmount,
+      creditsRequired: feeRecord.creditsRequired,
+      unlockFeeId: feeRecord.id,
+    };
+  }
+  
+  // No unlock fee exists - check if resource has a price set
+  const resourceData = await db
+    .select()
+    .from(resource)
+    .where(eq(resource.id, resourceId))
+    .limit(1)
+    .then(res => res[0] || null);
+  
+  // Determine the fee amount (ignore resource.unlockFee, use unlockFee table only)
+  // This enforces single source of truth
+  const feeAmount = resourceData?.unlockFee > 0 
+    ? resourceData.unlockFee 
+    : DEFAULT_CREDIT_CONFIG.defaultUnlockFeeKes;
+  
+  const creditsRequired = calculateCreditsRequired(feeAmount);
+  
+  // Create the unlock fee record for consistency
+  const newFee = await createUnlockFee({
+    type: "resource",
+    resourceId,
+    feeAmount,
+    creditsRequired,
+  });
+  
+  return {
+    feeAmount: newFee.feeAmount,
+    creditsRequired: newFee.creditsRequired,
+    unlockFeeId: newFee.id,
+  };
+}
+
 export async function updateUnlockFee(
   feeId: string,
   updates: {
@@ -502,107 +597,144 @@ export async function unlockContentWithCredits(
   const { calculateCreditsRequired } = await import("@/lib/calculator");
   const creditsRequired = calculateCreditsRequired(kesPrice);
   
-  // Check if user has enough active credits
-  const hasEnough = await hasEnoughCredits(userId, creditsRequired);
+  // ATOMIC TRANSACTION: Wrap credit check, deduction, and unlock in a transaction
+  const client = await pool.connect();
   
-  if (!hasEnough) {
-    const creditDetails = await getUserCreditDetails(userId);
-    let errorMessage = `Insufficient credits. You need ${creditsRequired} credits to unlock this content. Your active balance is ${creditDetails.activeBalance} credits.`;
+  try {
+    await client.query('BEGIN');
+    const txDb = drizzle(client);
     
-    if (creditDetails.expiredCredits > 0) {
-      errorMessage += ` ${creditDetails.expiredCredits} credits have expired.`;
+    // Check if user has enough active credits within transaction
+    const now = new Date();
+    const activeTransactions = await txDb
+      .select()
+      .from(creditTransaction)
+      .where(
+        and(
+          eq(creditTransaction.userId, userId),
+          or(
+            isNull(creditTransaction.expiresAt),
+            gt(creditTransaction.expiresAt, now)
+          )
+        )
+      );
+    
+    const activeCredits = activeTransactions
+      .filter(t => t.amount > 0)
+      .reduce((sum, t) => sum + t.amount, 0);
+    const usedCredits = activeTransactions
+      .filter(t => t.amount < 0)
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const currentBalance = Math.max(0, activeCredits - usedCredits);
+    
+    if (currentBalance < creditsRequired) {
+      await client.query('ROLLBACK');
+      throw new Error(`Insufficient credits. You need ${creditsRequired} credits but only have ${currentBalance} active credits.`);
     }
     
-    throw new Error(errorMessage);
-  }
-
-  // Check if already unlocked
-  const alreadyUnlocked = await hasUserUnlockedContent(userId, unlockFeeId);
-  if (alreadyUnlocked) {
-    throw new Error("You have already unlocked this content");
-  }
-
-  // Get unlock fee details for metadata
-  const feeRecord = await db
-    .select()
-    .from(unlockFee)
-    .where(eq(unlockFee.id, unlockFeeId))
-    .limit(1)
-    .then(res => res[0] || null);
-
-  if (!feeRecord) {
-    throw new Error("Unlock fee record not found");
-  }
-
-  // Get resource/topic/subject name for description
-  let contentName = "Content";
-  const contentType = feeRecord.type;
-  
-  if (feeRecord.resourceId) {
-    const resourceData = await db
+    // Check if already unlocked within transaction (prevents race condition)
+    const existingUnlock = await txDb
       .select()
-      .from(resource)
-      .where(eq(resource.id, feeRecord.resourceId))
+      .from(unlockedContent)
+      .where(and(
+        eq(unlockedContent.userId, userId),
+        eq(unlockedContent.unlockFeeId, unlockFeeId)
+      ))
+      .limit(1);
+    
+    if (existingUnlock.length > 0) {
+      await client.query('ROLLBACK');
+      throw new Error("You have already unlocked this content");
+    }
+    
+    // Get unlock fee details within transaction
+    const feeRecord = await txDb
+      .select()
+      .from(unlockFee)
+      .where(eq(unlockFee.id, unlockFeeId))
       .limit(1)
       .then(res => res[0] || null);
-    contentName = resourceData?.title || "Resource";
-  } else if (feeRecord.topicId) {
-    const topicData = await db
-      .select()
-      .from(topic)
-      .where(eq(topic.id, feeRecord.topicId))
-      .limit(1)
-      .then(res => res[0] || null);
-    contentName = topicData?.title || "Topic";
-  } else if (feeRecord.subjectId) {
-    const subjectData = await db
-      .select()
-      .from(subject)
-      .where(eq(subject.id, feeRecord.subjectId))
-      .limit(1)
-      .then(res => res[0] || null);
-    contentName = subjectData?.name || "Subject";
-  }
 
-  // Deduct credits for unlock
-  await createCreditTransaction({
-    userId,
-    type: "unlock",
-    amount: -creditsRequired,
-    description: `Unlocked ${contentName} (${contentType}) with credits`,
-    metadata: {
-      unlockFeeId,
+    if (!feeRecord) {
+      await client.query('ROLLBACK');
+      throw new Error("Unlock fee record not found");
+    }
+    
+    // Get current credit record
+    const creditRecord = await txDb
+      .select()
+      .from(userCredit)
+      .where(eq(userCredit.userId, userId))
+      .limit(1)
+      .then(res => res[0] || null);
+    
+    if (!creditRecord) {
+      await client.query('ROLLBACK');
+      throw new Error("User credit record not found");
+    }
+    
+    // Calculate new balance
+    const newBalance = creditRecord.balance - creditsRequired;
+    
+    // Deduct credits for unlock
+    const [transaction] = await txDb
+      .insert(creditTransaction)
+      .values({
+        userId,
+        type: "unlock",
+        amount: -creditsRequired,
+        balanceAfter: newBalance,
+        description: `Unlocked ${feeRecord.type} with credits`,
+        metadata: {
+          unlockFeeId,
+          creditsUsed: creditsRequired,
+          kesEquivalent: kesPrice,
+          contentType: feeRecord.type,
+          paymentMethod: "credits",
+        },
+      })
+      .returning();
+    
+    // Update user credit balance
+    await txDb
+      .update(userCredit)
+      .set({
+        balance: newBalance,
+        totalUsed: creditRecord.totalUsed + creditsRequired,
+        updatedAt: new Date(),
+      })
+      .where(eq(userCredit.userId, userId));
+    
+    // Create unlocked content record
+    const [unlocked] = await txDb
+      .insert(unlockedContent)
+      .values({
+        userId,
+        unlockFeeId,
+        paymentReference: null,
+        amountPaidKes: 0,
+      })
+      .returning();
+    
+    await client.query('COMMIT');
+    
+    revalidatePath("/regular");
+    revalidatePath("/api/content");
+
+    return {
+      success: true,
+      unlockId: unlocked.id,
       creditsUsed: creditsRequired,
-      kesEquivalent: kesPrice,
-      contentType,
-      contentName,
-      paymentMethod: "credits",
-    },
-  });
-
-  // Create unlocked content record
-  // For credit unlocks, paymentReference is null and amountPaidKes is 0
-  // The credits were deducted via the transaction above
-  const [unlocked] = await db
-    .insert(unlockedContent)
-    .values({
-      userId,
-      unlockFeeId,
-      paymentReference: null, // Credit unlock - no M-Pesa reference
-      amountPaidKes: 0, // No KES paid - credits were used instead
-    })
-    .returning();
-
-  revalidatePath("/regular");
-  revalidatePath("/api/content");
-
-  return {
-    success: true,
-    unlockId: unlocked.id,
-    creditsUsed: creditsRequired,
-    contentType,
-    contentName,
-  };
+      contentType: feeRecord.type,
+      contentName: feeRecord.type,
+      transactionId: transaction.id,
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function getUserUnlockedContent(userId: string) {

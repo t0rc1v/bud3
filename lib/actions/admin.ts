@@ -1,7 +1,9 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { level, subject, topic, resource, adminRegulars, user } from "@/lib/db/schema";
+import { level, subject, topic, resource, adminRegulars, user, unlockedContent, unlockFee } from "@/lib/db/schema";
+import { getUserByClerkId } from "@/lib/actions/auth";
+import { hasUserUnlockedContent, getUnlockFeeByResource } from "@/lib/actions/credits";
 import { eq, and, desc, asc, inArray, or, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type {
@@ -19,6 +21,7 @@ import type {
   TopicWithResourcesAndSubject,
   ResourceWithRelations,
   LevelWithFullHierarchy,
+  LevelWithFullHierarchyAndUnlockStatus,
   SubjectWithTopicsAndLevel,
   Level,
   Subject,
@@ -193,7 +196,7 @@ export async function canModifyContent(
 export async function getLevelsForUser(
   userId: string,
   userRole: UserRole
-): Promise<LevelWithFullHierarchy[]> {
+): Promise<LevelWithFullHierarchyAndUnlockStatus[]> {
   const adminIds = userRole === "regular" ? await getRegularAdminIds(userId) : [];
   
   const visibilityFilter = await buildContentVisibilityFilter(userId, userRole, adminIds);
@@ -234,8 +237,43 @@ export async function getLevelsForUser(
         .where(inArray(resource.topicId, topicIds))
         .orderBy(desc(resource.createdAt))
     : [];
+
+  // Fetch all unlock fees for these resources in one query
+  const resourceIds = resourcesData.map(r => r.id);
+  const unlockFeesData = resourceIds.length > 0
+    ? await db
+        .select()
+        .from(unlockFee)
+        .where(and(
+          inArray(unlockFee.resourceId, resourceIds),
+          eq(unlockFee.isActive, true)
+        ))
+    : [];
+
+  // Create a map of resourceId to unlockFeeId
+  const resourceIdToUnlockFeeId = new Map<string, string>();
+  unlockFeesData.forEach(fee => {
+    if (fee.resourceId) {
+      resourceIdToUnlockFeeId.set(fee.resourceId, fee.id);
+    }
+  });
+
+  // Fetch all unlocked content for this user in one query
+  const unlockFeeIds = unlockFeesData.map(fee => fee.id);
+  const unlockedContentData = unlockFeeIds.length > 0
+    ? await db
+        .select()
+        .from(unlockedContent)
+        .where(and(
+          eq(unlockedContent.userId, userId),
+          inArray(unlockedContent.unlockFeeId, unlockFeeIds)
+        ))
+    : [];
+
+  // Create a set of unlocked unlockFeeIds for quick lookup
+  const unlockedFeeIds = new Set(unlockedContentData.map(uc => uc.unlockFeeId));
   
-  // Assemble the hierarchy
+  // Assemble the hierarchy with unlock status
   const levels = levelsData.map(l => ({
     ...l,
     subjects: subjectsData
@@ -246,12 +284,21 @@ export async function getLevelsForUser(
           .filter(t => t.subjectId === s.id)
           .map(t => ({
             ...t,
-            resources: resourcesData.filter(r => r.topicId === t.id),
+            resources: resourcesData
+              .filter(r => r.topicId === t.id)
+              .map(r => {
+                const unlockFeeId = resourceIdToUnlockFeeId.get(r.id);
+                const isUnlocked = unlockFeeId ? unlockedFeeIds.has(unlockFeeId) : false;
+                return {
+                  ...r,
+                  isUnlocked,
+                };
+              }),
           })),
       })),
   }));
   
-  return levels as unknown as LevelWithFullHierarchy[];
+  return levels as unknown as LevelWithFullHierarchyAndUnlockStatus[];
 }
 
 export async function getLevelByIdWithAccessCheck(

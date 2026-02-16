@@ -13,6 +13,7 @@ import { useState, useEffect, useCallback } from "react";
 import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
 import { UserButton } from "@clerk/nextjs";
 import { CreditBadge, CreditModal } from "@/components/credits/credit-modal";
+import { UnlockedResourcesProvider } from "@/components/credits/unlocked-resources-context";
 import type { Resource } from "@/lib/types";
 import type { LevelWithFullHierarchy } from "@/lib/types";
 
@@ -75,11 +76,10 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole, init
   const showMobile = isClient && isMobile;
 
   // Mobile layout with sheets
-  if (showMobile) {
-    return (
-      <div className="flex h-screen flex-col overflow-hidden">
-        {/* Mobile Header */}
-        <header className="flex items-center justify-between border-b bg-background px-4 py-3">
+  const mobileLayout = (
+    <div className="flex h-screen flex-col overflow-hidden">
+      {/* Mobile Header */}
+      <header className="flex items-center justify-between border-b bg-background px-4 py-3">
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="h-9 w-9">
@@ -178,11 +178,10 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole, init
           {children}
         </main>
       </div>
-    );
-  }
+  );
 
   // Desktop layout with collapsible sidebars
-  return (
+  const desktopLayout = (
     <div className="flex h-screen overflow-hidden">
       {/* Left Sidebar - File Tree - Hidden during initial load to prevent flash on mobile */}
       <div
@@ -287,7 +286,7 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole, init
           !isClient ? "w-0 overflow-hidden" : rightSidebarOpen ? "w-96" : "w-0 overflow-hidden"
         )}
       >
-        {(dbUserId || userId) && (
+      {(dbUserId || userId) && (
           <AIChat 
             userId={dbUserId || userId || ""} 
             userRole={userRole}
@@ -298,5 +297,11 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole, init
         )}
       </div>
     </div>
+  );
+
+  return (
+    <UnlockedResourcesProvider>
+      {showMobile ? mobileLayout : desktopLayout}
+    </UnlockedResourcesProvider>
   );
 }

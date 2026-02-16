@@ -72,9 +72,11 @@ import {
 import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import type {
   LevelWithFullHierarchy,
+  LevelWithFullHierarchyAndUnlockStatus,
   SubjectWithTopics,
   TopicWithResources,
   Resource,
+  ResourceWithUnlockStatus,
   ResourceWithRelations,
   Level,
   Subject,
@@ -82,12 +84,13 @@ import type {
 } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";
 
 type ContentTab = "my" | "institution" | "public" | "super" | "admin" | "regular";
 type UserRole = "regular" | "admin" | "super_admin";
 
 interface SidebarContentTreeProps {
-  initialLevels: LevelWithFullHierarchy[];
+  initialLevels: LevelWithFullHierarchy[] | LevelWithFullHierarchyAndUnlockStatus[];
   userId: string;
   userRole: UserRole;
   adminIds?: string[];
@@ -1230,7 +1233,7 @@ function TopicNode({
 
 // Resource Node Component
 interface ResourceNodeProps {
-  resource: Resource;
+  resource: Resource | ResourceWithUnlockStatus;
   onView: () => void;
   onAddToChat: () => void;
   onDelete?: (id: string) => void;
@@ -1250,14 +1253,26 @@ function ResourceNode({
   userRole,
   activeTab,
 }: ResourceNodeProps) {
+  const { isResourceUnlocked, addUnlockedResource } = useUnlockedResources();
   const isOwner = resource.ownerId === userId;
   const isSuperAdmin = userRole === "super_admin";
   const canDelete = onDelete && (isOwner || isSuperAdmin);
   const canEdit = onEdit && (isOwner || isSuperAdmin);
-  const [isUnlocked, setIsUnlocked] = useState(!resource.isLocked || isSuperAdmin);
+  
+  // Check if resource has isUnlocked field (from new API) or fall back to computing from isLocked
+  const hasUnlockStatus = 'isUnlocked' in resource;
+  const contextUnlocked = isResourceUnlocked(resource.id);
+  const initiallyUnlocked = contextUnlocked || hasUnlockStatus 
+    ? (resource as ResourceWithUnlockStatus).isUnlocked || !resource.isLocked || isOwner || isSuperAdmin
+    : !resource.isLocked || isOwner || isSuperAdmin;
+  const [localUnlocked, setLocalUnlocked] = useState(initiallyUnlocked);
+  
+  // Use context state if available, otherwise fall back to local state
+  const isUnlocked = contextUnlocked || localUnlocked;
 
   const handleUnlockSuccess = () => {
-    setIsUnlocked(true);
+    addUnlockedResource(resource.id);
+    setLocalUnlocked(true);
   };
 
   return (
@@ -1270,7 +1285,7 @@ function ResourceNode({
       
       <span 
         className="text-[11px] flex-1 truncate cursor-pointer"
-        onClick={isUnlocked || isOwner || isSuperAdmin ? onView : undefined}
+        onClick={isUnlocked ? onView : undefined}
       >
         {resource.title}
       </span>

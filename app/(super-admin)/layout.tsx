@@ -2,8 +2,9 @@ import { type ReactNode } from "react";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getUserByClerkId } from "@/lib/actions/auth";
-import { getLevelsFullHierarchy } from "@/lib/actions/admin";
+import { getLevelsFullHierarchy, getAllUsers, getSystemStats } from "@/lib/actions/admin";
 import { SuperAdminLayoutClient } from "@/components/super-admin/super-admin-layout-client";
+import { SuperAdminDashboardClient } from "@/components/super-admin/super-admin-dashboard-client";
 
 export default async function SuperAdminLayout({
   children,
@@ -23,8 +24,12 @@ export default async function SuperAdminLayout({
     redirect("/admin");
   }
 
-  // Fetch levels for the sidebar content tree
-  const levels = await getLevelsFullHierarchy();
+  // Fetch data for both sidebar and dashboard
+  const [levels, users, stats] = await Promise.all([
+    getLevelsFullHierarchy(),
+    getAllUsers(),
+    getSystemStats(),
+  ]);
 
   return (
     <SuperAdminLayoutClient 
@@ -32,7 +37,11 @@ export default async function SuperAdminLayout({
       dbUserId={user.id}
       initialLevels={levels}
     >
-      {children}
+      <SuperAdminDashboardClient 
+        initialLevels={levels} 
+        initialUsers={users}
+        initialStats={stats}
+      />
     </SuperAdminLayoutClient>
   );
 }

@@ -33,6 +33,23 @@ export interface LevelWithFullHierarchy extends Level {
   subjects: SubjectWithTopics[];
 }
 
+// Extended types that include unlock status for the current user
+export interface ResourceWithUnlockStatus extends Resource {
+  isUnlocked: boolean;
+}
+
+export interface TopicWithResourcesAndUnlockStatus extends Topic {
+  resources: ResourceWithUnlockStatus[];
+}
+
+export interface SubjectWithTopicsAndUnlockStatus extends Subject {
+  topics: TopicWithResourcesAndUnlockStatus[];
+}
+
+export interface LevelWithFullHierarchyAndUnlockStatus extends Level {
+  subjects: SubjectWithTopicsAndUnlockStatus[];
+}
+
 export interface ResourceWithRelations extends Resource {
   subject: Subject | null;
   topic: Topic | null;

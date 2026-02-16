@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";
 import {
   Crown,
   Users,
@@ -102,6 +103,7 @@ export function SuperAdminDashboardClient({
 }: SuperAdminDashboardClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isResourceUnlocked } = useUnlockedResources();
   const [levels, setLevels] = useState<LevelWithFullHierarchy[]>(initialLevels);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("super");
@@ -957,22 +959,25 @@ export function SuperAdminDashboardClient({
                                             No resources yet.
                                           </div>
                                         ) : (
-                                          topic.resources?.map((resource: Resource) => (
+                                          topic.resources?.map((resource: Resource) => {
+                                            const contextUnlocked = isResourceUnlocked(resource.id);
+                                            const isUnlocked = contextUnlocked || !resource.isLocked;
+                                            return (
                                             <div 
                                               key={resource.id}
                                               className="flex items-center justify-between p-2 hover:bg-purple-50/10 rounded"
                                             >
                                               <div className="flex items-center gap-3">
-                                                {resource.isLocked ? (
-                                                  <Lock className="h-4 w-4 text-yellow-600" />
-                                                ) : (
+                                                {isUnlocked ? (
                                                   <Unlock className="h-4 w-4 text-green-600" />
+                                                ) : (
+                                                  <Lock className="h-4 w-4 text-yellow-600" />
                                                 )}
                                                 <span className="text-sm">{resource.title}</span>
                                                 <span className="text-xs text-muted-foreground capitalize">
                                                   ({resource.type})
                                                 </span>
-                                                {resource.isLocked && (
+                                                {!isUnlocked && resource.isLocked && (
                                                   <span className="text-xs text-yellow-600 font-medium flex items-center gap-1">
                                                     <CreditCard className="h-3 w-3" />
                                                     Ksh {resource.unlockFee}
@@ -1020,7 +1025,8 @@ export function SuperAdminDashboardClient({
                                                 </DropdownMenu>
                                               </div>
                                             </div>
-                                          ))
+                                          );
+                                          })
                                         )}
                                       </div>
                                     )}
@@ -1225,22 +1231,25 @@ export function SuperAdminDashboardClient({
                                             No resources available.
                                           </div>
                                         ) : (
-                                          topic.resources?.map((resource: Resource) => (
+                                          topic.resources?.map((resource: Resource) => {
+                                            const contextUnlocked = isResourceUnlocked(resource.id);
+                                            const isUnlocked = contextUnlocked || !resource.isLocked;
+                                            return (
                                             <div 
                                               key={resource.id}
                                               className="flex items-center justify-between p-2 hover:bg-blue-50/10 rounded"
                                             >
                                               <div className="flex items-center gap-3">
-                                                {resource.isLocked ? (
-                                                  <Lock className="h-4 w-4 text-yellow-600" />
-                                                ) : (
+                                                {isUnlocked ? (
                                                   <Unlock className="h-4 w-4 text-green-600" />
+                                                ) : (
+                                                  <Lock className="h-4 w-4 text-yellow-600" />
                                                 )}
                                                 <span className="text-sm">{resource.title}</span>
                                                 <span className="text-xs text-muted-foreground capitalize">
                                                   ({resource.type})
                                                 </span>
-                                                {resource.isLocked && (
+                                                {!isUnlocked && resource.isLocked && (
                                                   <span className="text-xs text-yellow-600 font-medium flex items-center gap-1">
                                                     <CreditCard className="h-3 w-3" />
                                                     Ksh {resource.unlockFee}
@@ -1281,7 +1290,8 @@ export function SuperAdminDashboardClient({
                                                 </DropdownMenu>
                                               </div>
                                             </div>
-                                          ))
+                                          );
+                                          })
                                         )}
                                       </div>
                                     )}
@@ -1486,22 +1496,25 @@ export function SuperAdminDashboardClient({
                                             No resources available.
                                           </div>
                                         ) : (
-                                          topic.resources?.map((resource: Resource) => (
+                                          topic.resources?.map((resource: Resource) => {
+                                            const contextUnlocked = isResourceUnlocked(resource.id);
+                                            const isUnlocked = contextUnlocked || !resource.isLocked;
+                                            return (
                                             <div 
                                               key={resource.id}
                                               className="flex items-center justify-between p-2 hover:bg-green-50/10 rounded"
                                             >
                                               <div className="flex items-center gap-3">
-                                                {resource.isLocked ? (
-                                                  <Lock className="h-4 w-4 text-yellow-600" />
-                                                ) : (
+                                                {isUnlocked ? (
                                                   <Unlock className="h-4 w-4 text-green-600" />
+                                                ) : (
+                                                  <Lock className="h-4 w-4 text-yellow-600" />
                                                 )}
                                                 <span className="text-sm">{resource.title}</span>
                                                 <span className="text-xs text-muted-foreground capitalize">
                                                   ({resource.type})
                                                 </span>
-                                                {resource.isLocked && (
+                                                {!isUnlocked && resource.isLocked && (
                                                   <span className="text-xs text-yellow-600 font-medium flex items-center gap-1">
                                                     <CreditCard className="h-3 w-3" />
                                                     Ksh {resource.unlockFee}
@@ -1542,7 +1555,8 @@ export function SuperAdminDashboardClient({
                                                 </DropdownMenu>
                                               </div>
                                             </div>
-                                          ))
+                                          );
+                                          })
                                         )}
                                       </div>
                                     )}

@@ -13,6 +13,7 @@ import { usePathname } from "next/navigation";
 import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
 import { UserButton } from "@clerk/nextjs";
 import { CreditBadge, CreditModal } from "@/components/credits/credit-modal";
+import { UnlockedResourcesProvider } from "@/components/credits/unlocked-resources-context";
 import type { Resource } from "@/lib/types";
 import type { LevelWithFullHierarchy } from "@/lib/types";
 
@@ -27,30 +28,23 @@ interface AdminLayoutClientProps {
 export function AdminLayoutClient({ children, userId, dbUserId, userRole, initialLevels }: AdminLayoutClientProps) {
   const isMobile = useIsMobile();
   const [isClient, setIsClient] = useState(false);
-  // Default to closed on mobile, open on desktop (for SSR consistency)
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(!isMobile);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(!isMobile);
-  
-  // State for resource actions from file tree
   const [resourceToAddToChat, setResourceToAddToChat] = useState<ChatResource | null>(null);
 
   useEffect(() => {
-    // After hydration, set isClient to true to allow mobile detection
     const timeoutId = setTimeout(() => setIsClient(true), 0);
     return () => clearTimeout(timeoutId);
   }, []);
 
   const pathname = usePathname();
 
-  // Handle resource selection from sidebar
   const handleResourceSelect = useCallback((resource: Resource) => {
-    // Navigate with viewResource query param
     const params = new URLSearchParams(window.location.search);
     params.set("viewResource", resource.id);
     window.history.pushState({}, "", `${window.location.pathname}?${params.toString()}`);
   }, []);
 
-  // Handle add resource to chat from sidebar
   const handleAddResourceToChat = useCallback((resource: Resource) => {
     const chatResource: ChatResource = {
       id: resource.id,
@@ -60,155 +54,145 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
       type: (resource.type as "notes" | "video" | "audio" | "image") || "notes",
     };
     
-    // Open chat sidebar if closed
     if (!rightSidebarOpen) {
       setRightSidebarOpen(true);
     }
     
-    // Store resource to be added when chat opens
     setResourceToAddToChat(chatResource);
   }, [rightSidebarOpen]);
 
-  // Prevent hydration mismatch by rendering desktop layout until client-side hydration is complete
   const showMobile = isClient && isMobile;
 
-  // Mobile layout with sheets
-  if (showMobile) {
-    return (
-      <div className="flex h-screen flex-col overflow-hidden">
-        {/* Mobile Header */}
-        <header className="flex items-center justify-between border-b bg-background px-4 py-3">
+  // Mobile layout
+  const mobileLayout = (
+    <div className="flex h-screen flex-col overflow-hidden">
+      <header className="flex items-center justify-between border-b bg-background px-4 py-3">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9">
+              <PanelLeft className="h-5 w-5" />
+              <span className="sr-only">Open file tree</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-80 p-0">
+            <SheetTitle className="sr-only">File Tree Sidebar</SheetTitle>
+            <div className="flex h-full flex-col">
+              <div className="border-b p-4">
+                <h2 className="font-semibold">File Tree</h2>
+                <p className="text-xs text-muted-foreground">Browse content</p>
+              </div>
+              <div className="flex-1 overflow-auto">
+                {dbUserId && (
+                  <SidebarContentTree
+                    initialLevels={initialLevels}
+                    userId={dbUserId}
+                    userRole="admin"
+                    onResourceSelect={handleResourceSelect}
+                    onAddResourceToChat={handleAddResourceToChat}
+                    enableCrud={true}
+                    className="h-full"
+                  />
+                )}
+              </div>
+              {userRole === "admin" && (
+                <div className="border-t p-4">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
+                    <Shield className="h-4 w-4" />
+                    Admin Tools
+                  </div>
+                  <nav className="space-y-1">
+                    <Link
+                      href="/admin"
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                        pathname === "/admin"
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <LayoutDashboard className="h-4 w-4" />
+                      Dashboard
+                    </Link>
+                    <Link
+                      href="/admin/rewards"
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                        pathname === "/admin/rewards"
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <Gift className="h-4 w-4" />
+                      Rewards & Unlocks
+                    </Link>
+                    <Link
+                      href="/admin/manage-unlock-fees"
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                        pathname === "/admin/manage-unlock-fees"
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <Coins className="h-4 w-4" />
+                      Manage Unlock Fees
+                    </Link>
+                  </nav>
+                </div>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+        
+        <h1 className="font-semibold">Admin</h1>
+        
+        <div className="flex items-center gap-2">
+          <div suppressHydrationWarning>
+            <CreditModal trigger={<CreditBadge className="cursor-pointer" />} />
+          </div>
+          <div suppressHydrationWarning>
+            <UserButton />
+          </div>
+          
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="h-9 w-9">
-                <PanelLeft className="h-5 w-5" />
-                <span className="sr-only">Open file tree</span>
+                <MessageSquare className="h-5 w-5" />
+                <span className="sr-only">Open chat</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-80 p-0">
-              <SheetTitle className="sr-only">File Tree Sidebar</SheetTitle>
+            <SheetContent side="right" className="w-[22rem] p-0 sm:w-96">
+              <SheetTitle className="sr-only">AI Chat Sidebar</SheetTitle>
               <div className="flex h-full flex-col">
-                <div className="border-b p-4">
-                  <h2 className="font-semibold">File Tree</h2>
-                  <p className="text-xs text-muted-foreground">Browse content</p>
+                <div className="flex items-center justify-between border-b px-4 py-3">
+                  <h2 className="font-semibold">AI Chat</h2>
                 </div>
-                <div className="flex-1 overflow-auto">
-                  {dbUserId && (
-                    <SidebarContentTree
-                      initialLevels={initialLevels}
-                      userId={dbUserId}
-                      userRole="admin"
-                      onResourceSelect={handleResourceSelect}
-                      onAddResourceToChat={handleAddResourceToChat}
-                      enableCrud={true}
-                      className="h-full"
+                <div className="flex-1 overflow-hidden">
+                  {(dbUserId || userId) && (
+                    <AIChat 
+                      userId={dbUserId || userId || ""} 
+                      userRole={userRole}
+                      isOpen={true} 
+                      resourceToAdd={resourceToAddToChat}
+                      onResourceAdded={() => setResourceToAddToChat(null)}
                     />
                   )}
                 </div>
-                {/* Mobile Super Admin Navigation */}
-                {/* Admin Navigation - Only for regular admins (super admin has separate dashboard) */}
-                {userRole === "admin" && (
-                  <div className="border-t p-4">
-                    <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
-                      <Shield className="h-4 w-4" />
-                      Admin Tools
-                    </div>
-                    <nav className="space-y-1">
-                      <Link
-                        href="/admin"
-                        className={cn(
-                          "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
-                          pathname === "/admin"
-                            ? "bg-primary/10 text-primary"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                        )}
-                      >
-                        <LayoutDashboard className="h-4 w-4" />
-                        Dashboard
-                      </Link>
-                      <Link
-                        href="/admin/rewards"
-                        className={cn(
-                          "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
-                          pathname === "/admin/rewards"
-                            ? "bg-primary/10 text-primary"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                        )}
-                      >
-                        <Gift className="h-4 w-4" />
-                        Rewards & Unlocks
-                      </Link>
-                      <Link
-                        href="/admin/manage-unlock-fees"
-                        className={cn(
-                          "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
-                          pathname === "/admin/manage-unlock-fees"
-                            ? "bg-primary/10 text-primary"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                        )}
-                      >
-                        <Coins className="h-4 w-4" />
-                        Manage Unlock Fees
-                      </Link>
-              </nav>
-                  </div>
-                )}
               </div>
             </SheetContent>
           </Sheet>
-          
-          <h1 className="font-semibold">Admin</h1>
-          
-          <div className="flex items-center gap-2">
-            <div suppressHydrationWarning>
-              <CreditModal trigger={<CreditBadge className="cursor-pointer" />} />
-            </div>
-            <div suppressHydrationWarning>
-              <UserButton />
-            </div>
-            
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9">
-                  <MessageSquare className="h-5 w-5" />
-                  <span className="sr-only">Open chat</span>
-                </Button>
-              </SheetTrigger>
-                <SheetContent side="right" className="w-[22rem] p-0 sm:w-96">
-                <SheetTitle className="sr-only">AI Chat Sidebar</SheetTitle>
-                <div className="flex h-full flex-col">
-                  <div className="flex items-center justify-between border-b px-4 py-3">
-                    <h2 className="font-semibold">AI Chat</h2>
-                  </div>
-                  <div className="flex-1 overflow-hidden">
-                    {(dbUserId || userId) && (
-                      <AIChat 
-                        userId={dbUserId || userId || ""} 
-                        userRole={userRole}
-                        isOpen={true} 
-                        resourceToAdd={resourceToAddToChat}
-                        onResourceAdded={() => setResourceToAddToChat(null)}
-                      />
-                    )}
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
-        </header>
-        
-        {/* Mobile Main Content */}
-        <main className="flex-1 overflow-auto p-4">
-          {children}
-        </main>
-      </div>
-    );
-  }
+        </div>
+      </header>
+      
+      <main className="flex-1 overflow-auto p-4">
+        {children}
+      </main>
+    </div>
+  );
 
-  // Desktop layout with collapsible sidebars
-  return (
+  // Desktop layout
+  const desktopLayout = (
     <div className="flex h-screen overflow-hidden">
-      {/* Left Sidebar - File Tree - Hidden during initial load to prevent flash on mobile */}
       <div
         className={cn(
           "flex-shrink-0 border-r bg-sidebar transition-all duration-300 ease-in-out flex flex-col",
@@ -234,7 +218,6 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
           )}
         </div>
         
-        {/* Admin Navigation - Only for regular admins (super admin has separate dashboard) */}
         {userRole === "admin" && (
           <div className="border-t p-4">
             <div className={cn("mb-2 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
@@ -297,9 +280,7 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
         )}
       </div>
       
-      {/* Center - Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Toggle Bar */}
         <div className="flex h-12 items-center justify-between border-b bg-background px-4">
           <div className="flex items-center gap-2">
             <Button
@@ -341,7 +322,6 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
         </main>
       </div>
       
-      {/* Right Sidebar - AI Chat - Hidden during initial load to prevent flash on mobile */}
       <div
         className={cn(
           "flex-shrink-0 border-l bg-background transition-all duration-300 ease-in-out flex flex-col",
@@ -359,5 +339,11 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
         )}
       </div>
     </div>
+  );
+
+  return (
+    <UnlockedResourcesProvider>
+      {showMobile ? mobileLayout : desktopLayout}
+    </UnlockedResourcesProvider>
   );
 }

@@ -67,6 +67,7 @@ import { EditSubjectForm } from "@/components/admin/edit-subject-form";
 import { EditTopicForm } from "@/components/admin/edit-topic-form";
 import { EditResourceForm } from "@/components/admin/edit-resource-form";
 import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
+import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";
 import {
   deleteLevelWithSession,
   deleteSubjectWithSession,
@@ -75,9 +76,11 @@ import {
 } from "@/lib/actions/admin";
 import type {
   LevelWithFullHierarchy,
+  LevelWithFullHierarchyAndUnlockStatus,
   SubjectWithTopics,
   TopicWithResources,
   Resource,
+  ResourceWithUnlockStatus,
   ResourceWithRelations,
   Level,
   Subject,
@@ -85,7 +88,7 @@ import type {
 } from "@/lib/types";
 
 interface UnifiedAdminPageClientProps {
-  initialLevels: LevelWithFullHierarchy[];
+  initialLevels: LevelWithFullHierarchy[] | LevelWithFullHierarchyAndUnlockStatus[];
   userId: string;
   userRole: "admin" | "super_admin";
 }
@@ -138,8 +141,8 @@ export function UnifiedAdminPageClient({
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteCallback, setDeleteCallback] = useState<(() => Promise<void>) | null>(null);
 
-  // Track unlocked resources for public tab
-  const [unlockedResources, setUnlockedResources] = useState<Set<string>>(new Set());
+  // Use shared context for unlocked resources
+  const { isResourceUnlocked, addUnlockedResource } = useUnlockedResources();
 
   // Handle viewResource query param from file tree dropdown
   useEffect(() => {
@@ -1064,7 +1067,12 @@ export function UnifiedAdminPageClient({
                                             </div>
                                           ) : (
                                             topic.resources.map((resource: Resource) => {
-                                              const isUnlocked = !resource.isLocked || unlockedResources.has(resource.id);
+                                              // Check unlock status: context takes priority, then API field, then isLocked
+                                              const contextUnlocked = isResourceUnlocked(resource.id);
+                                              const hasUnlockStatus = 'isUnlocked' in resource;
+                                              const isUnlocked = contextUnlocked || 
+                                                (hasUnlockStatus && (resource as ResourceWithUnlockStatus).isUnlocked) || 
+                                                !resource.isLocked;
                                               return (
                                                 <div 
                                                   key={resource.id}
@@ -1105,7 +1113,7 @@ export function UnifiedAdminPageClient({
                                                         </Button>
                                                       }
                                                       onUnlockSuccess={() => {
-                                                        setUnlockedResources(prev => new Set([...prev, resource.id]));
+                                                        addUnlockedResource(resource.id);
                                                       }}
                                                     />
                                                   ) : (

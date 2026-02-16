@@ -65,11 +65,14 @@ import { EditTopicForm } from "@/components/admin/edit-topic-form";
 import { EditResourceForm } from "@/components/admin/edit-resource-form";
 import { deleteLevelWithSession, deleteSubjectWithSession, deleteTopicWithSession, deleteResource, getResourceById } from "@/lib/actions/admin";
 import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
+import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";
 import type {
   LevelWithFullHierarchy,
+  LevelWithFullHierarchyAndUnlockStatus,
   SubjectWithTopics,
   TopicWithResources,
   Resource,
+  ResourceWithUnlockStatus,
   ResourceWithRelations,
   Level,
   Subject,
@@ -77,7 +80,7 @@ import type {
 } from "@/lib/types";
 
 interface RegularDashboardClientProps {
-  initialLevels: LevelWithFullHierarchy[];
+  initialLevels: LevelWithFullHierarchy[] | LevelWithFullHierarchyAndUnlockStatus[];
   userId: string;
   adminIds: string[];
 }
@@ -923,7 +926,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
 
 // Resource Item Component with Lock/Unlock handling
 interface ResourceItemProps {
-  resource: Resource;
+  resource: Resource | ResourceWithUnlockStatus;
   canDelete: boolean;
   currentUserId: string;
   onViewResource: (resource: Resource) => void;
@@ -932,14 +935,32 @@ interface ResourceItemProps {
 }
 
 function ResourceItem({ resource, canDelete, currentUserId, onViewResource, onDeleteResource, onEditResource }: ResourceItemProps) {
-  const [isUnlocked, setIsUnlocked] = useState(!resource.isLocked);
-  const [isChecking, setIsChecking] = useState(true);
+  const { isResourceUnlocked, addUnlockedResource } = useUnlockedResources();
+  
+  // Check if resource has isUnlocked field from new API
+  const hasUnlockStatus = 'isUnlocked' in resource;
+  const contextUnlocked = isResourceUnlocked(resource.id);
+  
+  // Use API data, context state, or fall back to isLocked field
+  const initiallyUnlocked = contextUnlocked || hasUnlockStatus 
+    ? (resource as ResourceWithUnlockStatus).isUnlocked || !resource.isLocked
+    : !resource.isLocked;
+  const [localUnlocked, setLocalUnlocked] = useState(initiallyUnlocked);
+  const [isChecking, setIsChecking] = useState(!hasUnlockStatus && !contextUnlocked);
+  
+  // Combined unlocked state: context takes priority, then local
+  const isUnlocked = contextUnlocked || localUnlocked;
 
-  // Check unlock status on mount
+  // Check unlock status on mount (only if not already provided by API or context)
   useEffect(() => {
+    // If we already have unlock status from the API or context, don't fetch again
+    if (hasUnlockStatus || contextUnlocked) {
+      return;
+    }
+
     const checkUnlockStatus = async () => {
       if (!resource.isLocked) {
-        setIsUnlocked(true);
+        setLocalUnlocked(true);
         setIsChecking(false);
         return;
       }
@@ -948,7 +969,7 @@ function ResourceItem({ resource, canDelete, currentUserId, onViewResource, onDe
         const response = await fetch(`/api/content/unlock?resourceId=${resource.id}`);
         if (response.ok) {
           const data = await response.json();
-          setIsUnlocked(data.isUnlocked);
+          setLocalUnlocked(data.isUnlocked);
         }
       } catch (error) {
         console.error("Failed to check unlock status:", error);
@@ -958,10 +979,11 @@ function ResourceItem({ resource, canDelete, currentUserId, onViewResource, onDe
     };
 
     checkUnlockStatus();
-  }, [resource.id, resource.isLocked]);
+  }, [resource.id, resource.isLocked, hasUnlockStatus, contextUnlocked]);
 
   const handleUnlockSuccess = () => {
-    setIsUnlocked(true);
+    addUnlockedResource(resource.id);
+    setLocalUnlocked(true);
   };
 
   const handleView = () => {

@@ -1,7 +1,36 @@
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { getUserByClerkId } from "@/lib/actions/auth";
+import { getLevelsFullHierarchy, getAllUsers, getSystemStats } from "@/lib/actions/admin";
+import { SuperAdminDashboardClient } from "@/components/super-admin/super-admin-dashboard-client";
+
 export const dynamic = "force-dynamic";
 
 export default async function SuperAdminPage() {
-  // This page is rendered as children in the layout.
-  // The layout handles all data fetching and rendering of the dashboard.
-  return null;
+  const { userId: clerkId } = await auth();
+
+  if (!clerkId) {
+    redirect("/sign-in");
+  }
+
+  const user = await getUserByClerkId(clerkId);
+
+  if (!user || user.role !== "super_admin") {
+    redirect("/admin");
+  }
+
+  const [levels, users, stats] = await Promise.all([
+    getLevelsFullHierarchy(),
+    getAllUsers(),
+    getSystemStats(),
+  ]);
+
+  return (
+    <SuperAdminDashboardClient
+      initialLevels={levels}
+      initialUsers={users}
+      initialStats={stats}
+      currentUserId={user.id}
+    />
+  );
 }

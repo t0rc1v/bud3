@@ -60,6 +60,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { CreateLevelForm } from "@/components/admin/create-level-form";
 import { CreateSubjectForm } from "@/components/admin/create-subject-form";
 import { CreateTopicForm } from "@/components/admin/create-topic-form";
@@ -94,12 +100,14 @@ interface SuperAdminDashboardClientProps {
   initialLevels: LevelWithFullHierarchy[];
   initialUsers: UserType[];
   initialStats: SystemStats;
+  currentUserId: string;
 }
 
 export function SuperAdminDashboardClient({
   initialLevels,
-  initialUsers: _initialUsers, // eslint-disable-line @typescript-eslint/no-unused-vars
+  initialUsers,
   initialStats,
+  currentUserId,
 }: SuperAdminDashboardClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -181,10 +189,20 @@ export function SuperAdminDashboardClient({
   }, [searchParams, levels]);
 
   // Separate content by owner role
-  const superAdminLevels = useMemo(() => 
-    levels.filter((g) => g.ownerRole === "super_admin"),
-    [levels]
+  // Public tab: only show content owned by current super-admin
+  const superAdminLevels = useMemo(() =>
+    levels.filter((g) => g.ownerRole === "super_admin" && g.ownerId === currentUserId),
+    [levels, currentUserId]
   );
+
+  // Helper function to get owner name from user ID
+  const getOwnerName = useMemo(() => {
+    const userMap = new Map(initialUsers.map(u => [u.id, u.name || u.email || "Unknown"]));
+    return (ownerId: string | null) => {
+      if (!ownerId) return "Unknown";
+      return userMap.get(ownerId) || "Unknown";
+    };
+  }, [initialUsers]);
   
   const adminLevels = useMemo(() => 
     levels.filter((g) => g.ownerRole === "admin"),
@@ -236,6 +254,24 @@ export function SuperAdminDashboardClient({
   // Get all subjects and topics for forms
   const allSubjects = useMemo(() => levels.flatMap((g) => g.subjects || []), [levels]);
   const allTopics = useMemo(() => allSubjects.flatMap((s) => s.topics || []), [allSubjects]);
+
+  // Filter content owned by current super-admin for Add buttons
+  const ownedLevels = useMemo(() =>
+    levels.filter((g) => g.ownerId === currentUserId),
+    [levels, currentUserId]
+  );
+
+  // Subjects that can have topics added to them - must be in an owned level
+  const ownedSubjects = useMemo(() =>
+    ownedLevels.flatMap((g) => g.subjects || []),
+    [ownedLevels]
+  );
+
+  // Topics that can have resources added to them - must be in an owned subject chain
+  const ownedTopics = useMemo(() =>
+    ownedSubjects.flatMap((s) => s.topics || []),
+    [ownedSubjects]
+  );
 
   // Filter levels based on search
   const filterLevels = (levelsToFilter: LevelWithFullHierarchy[]) => {
@@ -625,6 +661,7 @@ export function SuperAdminDashboardClient({
       </div>
 
       {/* Content Tabs */}
+      <TooltipProvider>
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
         <TabsList className="grid w-full grid-cols-3 max-w-md">
           <TabsTrigger value="super" className="flex items-center gap-2">
@@ -663,48 +700,90 @@ export function SuperAdminDashboardClient({
                     <CreateLevelForm onSuccess={handleCreateSuccess} />
                   </DialogContent>
                 </Dialog>
-                <Dialog open={isCreateSubjectOpen} onOpenChange={setIsCreateSubjectOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={levels.length === 0}>
-                      <Plus className="h-4 w-4" />
-                      <span>Add Subject</span>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                      <DialogTitle>Create New Subject</DialogTitle>
-                    </DialogHeader>
-                    <CreateSubjectForm levels={levels} onSuccess={handleCreateSuccess} />
-                  </DialogContent>
-                </Dialog>
-                <Dialog open={isCreateTopicOpen} onOpenChange={setIsCreateTopicOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={allSubjects.length === 0}>
-                      <Plus className="h-4 w-4" />
-                      <span>Add Topic</span>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                      <DialogTitle>Create New Topic</DialogTitle>
-                    </DialogHeader>
-                    <CreateTopicForm subjects={allSubjects} onSuccess={handleCreateSuccess} />
-                  </DialogContent>
-                </Dialog>
-                <Dialog open={isCreateResourceOpen} onOpenChange={setIsCreateResourceOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled={allTopics.length === 0}>
-                      <Plus className="h-4 w-4" />
-                      <span>Add Resource</span>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[600px]">
-                    <DialogHeader>
-                      <DialogTitle>Create New Resource</DialogTitle>
-                    </DialogHeader>
-                    <CreateResourceForm subjects={allSubjects} topics={allTopics} onSuccess={handleCreateSuccess} />
-                  </DialogContent>
-                </Dialog>
+                {ownedLevels.length > 0 ? (
+                  <Dialog open={isCreateSubjectOpen} onOpenChange={setIsCreateSubjectOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5">
+                        <Plus className="h-4 w-4" />
+                        <span>Add Subject</span>
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Create New Subject</DialogTitle>
+                      </DialogHeader>
+                      <CreateSubjectForm levels={ownedLevels} onSuccess={handleCreateSuccess} />
+                    </DialogContent>
+                  </Dialog>
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled>
+                        <Plus className="h-4 w-4" />
+                        <span>Add Subject</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Create a level first</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                {ownedSubjects.length > 0 ? (
+                  <Dialog open={isCreateTopicOpen} onOpenChange={setIsCreateTopicOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5">
+                        <Plus className="h-4 w-4" />
+                        <span>Add Topic</span>
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Create New Topic</DialogTitle>
+                      </DialogHeader>
+                      <CreateTopicForm subjects={ownedSubjects} onSuccess={handleCreateSuccess} />
+                    </DialogContent>
+                  </Dialog>
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled>
+                        <Plus className="h-4 w-4" />
+                        <span>Add Topic</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Create a subject first</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                {ownedTopics.length > 0 ? (
+                  <Dialog open={isCreateResourceOpen} onOpenChange={setIsCreateResourceOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5">
+                        <Plus className="h-4 w-4" />
+                        <span>Add Resource</span>
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[600px]">
+                      <DialogHeader>
+                        <DialogTitle>Create New Resource</DialogTitle>
+                      </DialogHeader>
+                      <CreateResourceForm subjects={ownedSubjects} topics={ownedTopics} onSuccess={handleCreateSuccess} />
+                    </DialogContent>
+                  </Dialog>
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9 sm:h-10 gap-1.5" disabled>
+                        <Plus className="h-4 w-4" />
+                        <span>Add Resource</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Create a topic first</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </>
             )}
             <Button variant="outline" size="sm" onClick={expandAll} className="h-9 sm:h-10 gap-1.5">
@@ -784,20 +863,34 @@ export function SuperAdminDashboardClient({
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
-                          <Plus className="h-4 w-4 mr-1" />
-                          Add Subject
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-[425px]">
-                        <DialogHeader>
-                          <DialogTitle>Add Subject to {level.title}</DialogTitle>
-                        </DialogHeader>
-                        <CreateSubjectForm levels={[level]} onSuccess={handleCreateSuccess} />
-                      </DialogContent>
-                    </Dialog>
+                    {level.ownerId === currentUserId ? (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add Subject
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                          <DialogHeader>
+                            <DialogTitle>Add Subject to {level.title}</DialogTitle>
+                          </DialogHeader>
+                          <CreateSubjectForm levels={[level]} onSuccess={handleCreateSuccess} />
+                        </DialogContent>
+                      </Dialog>
+                    ) : (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="sm" disabled onClick={(e) => e.stopPropagation()}>
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add Subject
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>You don't own this level</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon">
@@ -849,6 +942,7 @@ export function SuperAdminDashboardClient({
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
+                              {subject.ownerId === currentUserId ? (
                                 <Dialog>
                                   <DialogTrigger asChild>
                                     <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
@@ -863,6 +957,19 @@ export function SuperAdminDashboardClient({
                                     <CreateTopicForm subjects={[subject]} onSuccess={handleCreateSuccess} />
                                   </DialogContent>
                                 </Dialog>
+                              ) : (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="sm" disabled onClick={(e) => e.stopPropagation()}>
+                                      <Plus className="h-4 w-4 mr-1" />
+                                      Add Topic
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>You don't own this subject</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                   <Button variant="ghost" size="icon">
@@ -901,33 +1008,53 @@ export function SuperAdminDashboardClient({
                                       className="flex items-center justify-between p-3 pl-12 cursor-pointer hover:bg-purple-50/20"
                                       onClick={() => toggleTopic(topic.id)}
                                     >
-                                      <div className="flex items-center gap-3">
-                                        {expandedTopics.has(topic.id) ? (
-                                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                        ) : (
-                                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                        )}
-                                        <FileText className="h-4 w-4 text-purple-500" />
-                                        <span className="font-medium">{topic.title}</span>
-                                        <span className="text-sm text-muted-foreground">
-                                          ({topic.resources?.length || 0} resources)
-                                        </span>
-                                      </div>
+                            <div className="flex items-center gap-3">
+                              {expandedSubjects.has(subject.id) ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )}
+                              <span className="text-2xl">{subject.icon}</span>
+                              <span className="font-medium">{subject.name}</span>
+                              {subject.ownerId && (
+                                <Badge variant="outline" className="ml-1 bg-blue-50 text-blue-600 border-blue-200 text-xs">
+                                  <User className="h-3 w-3 mr-1" />
+                                  {getOwnerName(subject.ownerId)}
+                                </Badge>
+                              )}
+                              <span className="text-sm text-muted-foreground">
+                                ({subject.topics?.length || 0} topics)
+                              </span>
+                            </div>
                                       <div className="flex items-center gap-2">
-                                        <Dialog>
-                                          <DialogTrigger asChild>
-                                            <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
-                                              <Plus className="h-4 w-4 mr-1" />
-                                              Add Resource
-                                            </Button>
-                                          </DialogTrigger>
-                                          <DialogContent className="sm:max-w-[425px]">
-                                            <DialogHeader>
-                                              <DialogTitle>Add Resource to {topic.title}</DialogTitle>
-                                            </DialogHeader>
-                                            <CreateResourceForm subjects={[subject]} topics={[topic]} onSuccess={handleCreateSuccess} />
-                                          </DialogContent>
-                                        </Dialog>
+                                        {topic.ownerId === currentUserId ? (
+                                          <Dialog>
+                                            <DialogTrigger asChild>
+                                              <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+                                                <Plus className="h-4 w-4 mr-1" />
+                                                Add Resource
+                                              </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="sm:max-w-[425px]">
+                                              <DialogHeader>
+                                                <DialogTitle>Add Resource to {topic.title}</DialogTitle>
+                                              </DialogHeader>
+                                              <CreateResourceForm subjects={[subject]} topics={[topic]} onSuccess={handleCreateSuccess} />
+                                            </DialogContent>
+                                          </Dialog>
+                                        ) : (
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Button variant="ghost" size="sm" disabled onClick={(e) => e.stopPropagation()}>
+                                                <Plus className="h-4 w-4 mr-1" />
+                                                Add Resource
+                                              </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <p>You don't own this topic</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        )}
                                         <DropdownMenu>
                                           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                             <Button variant="ghost" size="icon">
@@ -1092,6 +1219,12 @@ export function SuperAdminDashboardClient({
                       <Badge variant="outline" className="ml-2 bg-blue-100 text-blue-800 border-blue-300">
                         Admin
                       </Badge>
+                      {level.ownerId && (
+                        <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-600 border-blue-200">
+                          <User className="h-3 w-3 mr-1" />
+                          {getOwnerName(level.ownerId)}
+                        </Badge>
+                      )}
                     </div>
                     <span className="text-sm text-muted-foreground">
                       ({level.subjects?.length || 0} subjects)
@@ -1187,18 +1320,24 @@ export function SuperAdminDashboardClient({
                                       className="flex items-center justify-between p-3 pl-12 cursor-pointer hover:bg-blue-50/20"
                                       onClick={() => toggleTopic(topic.id)}
                                     >
-                                      <div className="flex items-center gap-3">
-                                        {expandedTopics.has(topic.id) ? (
-                                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                        ) : (
-                                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                        )}
-                                        <FolderOpen className="h-4 w-4 text-blue-500" />
-                                        <span className="font-medium">{topic.title}</span>
-                                        <span className="text-sm text-muted-foreground">
-                                          ({topic.resources?.length || 0} resources)
-                                        </span>
-                                      </div>
+                            <div className="flex items-center gap-3">
+                              {expandedSubjects.has(subject.id) ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )}
+                              <span className="text-2xl">{subject.icon}</span>
+                              <span className="font-medium">{subject.name}</span>
+                              {subject.ownerId && (
+                                <Badge variant="outline" className="ml-1 bg-green-50 text-green-600 border-green-200 text-xs">
+                                  <User className="h-3 w-3 mr-1" />
+                                  {getOwnerName(subject.ownerId)}
+                                </Badge>
+                              )}
+                              <span className="text-sm text-muted-foreground">
+                                ({subject.topics?.length || 0} topics)
+                              </span>
+                            </div>
                                       <div className="flex items-center gap-2">
                                         <DropdownMenu>
                                           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -1357,6 +1496,12 @@ export function SuperAdminDashboardClient({
                       <Badge variant="outline" className="ml-2 bg-green-100 text-green-800 border-green-300">
                         Regular
                       </Badge>
+                      {level.ownerId && (
+                        <Badge variant="outline" className="ml-2 bg-green-50 text-green-600 border-green-200">
+                          <User className="h-3 w-3 mr-1" />
+                          {getOwnerName(level.ownerId)}
+                        </Badge>
+                      )}
                     </div>
                     <span className="text-sm text-muted-foreground">
                       ({level.subjects?.length || 0} subjects)
@@ -1669,6 +1814,7 @@ export function SuperAdminDashboardClient({
           )}
         </DialogContent>
       </Dialog>
+      </TooltipProvider>
     </div>
   );
 }

@@ -32,15 +32,16 @@ export default async function SuperAdminLayout({
   ]);
 
   return (
-    <SuperAdminLayoutClient 
+    <SuperAdminLayoutClient
       userId={user.id}
       dbUserId={user.id}
       initialLevels={levels}
     >
-      <SuperAdminDashboardClient 
-        initialLevels={levels} 
+      <SuperAdminDashboardClient
+        initialLevels={levels}
         initialUsers={users}
         initialStats={stats}
+        currentUserId={user.id}
       />
     </SuperAdminLayoutClient>
   );

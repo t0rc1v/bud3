@@ -5,7 +5,6 @@ import { eq, and } from "drizzle-orm";
 import { unlockedContent, resource, user, unlockFee } from "@/lib/db/schema";
 import { getResourceUnlockFee, verifyPaymentForResource } from "@/lib/actions/credits";
 import { DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
-import { checkRateLimit } from "@/lib/rate-limit";
 
 /**
  * POST /api/content/unlock
@@ -20,19 +19,6 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
-      );
-    }
-
-    // Rate limiting: 5 unlock attempts per minute per user
-    const rateLimitResult = checkRateLimit(`unlock:${clerkId}`, {
-      maxRequests: 5,
-      windowMs: 60 * 1000, // 1 minute
-    });
-
-    if (!rateLimitResult.isAllowed) {
-      return NextResponse.json(
-        { error: "Too many unlock attempts. Please try again later." },
-        { status: 429, headers: rateLimitResult.headers }
       );
     }
 
@@ -207,19 +193,6 @@ export async function GET(req: Request) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
-      );
-    }
-
-    // Rate limiting: 30 status checks per minute per user
-    const rateLimitResult = checkRateLimit(`unlock_status:${clerkId}`, {
-      maxRequests: 30,
-      windowMs: 60 * 1000, // 1 minute
-    });
-
-    if (!rateLimitResult.isAllowed) {
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        { status: 429, headers: rateLimitResult.headers }
       );
     }
 

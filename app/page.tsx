@@ -78,7 +78,7 @@ const features = [
     icon: Users,
     title: "Multi-Role Platform",
     description:
-      "Seamless experience for learners, teachers, and administrators with role-specific features.",
+      "Seamless experience for individuals or institutions with role-specific features.",
   },
   {
     icon: Coins,
@@ -174,8 +174,8 @@ function PricingModal() {
                 <div>
                   <h3 className="font-semibold text-lg mb-2">How Credits Work</h3>
                   <p className="text-muted-foreground text-sm">
-                    Credits are the currency of Bud3. Use them to unlock premium content and 
-                    get AI responses. 1 credit = 1 AI response or unlock access to premium resources.
+                    Credits are the currency of BudLM. Use them to unlock premium content and 
+                    get AI responses. <span className="font-semibold text-orange-600">Ksh 100 = 50 credits</span> - use credits to unlock content at custom prices.
                   </p>
                 </div>
               </div>
@@ -213,7 +213,7 @@ function PricingModal() {
                       </span>
                     </div>
                     <div className="text-sm text-muted-foreground mb-4">
-                      ~{Math.floor(pkg.credits / 50)} content unlocks
+                      ~Varies by content price
                     </div>
                     <Button
                       className={`w-full ${
@@ -292,7 +292,7 @@ function PricingModal() {
                   {
                     icon: Wallet,
                     title: "Choose Payment Method",
-                    description: "Use your credits (50 credits) or pay directly via M-Pesa (Ksh 100)",
+                    description: "Use your credits or pay directly via M-Pesa - prices vary by content",
                   },
                   {
                     icon: Check,
@@ -320,9 +320,9 @@ function PricingModal() {
                   <Coins className="h-5 w-5 text-orange-600" />
                   <h4 className="font-semibold">Pay with Credits</h4>
                 </div>
-                <div className="text-3xl font-bold text-orange-600 mb-1">50 credits</div>
+                <div className="text-3xl font-bold text-orange-600 mb-1">Custom Pricing</div>
                 <p className="text-sm text-muted-foreground mb-4">
-                  per content unlock
+                  Price varies per content (e.g., 30-100 credits)
                 </p>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center gap-2">
@@ -331,7 +331,7 @@ function PricingModal() {
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-500" />
-                    No additional fees
+                    <span className="font-semibold">Ksh 100 = 50 credits</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-500" />
@@ -345,9 +345,9 @@ function PricingModal() {
                   <Smartphone className="h-5 w-5 text-amber-600" />
                   <h4 className="font-semibold">Pay with M-Pesa</h4>
                 </div>
-                <div className="text-3xl font-bold text-amber-600 mb-1">Ksh 100</div>
+                <div className="text-3xl font-bold text-amber-600 mb-1">Custom Pricing</div>
                 <p className="text-sm text-muted-foreground mb-4">
-                  per content unlock
+                  Price varies per content (e.g., Ksh 60-200)
                 </p>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center gap-2">
@@ -397,7 +397,7 @@ function PricingModal() {
                 <div>
                   <h4 className="font-medium mb-1">Is there a minimum credit purchase?</h4>
                   <p className="text-muted-foreground">
-                    Yes, the minimum purchase is Ksh 100 which gives you 50 credits (enough for one content unlock).
+                    Yes, the minimum purchase is Ksh 100 which gives you 50 credits. Content unlock prices vary based on the specific resource.
                   </p>
                 </div>
               </div>
@@ -434,11 +434,11 @@ export default function LandingPage() {
       >
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-500/20">
+            {/* <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-500/20">
               <Sun className="h-5 w-5 text-white" />
-            </div>
+            </div> */}
             <span className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
-              Bud3
+              BudLM
             </span>
           </div>
           <nav className="hidden md:flex items-center gap-6">
@@ -755,12 +755,16 @@ export default function LandingPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Access premium content permanently
+                    Access premium content with custom pricing
                   </p>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
                       <Check className="h-4 w-4 text-amber-600" />
-                      <span>50 credits or Ksh 100 per unlock</span>
+                      <span>Custom pricing per content</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-amber-600" />
+                      <span>Pay with credits or M-Pesa</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Check className="h-4 w-4 text-amber-600" />
@@ -831,7 +835,7 @@ export default function LandingPage() {
             whileInView="animate"
             viewport={{ once: true }}
             variants={staggerContainer}
-            className="grid gap-6 md:grid-cols-3"
+            className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto"
           >
             <motion.div variants={fadeInUp}>
               <Card className="border-2 border-transparent hover:border-orange-500/20 transition-all h-full">
@@ -839,7 +843,7 @@ export default function LandingPage() {
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-900/20">
                     <BookOpen className="h-6 w-6 text-orange-600" />
                   </div>
-                  <CardTitle>For Learners</CardTitle>
+                  <CardTitle>For Learners & Individuals</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-3 text-sm text-muted-foreground">
@@ -853,7 +857,7 @@ export default function LandingPage() {
                     </li>
                     <li className="flex items-center gap-2">
                       <Star className="h-4 w-4 text-orange-600" />
-                      Interactive quizzes & assessments
+                      Easy content creation tools
                     </li>
                     <li className="flex items-center gap-2">
                       <Star className="h-4 w-4 text-orange-600" />
@@ -870,48 +874,12 @@ export default function LandingPage() {
             </motion.div>
 
             <motion.div variants={fadeInUp}>
-              <Card className="border-2 border-transparent hover:border-amber-500/20 transition-all h-full">
-                <CardHeader>
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/20">
-                    <Users className="h-6 w-6 text-amber-600" />
-                  </div>
-                  <CardTitle>For Teachers</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3 text-sm text-muted-foreground">
-                    <li className="flex items-center gap-2">
-                      <Star className="h-4 w-4 text-amber-600" />
-                      Easy content creation & management
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Star className="h-4 w-4 text-amber-600" />
-                      Student progress monitoring
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Star className="h-4 w-4 text-amber-600" />
-                      AI-assisted teaching tools
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Star className="h-4 w-4 text-amber-600" />
-                      Automated assessments
-                    </li>
-                  </ul>
-                  <Link href="/sign-up" className="mt-6 block">
-                    <Button className="w-full" variant="outline">
-                      Join as Teacher
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            <motion.div variants={fadeInUp}>
               <Card className="border-2 border-transparent hover:border-yellow-500/20 transition-all h-full">
                 <CardHeader>
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-100 dark:bg-yellow-900/20">
                     <Shield className="h-6 w-6 text-yellow-600" />
                   </div>
-                  <CardTitle>For Institutions</CardTitle>
+                  <CardTitle>For Admins & Institutions</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-3 text-sm text-muted-foreground">
@@ -921,7 +889,7 @@ export default function LandingPage() {
                     </li>
                     <li className="flex items-center gap-2">
                       <Star className="h-4 w-4 text-yellow-600" />
-                      User & permission management
+                      Add & Manage learners/regulars
                     </li>
                     <li className="flex items-center gap-2">
                       <Star className="h-4 w-4 text-yellow-600" />
@@ -929,7 +897,7 @@ export default function LandingPage() {
                     </li>
                     <li className="flex items-center gap-2">
                       <Star className="h-4 w-4 text-yellow-600" />
-                      Custom branding options
+                      Gift credits rewards & contnet unlocks
                     </li>
                   </ul>
                   <Link href="/sign-up" className="mt-6 block">
@@ -1026,7 +994,7 @@ export default function LandingPage() {
               </h2>
               <p className="text-lg text-white/80 mb-8">
                 Join thousands of learners, teachers, and institutions already using
-                Bud3 to achieve their educational goals.
+                BudLM to achieve their educational goals.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link href="/sign-up">
@@ -1043,7 +1011,7 @@ export default function LandingPage() {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="h-12 px-8 border-white text-white hover:bg-white/10"
+                    className="h-12 px-8 border-white text-orange-600 hover:bg-white/10"
                   >
                     Sign In
                   </Button>
@@ -1060,11 +1028,11 @@ export default function LandingPage() {
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-amber-500">
+                {/* <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-amber-500">
                   <Sun className="h-4 w-4 text-white" />
-                </div>
+                </div> */}
                 <span className="text-lg font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
-                  Bud3
+                  BudLM
                 </span>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -1138,7 +1106,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="mt-12 pt-8 border-t text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Bud3. All rights reserved.
+            © {new Date().getFullYear()} BudLM. All rights reserved.
           </div>
         </div>
       </footer>

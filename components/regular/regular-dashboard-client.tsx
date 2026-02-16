@@ -208,10 +208,10 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
     );
   }, [superAdminLevels, searchQuery]);
 
-  // Get all subjects and topics for forms
-  const allSubjects = useMemo(() => [...mySubjects, ...adminSubjects], [mySubjects, adminSubjects]);
-  const allTopics = useMemo(() => [...myTopics, ...adminTopics], [myTopics, adminTopics]);
-  const allLevels = useMemo(() => [...myLevels, ...adminLevels], [myLevels, adminLevels]);
+  // Get all subjects and topics for forms (only from my content)
+  const allSubjects = useMemo(() => mySubjects, [mySubjects]);
+  const allTopics = useMemo(() => myTopics, [myTopics]);
+  const allLevels = useMemo(() => myLevels, [myLevels]);
 
   // Expansion handlers
   const toggleLevel = (levelId: string) => {

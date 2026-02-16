@@ -570,7 +570,7 @@ export function UnifiedAdminPageClient({
                   <DialogHeader>
                     <DialogTitle>Create New Subject</DialogTitle>
                   </DialogHeader>
-                  <CreateSubjectForm levels={levels} onSuccess={() => setIsCreateSubjectOpen(false)} />
+                  <CreateSubjectForm levels={myLevels} onSuccess={() => setIsCreateSubjectOpen(false)} />
                 </DialogContent>
               </Dialog>
               <Dialog open={isCreateTopicOpen} onOpenChange={setIsCreateTopicOpen}>

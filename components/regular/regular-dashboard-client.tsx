@@ -63,6 +63,7 @@ import { EditLevelForm } from "@/components/admin/edit-level-form";
 import { EditSubjectForm } from "@/components/admin/edit-subject-form";
 import { EditTopicForm } from "@/components/admin/edit-topic-form";
 import { EditResourceForm } from "@/components/admin/edit-resource-form";
+import { ResourceViewer } from "@/components/admin/resource-viewer";
 import { deleteLevelWithSession, deleteSubjectWithSession, deleteTopicWithSession, deleteResource, getResourceById } from "@/lib/actions/admin";
 import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";
@@ -122,7 +123,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
   const [isLoadingEditResource, setIsLoadingEditResource] = useState(false);
 
   // Viewing resource
-  const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
+  const [selectedResource, setSelectedResource] = useState<ResourceWithRelations | null>(null);
 
   // Separate content by owner role and owner ID using useMemo
   // My Content: only content owned by the current user
@@ -370,8 +371,33 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
 
   // View resource
   const handleViewResource = useCallback((resource: Resource) => {
-    setSelectedResource(resource);
-  }, []);
+    // Find subject and topic for this resource
+    const allLevels = [...myLevels, ...adminLevels, ...superAdminLevels];
+    let subject: Subject | null = null;
+    let topic: Topic | null = null;
+    
+    for (const level of allLevels) {
+      for (const s of level.subjects) {
+        for (const t of s.topics) {
+          if (t.resources?.some(r => r.id === resource.id)) {
+            subject = s;
+            topic = t;
+            break;
+          }
+        }
+        if (topic) break;
+      }
+      if (topic) break;
+    }
+    
+    const resourceWithRelations: ResourceWithRelations = {
+      ...resource,
+      subject,
+      topic,
+    };
+    
+    setSelectedResource(resourceWithRelations);
+  }, [myLevels, adminLevels, superAdminLevels]);
 
   const handleBackFromViewer = () => {
     setSelectedResource(null);
@@ -397,20 +423,12 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
   if (selectedResource) {
     return (
       <div className="container mx-auto py-6 space-y-6">
-        <Button variant="ghost" onClick={handleBackFromViewer} className="mb-4">
-          ← Back to Dashboard
-        </Button>
-        <Card>
-          <CardHeader>
-            <CardTitle>{selectedResource.title}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">{selectedResource.description}</p>
-            <div className="mt-4 p-4 bg-muted rounded-lg">
-              <p className="text-sm text-muted-foreground">Resource content would display here</p>
-            </div>
-          </CardContent>
-        </Card>
+        <ResourceViewer
+          resource={selectedResource}
+          onBack={handleBackFromViewer}
+          subjects={[]}
+          topics={[]}
+        />
       </div>
     );
   }

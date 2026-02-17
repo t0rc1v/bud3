@@ -1,4 +1,4 @@
-import { type Metadata } from 'next'
+import { type Metadata, type Viewport } from 'next'
 import { ClerkProvider } from '@clerk/nextjs'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
@@ -20,6 +20,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Bud3',
   description: 'AI-powered educational platform',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  interactiveWidget: 'resizes-content',
 }
 
 export default function RootLayout({

@@ -97,6 +97,7 @@ export function AIChat({
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [attachedResources, setAttachedResources] = useState<Resource[]>([]);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [textareaRows, setTextareaRows] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
@@ -331,6 +332,19 @@ export function AIChat({
     const newRows = Math.min(Math.max(newlineCount + 1, 1), 5);
     setTextareaRows(newRows);
   }, []);
+
+  // Scroll textarea into view when focused on mobile
+  const handleTextareaFocus = useCallback(() => {
+    if (isMobile && textareaRef.current) {
+      // Small delay to allow keyboard to open
+      setTimeout(() => {
+        textareaRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }, 300);
+    }
+  }, [isMobile]);
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || status !== "ready") return;
@@ -992,7 +1006,7 @@ export function AIChat({
       </div>
 
       {/* Input */}
-      <div className="border-t p-4 bg-background">
+      <div className="border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-background sticky bottom-0 z-10">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -1001,9 +1015,11 @@ export function AIChat({
           className="flex gap-2 items-end"
         >
           <Textarea
+            ref={textareaRef}
             value={input}
             onChange={handleTextareaChange}
             onKeyDown={handleKeyDown}
+            onFocus={handleTextareaFocus}
             placeholder={mounted && isMobile ? "Type your message..." : "Type your message... (Shift+Enter for new line, Enter to send)"}
             disabled={status !== "ready"}
             rows={textareaRows}

@@ -10,9 +10,6 @@ import {
   formatSearchResultsForAI,
 } from '@/lib/ai/tools';
 
-// Allow streaming responses up to 30 seconds
-export const maxDuration = 30;
-
 interface MemoryItem {
   id: string;
   userId: string;

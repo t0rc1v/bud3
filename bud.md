@@ -1,59 +1,207 @@
-## instructions
-- use pnpm 
-- use command: pnpm dlx shadcn@latest add to add shadcn components
-- ensure to get up to date info from docs before implementing any package
+## account creation
 
-## roles
-- admin, teacher, student
+### super-admin
+sign up as regular/admin then edit public metadata in clerk with 
+    {
+        role: "super_admin"
+    }
+webhook updates user table with super-admin role
+
+### /onboarding
+- sign up as regular/admin
+
+---
+
+## layout
+
+### sidebar
+- content tree
+
+### content
+- CRUD levels, subjects, topics, resources(pdfs, yt, images, audio)
+- content tree
+
+### ai chat
+- tools: web(Exa), memory, server actions
+- add resources for context
+    - url of resource passed
+
+--- 
+
+## super-admin
+- dashboard
+    - 3 tabs(super/public, admin, regular)
+    - CRUD buttons(owned content)
+    - edit/delete all content
+- manage admins
+- gift credits
+    - including own
+    - not from credit pool
+- gift content unlocks
+    - unlock resource for user
+- manage unlock fees
+    -manage fees set for resources
+
 
 ## admin
-1. create grades
-2. create grade subjects
-3. create topics
-4. upload material to topic - notes/yt/audio?/image
-- provide description of uploaded material for AI 
-- if resource is added to chat, the following is provided to the AI:
-    - resource schema: title, description, url, type(will determine rendering)
-    - rendering done for the 4 types of resources
-5. AI chat
-
-## teacher
-1. view grades
-2. view grade subjects
-3. view subject topics
-4. view topic resources
-5. add `my_learners`: require email
-6. create topic and upload material to topic - notes/yt/audio?/image
-- provide description of uploaded material for AI 
-- if resource is added to chat, the following is provided to the AI:
-    - resource schema: title, description, url, type(will determine rendering)
-    - rendering done for the 4 types of resources
-7. AI chat
-- AI tools: web_search(powered by exa ai), memory
-- AI artifacts: quiz
-
-### my_learners
-- when a teacher creates a `my_learners` list which will enable them to easily monitor and reference details about their learners. for example weak areas
-
-## student
-- same as teacher without add `my_learners`
+- dashboard
+    - 2 tabs(super/public, admin)
+    - CRUD buttons(owned content)
+    - edit/delete owned content
+- manage regulars
+    - bulk or single
+    - added regulars can access content created by their admin
+- gift credits
+    - not including own
+    - from credit pool
+- gift content unlocks
+    - unlock resource for user
+- manage unlock fees
+    - manage fees set for resources
+- unlock content from super-admin
+    - using credits or mpesa
+- buy credits
+    - mpesa
 
 
----
+## regular
+- dashboard
+    - 3 tabs(super/public, admin, regular)
+    - CRUD buttons(owned content)
+    - edit/delete owned content
+- gifted content unlocks
+    - unlocked resource for by admin/super
+- buy credits
+    - including own
+    - not from credit pool
+- unlock resource
+    - credits or mpesa
 
-## AI
-- AI chat powered by ai-sdk
-- context from resources can be added to chat
-- AI has tool for web and youtube search powered by exa ai and memory(saved in the database)
-- Memory tool can save structured data. for example, a teacher can upload a file with subject results which they would like to save for future reference of their learners
-- reasearch tool which can be used to research for materials to use within a topic from the web or youtube
-- when a resource is added to chat from the database, the AI will be provided with the url which is saved in the database and read the contents of the resource provided by accessing the url. for example a pdf or image url
-- create tool calls for these server actions: 
-    - teacher adding learner(s)
-    - 
-- TOOLCALLS
+--- 
 
+## specs
+
+### packages
+- react-pdf: pdf-viewer
+- exa ai
 
 
 ---
+---
+
+
+## BUD4 (education/institution based)
+
+automate basic learner, teacher and admin roles
+same bud3 layout
+
+**learner**
+consumes:
+    - notes
+    - assignments
+    - exams
+revision
+exploration
+
+**teacher**
+creates: 
+    - notes
+    - assignments
+    - exams
+progress tracking
+research/exploration
+
+**admin**
+overview of everything
+
+---
+
+### application
+
+**notes**
+uploads
+categories: pdfs, yt, images, audio
+add to chat
+
+**revision**
+AI generated:
+- summary
+- overview
+- references
+- keywords
+- practice qns: done in app or done externally for tr to mark(where there maybe limitations like math)
+- flashcards
+
+**assignments**
+topic based. export to pdf
+
+**exams**
+topics/subject based. broader than assignment. export to pdf
+
+**progress tracking**
+- give me analysis of student x
+
+**research and exploration**
+web tool
+
+**overview**
+- give me analysis of student x
+- give me analysis of topic y
+- give me analysis of subject z performance
+
+#### data
+scores: for progress and analysis tracking
+
+
+### AI
+
+**tools**
+- web: for research
+- memory:
+- assignments/practice qns: 
+    - prompt will more topic based, not broad. 
+    - max 10 questions
+    - with artifact and pdf export 
+- exam/quiz: 
+    - from admin dash. access to list of regulars and levels. if level not provided, ai provides all choices
+    - prompt will be topics/subject based, very broad. 
+    - max 30 questions
+    - title required 
+    - only pdf export
+    - scoresheet excel export. title, list of admin's learners, score
+- analysis
+
+
+### roles
+*super-admin*: institution
+- manage admins: promote/revoke
+- manage regulars: add/remove regulars to the institution
+- access to all data
+- gift credits and unlocks
+- manage unlock fees for their content 
+- CRUD content: all access
+- content accessible by all under hierarchy. locked/free
+
+*admin*: teacher
+- manage regulars: add/remove regulars to have access to their content
+- access to own and super content
+- gift credits and unlocks: from their pool
+- manage unlock fees for their content 
+- CRUD content: own content
+- content accessible by all under hierarchy. locked/free
+
+*regular*: learner
+- access to own, super, and their admin content
+- manage unlock fees for their content 
+- share content
+- CRUD content: own content
+- content accessible if made public
+
+
+### flow
+- onboarding: 
+    - super: name, category
+    - regular: name, education level(pre-defined, not required)
+- regular to admin status given by super
+
 

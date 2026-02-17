@@ -94,8 +94,10 @@ export function AddResourceToChat({
               source = "admin";
             }
             
-            // For non-own content that is locked, check if user has unlocked it
-            if (source !== "own" && resource.isLocked && userId) {
+            // Super-admins bypass all locking - all resources are unlocked for them
+            if (userRole === "super_admin") {
+              isUnlocked = true;
+            } else if (source !== "own" && resource.isLocked && userId) {
               const unlockFee = await getUnlockFeeByResource(resource.id);
               if (unlockFee) {
                 creditsRequired = unlockFee.creditsRequired;

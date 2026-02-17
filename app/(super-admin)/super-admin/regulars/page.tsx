@@ -1,11 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useUser } from "@clerk/nextjs";
-import { getMyLearners, addMyLearner, removeMyLearner, bulkAddMyLearners, bulkRemoveMyLearners } from "@/lib/actions/admin";
+import {
+  getSuperAdminRegularsPaginated,
+  addSuperAdminRegular,
+  removeSuperAdminRegular,
+  bulkAddSuperAdminRegulars,
+  bulkRemoveSuperAdminRegulars,
+  type SuperAdminRegular,
+  type PaginatedRegulars,
+} from "@/lib/actions/super-admin";
 
-import type { MyLearnerWithDetails } from "@/lib/actions/admin";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Users, Plus, Trash2, Loader2, X } from "lucide-react";
+import { Users, Plus, Trash2, Loader2, X, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -34,75 +47,115 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
-export default function ManageRegularsPage() {
+const PAGE_SIZE = 10;
+
+export default function SuperAdminRegularsPage() {
   const { user: clerkUser } = useUser();
-  const [regulars, setRegulars] = useState<MyLearnerWithDetails[]>([]);
+  const [regularsData, setRegularsData] = useState<PaginatedRegulars | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingSingle, setIsAddingSingle] = useState(false);
   const [isAddingBulk, setIsAddingBulk] = useState(false);
   const [newRegularEmail, setNewRegularEmail] = useState("");
   const [bulkEmails, setBulkEmails] = useState("");
-  const [adminUser, setAdminUser] = useState<{ id: string; email: string; institutionName?: string } | null>(null);
-  const [regularToDelete, setRegularToDelete] = useState<MyLearnerWithDetails | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [superAdminUser, setSuperAdminUser] = useState<{ id: string; email: string } | null>(null);
+  const [regularToDelete, setRegularToDelete] = useState<SuperAdminRegular | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  
+
   // Bulk selection state
   const [selectedRegulars, setSelectedRegulars] = useState<Set<string>>(new Set());
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [bulkDeleteConfirmText, setBulkDeleteConfirmText] = useState("");
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [clerkUser]);
+  // Debounced search
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  const loadData = async () => {
-    if (!clerkUser) return;
-    
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1); // Reset to first page on search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const loadRegulars = useCallback(async () => {
+    if (!superAdminUser) return;
+
     try {
       setIsLoading(true);
-      const { getUserByClerkId } = await import("@/lib/actions/auth");
-      const user = await getUserByClerkId(clerkUser.id);
-      
-      if (!user) {
-        toast.error("User not found");
-        return;
-      }
-
-      setAdminUser({
-        id: user.id,
-        email: user.email,
-        institutionName: user.institutionName || undefined,
-      });
-
-      const regularsData = await getMyLearners(user.id);
-      setRegulars(regularsData);
+      const data = await getSuperAdminRegularsPaginated(
+        superAdminUser.id,
+        currentPage,
+        PAGE_SIZE,
+        debouncedSearch || undefined
+      );
+      setRegularsData(data);
+      // Clear selection when data changes
+      setSelectedRegulars(new Set());
     } catch (error) {
-      console.error("Error loading data:", error);
+      console.error("Error loading regulars:", error);
       toast.error("Failed to load regulars");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [superAdminUser, currentPage, debouncedSearch]);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      if (!clerkUser) return;
+
+      try {
+        const { getUserByClerkId } = await import("@/lib/actions/auth");
+        const user = await getUserByClerkId(clerkUser.id);
+
+        if (!user) {
+          toast.error("User not found");
+          return;
+        }
+
+        if (user.role !== "super_admin") {
+          toast.error("Access denied. Only Super Admins can manage regulars.");
+          return;
+        }
+
+        setSuperAdminUser({
+          id: user.id,
+          email: user.email,
+        });
+      } catch (error) {
+        console.error("Error loading user:", error);
+        toast.error("Failed to load user data");
+      }
+    };
+
+    loadUser();
+  }, [clerkUser]);
+
+  useEffect(() => {
+    loadRegulars();
+  }, [loadRegulars]);
 
   const handleAddRegular = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adminUser || !newRegularEmail) return;
+    if (!superAdminUser || !newRegularEmail) return;
 
     try {
       setIsAddingSingle(true);
-      await addMyLearner(adminUser.id, newRegularEmail);
-      
-      toast.success(`Added ${newRegularEmail} to your institution`);
-      setNewRegularEmail("");
-      
-      // Refresh list
-      const updatedRegulars = await getMyLearners(adminUser.id);
-      setRegulars(updatedRegulars);
+      const result = await addSuperAdminRegular(superAdminUser.id, newRegularEmail);
+
+      if (result.success) {
+        toast.success(`Added ${newRegularEmail} to your institution`);
+        setNewRegularEmail("");
+        loadRegulars();
+      } else {
+        toast.error(result.error || "Failed to add regular");
+      }
     } catch (error) {
       console.error("Error adding regular:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to add regular");
+      toast.error("Failed to add regular");
     } finally {
       setIsAddingSingle(false);
     }
@@ -110,45 +163,53 @@ export default function ManageRegularsPage() {
 
   const handleBulkAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adminUser || !bulkEmails.trim()) return;
+    if (!superAdminUser || !bulkEmails.trim()) return;
 
     try {
       setIsAddingBulk(true);
-      
+
       // Parse emails from textarea (comma, newline, or space separated)
       const emailList = bulkEmails
         .split(/[,\n\s]+/)
-        .map(email => email.trim())
-        .filter(email => email.length > 0);
-      
+        .map((email) => email.trim())
+        .filter((email) => email.length > 0);
+
       if (emailList.length === 0) {
         toast.error("No valid email addresses found");
         return;
       }
 
-      const result = await bulkAddMyLearners(adminUser.id, emailList);
-      
+      const result = await bulkAddSuperAdminRegulars(superAdminUser.id, emailList);
+
       // Build comprehensive result message
       const messages: string[] = [];
-      
+
       if (result.successfullyAdded.length > 0) {
         messages.push(`✓ Successfully added: ${result.successfullyAdded.length}`);
       }
-      
+
       if (result.alreadyExists.length > 0) {
-        messages.push(`⚠ Already exist: ${result.alreadyExists.length} (${result.alreadyExists.slice(0, 3).join(", ")}${result.alreadyExists.length > 3 ? "..." : ""})`);
+        messages.push(
+          `⚠ Already exist: ${result.alreadyExists.length} (${result.alreadyExists.slice(0, 3).join(", ")}${result.alreadyExists.length > 3 ? "..." : ""})`
+        );
       }
-      
+
       if (result.invalidEmails.length > 0) {
-        messages.push(`✗ Invalid emails: ${result.invalidEmails.length} (${result.invalidEmails.slice(0, 3).join(", ")}${result.invalidEmails.length > 3 ? "..." : ""})`);
+        messages.push(
+          `✗ Invalid emails: ${result.invalidEmails.length} (${result.invalidEmails.slice(0, 3).join(", ")}${result.invalidEmails.length > 3 ? "..." : ""})`
+        );
       }
-      
+
       if (result.notFound.length > 0) {
-        messages.push(`✗ Not found: ${result.notFound.length} (${result.notFound.slice(0, 3).join(", ")}${result.notFound.length > 3 ? "..." : ""})`);
+        messages.push(
+          `✗ Not found: ${result.notFound.length} (${result.notFound.slice(0, 3).join(", ")}${result.notFound.length > 3 ? "..." : ""})`
+        );
       }
-      
+
       if (result.notRegularRole.length > 0) {
-        messages.push(`✗ Not regular users: ${result.notRegularRole.length} (${result.notRegularRole.slice(0, 3).join(", ")}${result.notRegularRole.length > 3 ? "..." : ""})`);
+        messages.push(
+          `✗ Not regular users: ${result.notRegularRole.length} (${result.notRegularRole.slice(0, 3).join(", ")}${result.notRegularRole.length > 3 ? "..." : ""})`
+        );
       }
 
       // Show appropriate toast based on results
@@ -158,9 +219,13 @@ export default function ManageRegularsPage() {
         toast.success(
           <div className="space-y-1">
             <p>Added {result.successfullyAdded.length} of {result.totalProcessed} users</p>
-            {messages.filter(m => !m.startsWith("✓ Successfully")).map((msg, i) => (
-              <p key={i} className="text-xs text-muted-foreground">{msg}</p>
-            ))}
+            {messages
+              .filter((m) => !m.startsWith("✓ Successfully"))
+              .map((msg, i) => (
+                <p key={i} className="text-xs text-muted-foreground">
+                  {msg}
+                </p>
+              ))}
           </div>
         );
       } else {
@@ -168,38 +233,39 @@ export default function ManageRegularsPage() {
           <div className="space-y-1">
             <p>No users were added</p>
             {messages.slice(1).map((msg, i) => (
-              <p key={i} className="text-xs text-muted-foreground">{msg}</p>
+              <p key={i} className="text-xs text-muted-foreground">
+                {msg}
+              </p>
             ))}
           </div>
         );
       }
-      
+
       setBulkEmails("");
-      
-      // Refresh list
-      const updatedRegulars = await getMyLearners(adminUser.id);
-      setRegulars(updatedRegulars);
+      loadRegulars();
     } catch (error) {
       console.error("Error bulk adding regulars:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to add regulars");
+      toast.error("Failed to add regulars");
     } finally {
       setIsAddingBulk(false);
     }
   };
 
   const handleRemoveRegular = async () => {
-    if (!adminUser || !regularToDelete) return;
+    if (!superAdminUser || !regularToDelete) return;
 
     try {
       setIsDeleting(true);
-      await removeMyLearner(adminUser.id, regularToDelete.regularId);
-      toast.success("Regular removed successfully");
-      setIsDeleteDialogOpen(false);
-      setRegularToDelete(null);
-      
-      // Refresh list
-      const updatedRegulars = await getMyLearners(adminUser.id);
-      setRegulars(updatedRegulars);
+      const result = await removeSuperAdminRegular(superAdminUser.id, regularToDelete.regularId);
+
+      if (result.success) {
+        toast.success("Regular removed successfully");
+        setIsDeleteDialogOpen(false);
+        setRegularToDelete(null);
+        loadRegulars();
+      } else {
+        toast.error(result.error || "Failed to remove regular");
+      }
     } catch (error) {
       console.error("Error removing regular:", error);
       toast.error("Failed to remove regular");
@@ -209,8 +275,8 @@ export default function ManageRegularsPage() {
   };
 
   const handleBulkDelete = async () => {
-    if (!adminUser || selectedRegulars.size === 0) return;
-    
+    if (!superAdminUser || selectedRegulars.size === 0) return;
+
     const expectedText = `DELETE ${selectedRegulars.size} REGULARS`;
     if (bulkDeleteConfirmText.toUpperCase() !== expectedText) {
       toast.error("Confirmation text does not match");
@@ -219,8 +285,8 @@ export default function ManageRegularsPage() {
 
     try {
       setIsBulkDeleting(true);
-      const result = await bulkRemoveMyLearners(adminUser.id, Array.from(selectedRegulars));
-      
+      const result = await bulkRemoveSuperAdminRegulars(superAdminUser.id, Array.from(selectedRegulars));
+
       if (result.deletedCount === selectedRegulars.size) {
         toast.success(`Successfully removed ${result.deletedCount} regular users`);
       } else {
@@ -233,14 +299,11 @@ export default function ManageRegularsPage() {
           </div>
         );
       }
-      
+
       setSelectedRegulars(new Set());
       setBulkDeleteConfirmText("");
       setIsBulkDeleteDialogOpen(false);
-      
-      // Refresh list
-      const updatedRegulars = await getMyLearners(adminUser.id);
-      setRegulars(updatedRegulars);
+      loadRegulars();
     } catch (error) {
       console.error("Error bulk removing regulars:", error);
       toast.error("Failed to remove regulars");
@@ -249,7 +312,7 @@ export default function ManageRegularsPage() {
     }
   };
 
-  const openDeleteDialog = (regular: MyLearnerWithDetails) => {
+  const openDeleteDialog = (regular: SuperAdminRegular) => {
     setRegularToDelete(regular);
     setIsDeleteDialogOpen(true);
   };
@@ -266,10 +329,11 @@ export default function ManageRegularsPage() {
   };
 
   const toggleAllSelection = () => {
-    if (selectedRegulars.size === regulars.length) {
+    if (!regularsData) return;
+    if (selectedRegulars.size === regularsData.regulars.length) {
       setSelectedRegulars(new Set());
     } else {
-      setSelectedRegulars(new Set(regulars.map(r => r.regularId)));
+      setSelectedRegulars(new Set(regularsData.regulars.map((r) => r.regularId)));
     }
   };
 
@@ -283,7 +347,12 @@ export default function ManageRegularsPage() {
     setSelectedRegulars(new Set());
   };
 
-  if (isLoading) {
+  const handlePageChange = (page: number) => {
+    if (page < 1 || (regularsData && page > regularsData.totalPages)) return;
+    setCurrentPage(page);
+  };
+
+  if (isLoading && !regularsData) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -391,18 +460,31 @@ export default function ManageRegularsPage() {
       {/* Regulars List */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                Your Regulars ({regulars.length})
+                Your Regulars
+                {regularsData && (
+                  <Badge variant="secondary">{regularsData.totalCount} total</Badge>
+                )}
               </CardTitle>
               <CardDescription>
                 Manage the regular users associated with your institution
               </CardDescription>
             </div>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search by email..."
+                className="pl-8 w-full sm:w-[250px]"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
-          
+
           {/* Bulk Actions Toolbar */}
           {selectedRegulars.size > 0 && (
             <div className="mt-4 p-3 bg-muted rounded-lg flex items-center justify-between">
@@ -411,20 +493,12 @@ export default function ManageRegularsPage() {
                   {selectedRegulars.size} selected
                 </Badge>
                 <Separator orientation="vertical" className="h-4" />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleAllSelection}
-                  className="h-8"
-                >
-                  {selectedRegulars.size === regulars.length ? "Deselect All" : "Select All"}
+                <Button variant="ghost" size="sm" onClick={toggleAllSelection} className="h-8">
+                  {selectedRegulars.size === (regularsData?.regulars.length || 0)
+                    ? "Deselect All"
+                    : "Select All"}
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearSelection}
-                  className="h-8"
-                >
+                <Button variant="ghost" size="sm" onClick={clearSelection} className="h-8">
                   <X className="h-4 w-4 mr-1" />
                   Clear
                 </Button>
@@ -442,82 +516,137 @@ export default function ManageRegularsPage() {
           )}
         </CardHeader>
         <CardContent>
-          {regulars.length === 0 ? (
+          {!regularsData || regularsData.regulars.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
               <p>No regulars added yet</p>
               <p className="text-sm">Use the form above to add your first regular user</p>
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={selectedRegulars.size === regulars.length && regulars.length > 0}
-                        onCheckedChange={toggleAllSelection}
-                        aria-label="Select all regulars"
-                      />
-                    </TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Level</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {regulars.map((regular) => (
-                    <TableRow
-                      key={regular.id}
-                      data-state={selectedRegulars.has(regular.regularId) ? "selected" : undefined}
-                    >
-                      <TableCell>
+            <>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">
                         <Checkbox
-                          checked={selectedRegulars.has(regular.regularId)}
-                          onCheckedChange={() => toggleSelection(regular.regularId)}
-                          aria-label={`Select ${regular.regular?.name || regular.regularEmail}`}
+                          checked={
+                            selectedRegulars.size === regularsData.regulars.length &&
+                            regularsData.regulars.length > 0
+                          }
+                          onCheckedChange={toggleAllSelection}
+                          aria-label="Select all regulars"
                         />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                            <Users className="h-4 w-4 text-blue-600" />
-                          </div>
-                          <span className="font-medium">
-                            {regular.regular?.name || "Unknown User"}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {regular.regularEmail}
-                      </TableCell>
-                      <TableCell>
-                        {regular.regular?.level || "-"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {regular.regular ? (
-                          new Date(regular.regular.createdAt).toLocaleDateString()
-                        ) : (
-                          new Date(regular.createdAt).toLocaleDateString()
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => openDeleteDialog(regular)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
+                      </TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Level</TableHead>
+                      <TableHead>Joined</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {regularsData.regulars.map((regular) => (
+                      <TableRow
+                        key={regular.id}
+                        data-state={selectedRegulars.has(regular.regularId) ? "selected" : undefined}
+                      >
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedRegulars.has(regular.regularId)}
+                            onCheckedChange={() => toggleSelection(regular.regularId)}
+                            aria-label={`Select ${regular.regular?.name || regular.regularEmail}`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                              <Users className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <span className="font-medium">
+                              {regular.regular?.name || "Unknown User"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {regular.regularEmail}
+                        </TableCell>
+                        <TableCell>{regular.regular?.level || "-"}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {regular.regular ? (
+                            new Date(regular.regular.createdAt).toLocaleDateString()
+                          ) : (
+                            new Date(regular.createdAt).toLocaleDateString()
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => openDeleteDialog(regular)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination */}
+              {regularsData.totalPages > 1 && (
+                <div className="mt-4 flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Page {currentPage} of {regularsData.totalPages} ({regularsData.totalCount} total)
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1 || isLoading}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: regularsData.totalPages }, (_, i) => i + 1)
+                        .filter(
+                          (page) =>
+                            page === 1 ||
+                            page === regularsData.totalPages ||
+                            (page >= currentPage - 1 && page <= currentPage + 1)
+                        )
+                        .map((page, index, array) => (
+                          <div key={page} className="flex items-center">
+                            {index > 0 && array[index - 1] !== page - 1 && (
+                              <span className="px-2">...</span>
+                            )}
+                            <Button
+                              variant={currentPage === page ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handlePageChange(page)}
+                              disabled={isLoading}
+                              className="min-w-[32px]"
+                            >
+                              {page}
+                            </Button>
+                          </div>
+                        ))}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === regularsData.totalPages || isLoading}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -528,14 +657,18 @@ export default function ManageRegularsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove Regular User</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove {regularToDelete?.regular?.name || regularToDelete?.regularEmail} from your institution? This action cannot be undone.
+              Are you sure you want to remove{" "}
+              {regularToDelete?.regular?.name || regularToDelete?.regularEmail} from your institution?
+              This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setIsDeleteDialogOpen(false);
-              setRegularToDelete(null);
-            }}>
+            <AlertDialogCancel
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setRegularToDelete(null);
+              }}
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -566,7 +699,8 @@ export default function ManageRegularsPage() {
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
               <p>
-                This action cannot be undone. This will permanently remove {selectedRegulars.size} regular users from your institution.
+                This action cannot be undone. This will permanently remove {selectedRegulars.size}{" "}
+                regular users from your institution.
               </p>
               <div className="bg-muted p-3 rounded-md">
                 <p className="font-medium mb-2">To confirm, type:</p>
@@ -583,15 +717,20 @@ export default function ManageRegularsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setIsBulkDeleteDialogOpen(false);
-              setBulkDeleteConfirmText("");
-            }}>
+            <AlertDialogCancel
+              onClick={() => {
+                setIsBulkDeleteDialogOpen(false);
+                setBulkDeleteConfirmText("");
+              }}
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleBulkDelete}
-              disabled={isBulkDeleting || bulkDeleteConfirmText.toUpperCase() !== `DELETE ${selectedRegulars.size} REGULARS`}
+              disabled={
+                isBulkDeleting ||
+                bulkDeleteConfirmText.toUpperCase() !== `DELETE ${selectedRegulars.size} REGULARS`
+              }
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isBulkDeleting ? (

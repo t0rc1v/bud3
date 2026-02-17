@@ -27,6 +27,7 @@ import {
   Lock,
   Unlock,
   CreditCard,
+  Building2,
 } from "lucide-react";
 import { ResourceViewer, ResourceViewerSkeleton } from "./resource-viewer";
 import { getResourceById } from "@/lib/actions/admin";
@@ -104,7 +105,7 @@ export function UnifiedAdminPageClient({
   const [levels, setLevels] = useState<LevelWithFullHierarchy[]>(initialLevels);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<"my" | "public">("my");
+  const [activeTab, setActiveTab] = useState<"my" | "institution">("my");
 
   // Sync levels when initialLevels changes (after revalidation)
   useEffect(() => {
@@ -172,8 +173,8 @@ export function UnifiedAdminPageClient({
     [levels, userId]
   );
   
-  // Public Content: content owned by super_admin
-  const publicLevels = useMemo(() => 
+  // Institution: content owned by super_admin
+  const institutionLevels = useMemo(() => 
     levels.filter((g) => g.ownerRole === "super_admin"),
     [levels]
   );
@@ -191,24 +192,24 @@ export function UnifiedAdminPageClient({
     };
   }, [myLevels]);
 
-  const publicStats = useMemo(() => {
-    const subjects = publicLevels.flatMap((g) => g.subjects);
+  const institutionStats = useMemo(() => {
+    const subjects = institutionLevels.flatMap((g) => g.subjects);
     const topics = subjects.flatMap((s) => s.topics);
     const resources = topics.flatMap((t) => t.resources);
     return {
-      levels: publicLevels.length,
+      levels: institutionLevels.length,
       subjects: subjects.length,
       topics: topics.length,
       resources: resources.length,
     };
-  }, [publicLevels]);
+  }, [institutionLevels]);
 
   // Get all subjects and topics for forms (only from my content)
   const allSubjects = useMemo(() => myLevels.flatMap((g) => g.subjects), [myLevels]);
   const allTopics = useMemo(() => allSubjects.flatMap((s) => s.topics), [allSubjects]);
 
   // Get all subjects and topics for the current tab's expand/collapse functionality
-  const currentTabLevels = activeTab === "my" ? myLevels : publicLevels;
+  const currentTabLevels = activeTab === "my" ? myLevels : institutionLevels;
   const currentTabSubjects = useMemo(() => 
     currentTabLevels.flatMap((g) => g.subjects), 
     [currentTabLevels]
@@ -231,17 +232,17 @@ export function UnifiedAdminPageClient({
     );
   }, [myLevels, searchQuery]);
 
-  const filteredPublicLevels = useMemo(() => {
-    if (!searchQuery) return publicLevels;
+  const filteredInstitutionLevels = useMemo(() => {
+    if (!searchQuery) return institutionLevels;
     const query = searchQuery.toLowerCase();
-    return publicLevels.filter(g => 
+    return institutionLevels.filter(g => 
       g.title.toLowerCase().includes(query) ||
       g.subjects.some(s => 
         s.name.toLowerCase().includes(query) ||
         s.topics.some(t => t.title.toLowerCase().includes(query))
       )
     );
-  }, [publicLevels, searchQuery]);
+  }, [institutionLevels, searchQuery]);
 
   // Expansion handlers
   const toggleLevel = (levelId: string) => {
@@ -479,66 +480,40 @@ export function UnifiedAdminPageClient({
         <Card 
           className={cn(
             "cursor-pointer transition-all hover:shadow-md",
-            activeTab === "public" && "ring-2 ring-purple-500 ring-offset-2"
+            activeTab === "institution" && "ring-2 ring-purple-500 ring-offset-2"
           )}
-          onClick={() => setActiveTab("public")}
+          onClick={() => setActiveTab("institution")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Shield className="h-4 w-4 text-purple-500" />
-              Public Content
+              <Building2 className="h-4 w-4 text-purple-500" />
+              Institution
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{publicStats.levels}</div>
+            <div className="text-2xl font-bold">{institutionStats.levels}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {publicStats.subjects} subjects, {publicStats.resources} resources
+              {institutionStats.subjects} subjects, {institutionStats.resources} resources
             </p>
             <p className="text-xs text-purple-600 mt-1">
-              {activeTab === "public" ? "Currently viewing" : "Click to view"}
+              {activeTab === "institution" ? "Currently viewing" : "Click to view"}
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Manage Regulars Card */}
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-blue-900 text-sm sm:text-base">Manage Regular Users</p>
-                <p className="text-xs sm:text-sm text-blue-700 hidden sm:block">Add and manage regular users for your institution</p>
-              </div>
-            </div>
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="border-blue-300 hover:bg-blue-100 w-full sm:w-auto"
-              onClick={() => router.push("/admin/regulars")}
-            >
-              <Users className="h-4 w-4 mr-2" />
-              Manage Regulars
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tabs for My Content and Public Content */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "my" | "public")} className="w-full">
+      {/* Tabs for My Content and Institution */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "my" | "institution")} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="my" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3">
             <User className="h-4 w-4" />
             <span className="text-xs sm:text-sm whitespace-nowrap">My Content</span>
             <Badge variant="secondary" className="ml-1 text-xs hidden sm:inline">{myStats.levels}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="public" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3">
+          <TabsTrigger value="institution" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3">
             <Shield className="h-4 w-4 text-purple-500" />
-            <span className="text-xs sm:text-sm whitespace-nowrap">Public Content</span>
-            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800 text-xs hidden sm:inline">{publicStats.levels}</Badge>
+            <span className="text-xs sm:text-sm whitespace-nowrap">Institution</span>
+            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800 text-xs hidden sm:inline">{institutionStats.levels}</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -929,8 +904,8 @@ export function UnifiedAdminPageClient({
           )}
         </TabsContent>
 
-        <TabsContent value="public" className="space-y-4 mt-6">
-          {/* Search - Only show search in Public Content tab */}
+        <TabsContent value="institution" className="space-y-4 mt-6">
+          {/* Search - Only show search in Institution tab */}
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
             <div className="flex flex-wrap gap-1.5 sm:gap-2">
               <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={expandAll}>
@@ -953,30 +928,30 @@ export function UnifiedAdminPageClient({
             </div>
           </div>
 
-          {/* Public Content Notice */}
+          {/* Institution Notice */}
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-start gap-3">
             <Shield className="h-5 w-5 text-purple-600 mt-0.5" />
             <div>
-              <p className="font-medium text-purple-800">Public Platform Content</p>
+              <p className="font-medium text-purple-800">Institution Content</p>
               <p className="text-sm text-purple-700">
                 This content is curated by platform administrators and is available to all users. These resources are read-only and form the foundation of the learning curriculum.
               </p>
             </div>
           </div>
 
-          {/* Public Content Tree */}
-          {filteredPublicLevels.length === 0 ? (
+          {/* Institution Tree */}
+          {filteredInstitutionLevels.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Shield className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium">No public content available yet</p>
+                <p className="text-lg font-medium">No institution content available yet</p>
                 <p className="text-sm text-muted-foreground">
-                  Public content will appear here when platform administrators add resources
+                  Institution content will appear here when platform administrators add resources
                 </p>
               </CardContent>
             </Card>
           ) : (
-            filteredPublicLevels.map((level: LevelWithFullHierarchy) => (
+            filteredInstitutionLevels.map((level: LevelWithFullHierarchy) => (
               <Card key={level.id} className="overflow-hidden border-purple-200">
                 {/* Level Header */}
                 <div 

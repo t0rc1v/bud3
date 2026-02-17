@@ -6,6 +6,15 @@ import { useRouter } from "next/navigation";
 import { updateUserRole } from "@/lib/actions/auth";
 import type { UserRole } from "@/lib/types";
 
+const EDUCATION_LEVELS = [
+  "Pre-school",
+  "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6",
+  "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12",
+  "University Year 1", "University Year 2", "University Year 3", "University Year 4+",
+  "Postgraduate",
+  "Other"
+];
+
 export default function OnboardingPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
@@ -13,7 +22,7 @@ export default function OnboardingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Institution fields for admin role
+  // Institution fields for super_admin role
   const [institutionName, setInstitutionName] = useState("");
   const [institutionType, setInstitutionType] = useState("");
   
@@ -33,10 +42,10 @@ export default function OnboardingPage() {
     setError(null);
 
     try {
-      // For admin role, validate institution fields
-      if (selectedRole === "admin") {
+      // For super_admin role, validate institution fields
+      if (selectedRole === "super_admin") {
         if (!institutionName.trim()) {
-          setError("Institution name is required for admin accounts");
+          setError("Institution name is required for super admin accounts");
           setIsLoading(false);
           return;
         }
@@ -49,19 +58,19 @@ export default function OnboardingPage() {
           setIsLoading(false);
           return;
         }
-        if (!userLevel.trim()) {
-          setError("Please enter your education level");
+        if (!userLevel) {
+          setError("Please select your education level");
           setIsLoading(false);
           return;
         }
       }
 
-      const userData = selectedRole === "admin" ? {
+      const userData = selectedRole === "super_admin" ? {
         institutionName: institutionName.trim(),
         institutionType: institutionType.trim() || undefined,
       } : selectedRole === "regular" ? {
         name: userName.trim(),
-        level: userLevel.trim(),
+        level: userLevel,
       } : undefined;
 
       await updateUserRole(
@@ -71,8 +80,8 @@ export default function OnboardingPage() {
       );
 
       // Redirect based on role (no verification needed)
-      if (selectedRole === "admin" || selectedRole === "super_admin") {
-        router.push("/admin");
+      if (selectedRole === "super_admin") {
+        router.push("/super-admin");
       } else if (selectedRole === "regular") {
         router.push("/regular");
       }
@@ -113,11 +122,11 @@ export default function OnboardingPage() {
         </div>
 
         <div className="space-y-4 mb-8">
-          {/* Institution/Admin Option */}
+          {/* Institution/Super Admin Option */}
           <button
-            onClick={() => handleRoleSelect("admin")}
+            onClick={() => handleRoleSelect("super_admin")}
             className={`w-full p-6 rounded-xl border-2 transition-all duration-200 text-left ${
-              selectedRole === "admin"
+              selectedRole === "super_admin"
                 ? "border-blue-500 bg-blue-50"
                 : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
             }`}
@@ -130,7 +139,7 @@ export default function OnboardingPage() {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900 text-lg">Institution / Organization</h3>
-                <p className="text-sm text-gray-600">Create content and manage regular users</p>
+                <p className="text-sm text-gray-600">Create content and manage admins and regular users</p>
               </div>
             </div>
           </button>
@@ -158,13 +167,13 @@ export default function OnboardingPage() {
           </button>
         </div>
 
-        {/* Institution Details Form - Only show for admin role */}
-        {selectedRole === "admin" && (
+        {/* Institution Details Form - Only show for super_admin role */}
+        {selectedRole === "super_admin" && (
           <div className="mb-8 space-y-4">
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
               <h4 className="font-semibold text-blue-900 mb-3">Institution Details</h4>
               <p className="text-sm text-blue-700 mb-4">
-                Fill in your institution details to get started.
+                Fill in your institution details to get started as a Super Admin.
               </p>
               
               <div className="space-y-3">
@@ -232,16 +241,21 @@ export default function OnboardingPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     What is your education level? *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={userLevel}
                     onChange={(e) => setUserLevel(e.target.value)}
-                    placeholder="e.g., Grade 10, O-Level, A-Level, University Year 2"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                     required
-                  />
+                  >
+                    <option value="">Select your education level...</option>
+                    {EDUCATION_LEVELS.map((level) => (
+                      <option key={level} value={level}>
+                        {level}
+                      </option>
+                    ))}
+                  </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    Enter any education level that describes your current learning stage
+                    Select the education level that best describes your current learning stage
                   </p>
                 </div>
               </div>

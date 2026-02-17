@@ -90,7 +90,7 @@ webhook updates user table with super-admin role
 ---
 
 
-## BUD4 (education/institution based)
+## BUD3.1 (education/institution based)
 
 automate basic learner, teacher and admin roles
 same bud3 layout
@@ -183,7 +183,6 @@ scores: for progress and analysis tracking
 - content accessible by all under hierarchy. locked/free
 
 *admin*: teacher
-- manage regulars: add/remove regulars to have access to their content
 - access to own and super content
 - gift credits and unlocks: from their pool
 - manage unlock fees for their content 

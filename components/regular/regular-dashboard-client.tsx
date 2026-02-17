@@ -21,6 +21,7 @@ import {
   ChevronRightSquare,
   Building2,
   User,
+  Users,
   Shield,
   Edit,
   Lock,
@@ -64,7 +65,7 @@ import { EditSubjectForm } from "@/components/admin/edit-subject-form";
 import { EditTopicForm } from "@/components/admin/edit-topic-form";
 import { EditResourceForm } from "@/components/admin/edit-resource-form";
 import { ResourceViewer } from "@/components/admin/resource-viewer";
-import { deleteLevelWithSession, deleteSubjectWithSession, deleteTopicWithSession, deleteResource, getResourceById } from "@/lib/actions/admin";
+import { deleteLevelWithSession, deleteSubjectWithSession, deleteTopicWithSession, deleteResource, getResourceById, getRegularSuperAdminId, getSuperAdminAdminIds } from "@/lib/actions/admin";
 import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";
 import type {
@@ -93,7 +94,22 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
   const [searchQuery, setSearchQuery] = useState("");
   
   // Tab state
-  const [activeTab, setActiveTab] = useState<"my" | "institution" | "public">("my");
+  const [activeTab, setActiveTab] = useState<"my" | "admin(s)" | "institution">("my");
+  
+  // State for super-admin's admin IDs
+  const [superAdminAdminIds, setSuperAdminAdminIds] = useState<string[]>([]);
+  
+  // Fetch super-admin's admins
+  useEffect(() => {
+    const fetchSuperAdminAdmins = async () => {
+      const superAdminId = await getRegularSuperAdminId(userId);
+      if (superAdminId) {
+        const adminIds = await getSuperAdminAdminIds(superAdminId);
+        setSuperAdminAdminIds(adminIds);
+      }
+    };
+    fetchSuperAdminAdmins();
+  }, [userId]);
 
   // Sync levels when initialLevels changes (after revalidation)
   useEffect(() => {
@@ -132,13 +148,13 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
     [levels, userId]
   );
 
-  // Admin/Institution Content: content owned by admins in adminIds
+  // Admin(s) Content: content owned by admins under the regular's super-admin
   const adminLevels = useMemo(() => 
-    levels.filter((g) => g.ownerRole === "admin" && adminIds.includes(g.ownerId || "")),
-    [levels, adminIds]
+    levels.filter((g) => g.ownerRole === "admin" && superAdminAdminIds.includes(g.ownerId || "")),
+    [levels, superAdminAdminIds]
   );
 
-  // Super Admin Content (public): content owned by super_admin
+  // Institution Content: content owned by the regular's super-admin
   const superAdminLevels = useMemo(() => 
     levels.filter((g) => g.ownerRole === "super_admin"),
     [levels]
@@ -474,14 +490,14 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
         <Card 
           className={cn(
             "cursor-pointer transition-all hover:shadow-md",
-            activeTab === "public" && "ring-2 ring-purple-500 ring-offset-2"
+            activeTab === "institution" && "ring-2 ring-purple-500 ring-offset-2"
           )}
-          onClick={() => setActiveTab("public")}
+          onClick={() => setActiveTab("institution")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Shield className="h-4 w-4 text-purple-500" />
-              Public Content
+              <Building2 className="h-4 w-4 text-purple-500" />
+              Institution
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -490,23 +506,23 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
               {superAdminSubjects.length} subjects, {superAdminResources.length} resources
             </p>
             <p className="text-xs text-purple-600 mt-1">
-              {activeTab === "public" ? "Currently viewing" : "Click to view"}
+              {activeTab === "institution" ? "Currently viewing" : "Click to view"}
             </p>
           </CardContent>
         </Card>
 
-        {adminIds.length > 0 ? (
+        {superAdminAdminIds.length > 0 ? (
           <Card 
             className={cn(
               "cursor-pointer transition-all hover:shadow-md",
-              activeTab === "institution" && "ring-2 ring-green-500 ring-offset-2"
+              activeTab === "admin(s)" && "ring-2 ring-green-500 ring-offset-2"
             )}
-            onClick={() => setActiveTab("institution")}
+            onClick={() => setActiveTab("admin(s)")}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-green-500" />
-                From Institution
+                <Users className="h-4 w-4 text-green-500" />
+                Admin(s)
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -515,39 +531,39 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
                 {adminStats.subjects} subjects, {adminStats.resources} resources
               </p>
               <p className="text-xs text-green-600 mt-1">
-                {activeTab === "institution" ? "Currently viewing" : "Click to view"}
+                {activeTab === "admin(s)" ? "Currently viewing" : "Click to view"}
               </p>
             </CardContent>
           </Card>
         ) : (
           <Card className="opacity-60">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Institution</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Admin(s)</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Not associated with any institution
+                No admins available
               </p>
             </CardContent>
           </Card>
         )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "my" | "institution" | "public")} className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "my" | "admin(s)" | "institution")} className="w-full">
         <TabsList className="grid w-full grid-cols-3 h-10 sm:h-11">
           <TabsTrigger value="my" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2">
             <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span className="text-xs sm:text-sm whitespace-nowrap leading-none">My Content</span>
             <Badge variant="secondary" className="ml-0.5 sm:ml-1 text-xs hidden sm:inline h-5 min-w-0 px-1.5">{myStats.levels}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="institution" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2" disabled={adminIds.length === 0}>
+          <TabsTrigger value="admin(s)" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2" disabled={superAdminAdminIds.length === 0}>
+            <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+            <span className="text-xs sm:text-sm whitespace-nowrap leading-none">Admin(s)</span>
+            {superAdminAdminIds.length > 0 && <Badge variant="secondary" className="ml-0.5 sm:ml-1 bg-green-100 text-green-800 text-xs hidden sm:inline h-5 min-w-0 px-1.5">{adminStats.levels}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="institution" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2">
             <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span className="text-xs sm:text-sm whitespace-nowrap leading-none">Institution</span>
-            {adminIds.length > 0 && <Badge variant="secondary" className="ml-0.5 sm:ml-1 bg-green-100 text-green-800 text-xs hidden sm:inline h-5 min-w-0 px-1.5">{adminStats.levels}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="public" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2">
-            <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500 flex-shrink-0" />
-            <span className="text-xs sm:text-sm whitespace-nowrap leading-none">Public</span>
             <Badge variant="secondary" className="ml-0.5 sm:ml-1 bg-purple-100 text-purple-800 text-xs hidden sm:inline h-5 min-w-0 px-1.5">{superAdminLevels.length}</Badge>
           </TabsTrigger>
         </TabsList>
@@ -697,8 +713,8 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
           )}
         </TabsContent>
 
-        <TabsContent value="institution" className="space-y-4 mt-6">
-          {/* Search and controls for institution content */}
+        <TabsContent value="admin(s)" className="space-y-4 mt-6">
+          {/* Search and controls for admin(s) content */}
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
             <div className="flex gap-1.5 sm:gap-2">
               <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={expandAll}>
@@ -713,7 +729,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
             <div className="relative w-full sm:w-auto sm:min-w-[250px]">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search institution content..."
+                placeholder="Search admin content..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 h-9 sm:h-10"
@@ -723,25 +739,25 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
 
           {/* Read-only notice */}
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
-            <Building2 className="h-5 w-5 text-green-600 mt-0.5" />
+            <Users className="h-5 w-5 text-green-600 mt-0.5" />
             <div>
-              <p className="font-medium text-green-800">Institution Content</p>
+              <p className="font-medium text-green-800">Admin(s) Content</p>
               <p className="text-sm text-green-700">
-                This content is shared by your institution and is read-only. You can view and use these resources, but cannot modify or delete them.
+                This content is shared by admins under your institution and is read-only. You can view and use these resources, but cannot modify or delete them.
               </p>
             </div>
           </div>
 
-          {/* Institution Content Tree */}
+          {/* Admin(s) Content Tree */}
           {filteredAdminLevels.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
-                <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium">No institution content available</p>
+                <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-medium">No admin content available</p>
                 <p className="text-sm text-muted-foreground">
                   {searchQuery
                     ? "Try adjusting your search query"
-                    : "Your institution hasn't shared any content yet"}
+                    : "No admins have shared content yet"}
                 </p>
               </CardContent>
             </Card>
@@ -773,8 +789,8 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
           )}
         </TabsContent>
 
-        <TabsContent value="public" className="space-y-4 mt-6">
-          {/* Search and controls for public content */}
+        <TabsContent value="institution" className="space-y-4 mt-6">
+          {/* Search and controls for institution content */}
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
             <div className="flex gap-1.5 sm:gap-2">
               <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={expandAll}>
@@ -789,7 +805,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
             <div className="relative w-full sm:w-auto sm:min-w-[250px]">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search public content..."
+                placeholder="Search institution content..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 h-9 sm:h-10"
@@ -797,25 +813,25 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
             </div>
           </div>
 
-          {/* Public content notice */}
+          {/* Institution content notice */}
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-start gap-3">
-            <Shield className="h-5 w-5 text-purple-600 mt-0.5" />
+            <Building2 className="h-5 w-5 text-purple-600 mt-0.5" />
             <div>
-              <p className="font-medium text-purple-800">Public Platform Content</p>
+              <p className="font-medium text-purple-800">Institution Content</p>
               <p className="text-sm text-purple-700">
-                This content is curated by the platform administrators and is available to all users. These resources form the foundation of the learning curriculum and are read-only.
+                This content is curated by your institution super-admin and is available to all users under the institution. These resources form the foundation of the learning curriculum and are read-only.
               </p>
             </div>
           </div>
 
-          {/* Public Content Tree */}
+          {/* Institution Content Tree */}
           {filteredSuperAdminLevels.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
-                <Shield className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium">No public content available yet</p>
+                <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-medium">No institution content available yet</p>
                 <p className="text-sm text-muted-foreground">
-                  Public content will appear here when platform administrators add resources
+                  Institution content will appear here when your super-admin adds resources
                 </p>
               </CardContent>
             </Card>
@@ -840,7 +856,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
                   canDelete={false}
                   isAdminContent={true}
                   currentUserId={userId}
-                  contentType="public"
+                  contentType="institution"
                 />
               ))}
             </div>
@@ -1122,7 +1138,7 @@ interface LevelCardProps {
   canDelete: boolean;
   isAdminContent: boolean;
   currentUserId: string;
-  contentType?: "own" | "institution" | "public";
+  contentType?: "own" | "institution";
 }
 
 function LevelCard({
@@ -1158,20 +1174,18 @@ function LevelCard({
   const canDeleteLevel = canDelete && level?.ownerId === currentUserId;
 
   // Determine styling based on content type
-  const isPublicContent = contentType === "public";
   const isInstitutionContent = contentType === "institution";
 
   return (
     <Card className={cn(
       "overflow-hidden w-full",
-      isPublicContent && "border-purple-200",
       isInstitutionContent && "border-green-200"
     )}>
       {/* Level Header */}
       <div 
         className={cn(
           "flex items-center justify-between p-2 sm:p-4 cursor-pointer hover:bg-muted/50 gap-2",
-          isPublicContent && "bg-purple-50/50",
+          
           isInstitutionContent && "bg-green-50/50"
         )}
         onClick={onToggle}
@@ -1190,14 +1204,9 @@ function LevelCard({
           </div>
           <div className="min-w-0 flex-1">
             <span className="font-semibold text-sm sm:text-base truncate block">{level.title}</span>
-            {isPublicContent && (
-              <Badge variant="outline" className="mt-0.5 text-xs bg-purple-100 text-purple-800 border-purple-300 sm:ml-2 sm:mt-0">
-                Public
-              </Badge>
-            )}
             {isInstitutionContent && (
               <Badge variant="outline" className="mt-0.5 text-xs bg-green-100 text-green-800 border-green-300 sm:ml-2 sm:mt-0">
-                From Institution
+                Institution
               </Badge>
             )}
           </div>
@@ -1270,7 +1279,6 @@ function LevelCard({
                 <div 
                   className={cn(
                     "flex items-center justify-between p-2 pl-6 sm:p-3 sm:pl-12 border-b cursor-pointer hover:bg-muted/30 gap-2",
-                    isPublicContent && "hover:bg-purple-50/30",
                     isInstitutionContent && "hover:bg-green-50/30"
                   )}
                   onClick={() => onToggleSubject(subject.id)}
@@ -1352,7 +1360,6 @@ function LevelCard({
                           <div 
                             className={cn(
                               "flex items-center justify-between p-2 pl-8 sm:p-3 sm:pl-16 cursor-pointer hover:bg-muted/20 gap-2",
-                              isPublicContent && "hover:bg-purple-50/20",
                               isInstitutionContent && "hover:bg-green-50/20"
                             )}
                             onClick={() => onToggleTopic(topic.id)}

@@ -81,6 +81,8 @@ import {
   deleteResource,
   SystemStats,
   getResourceById,
+  getSuperAdminAdminIds,
+  getSuperAdminRegularIds,
 } from "@/lib/actions/admin";
 import { ResourceViewer, ResourceViewerSkeleton } from "@/components/admin/resource-viewer";
 import type {
@@ -120,6 +122,21 @@ export function SuperAdminDashboardClient({
     totalPurchases: 0,
     completedPurchases: 0,
   });
+  
+  // State for tracking admins and regulars managed by this super-admin
+  const [myAdminIds, setMyAdminIds] = useState<string[]>([]);
+  const [myRegularIds, setMyRegularIds] = useState<string[]>([]);
+  
+  // Fetch admins and regulars managed by this super-admin
+  useEffect(() => {
+    const fetchMyUsers = async () => {
+      const adminIds = await getSuperAdminAdminIds(currentUserId);
+      const regularIds = await getSuperAdminRegularIds(currentUserId);
+      setMyAdminIds(adminIds);
+      setMyRegularIds(regularIds);
+    };
+    fetchMyUsers();
+  }, [currentUserId]);
 
   // Sync levels when initialLevels changes (after revalidation)
   useEffect(() => {
@@ -189,7 +206,7 @@ export function SuperAdminDashboardClient({
   }, [searchParams, levels]);
 
   // Separate content by owner role
-  // Public tab: only show content owned by current super-admin
+  // My Content tab: only show content owned by current super-admin
   const superAdminLevels = useMemo(() =>
     levels.filter((g) => g.ownerRole === "super_admin" && g.ownerId === currentUserId),
     [levels, currentUserId]
@@ -204,14 +221,16 @@ export function SuperAdminDashboardClient({
     };
   }, [initialUsers]);
   
+  // My Admins Content: content owned by admins under this super-admin
   const adminLevels = useMemo(() => 
-    levels.filter((g) => g.ownerRole === "admin"),
-    [levels]
+    levels.filter((g) => g.ownerRole === "admin" && myAdminIds.includes(g.ownerId || "")),
+    [levels, myAdminIds]
   );
 
+  // My Regulars Content: content owned by regulars under this super-admin
   const regularLevels = useMemo(() => 
-    levels.filter((g) => g.ownerRole === "regular"),
-    [levels]
+    levels.filter((g) => g.ownerRole === "regular" && myRegularIds.includes(g.ownerId || "")),
+    [levels, myRegularIds]
   );
 
   // Stats calculation
@@ -518,7 +537,7 @@ export function SuperAdminDashboardClient({
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        {/* Super Admin Content Card */}
+        {/* My Content Card */}
         <Card 
           className={cn(
             "cursor-pointer transition-all hover:shadow-md",
@@ -529,7 +548,7 @@ export function SuperAdminDashboardClient({
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Shield className="h-4 w-4 text-purple-500" />
-              Public Content
+              My Content
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -543,7 +562,7 @@ export function SuperAdminDashboardClient({
           </CardContent>
         </Card>
 
-        {/* Admin Content Card */}
+        {/* My Admins Content Card */}
         <Card 
           className={cn(
             "cursor-pointer transition-all hover:shadow-md",
@@ -554,7 +573,7 @@ export function SuperAdminDashboardClient({
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Building2 className="h-4 w-4 text-blue-500" />
-              Admin Content
+              My Admins
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -568,7 +587,7 @@ export function SuperAdminDashboardClient({
           </CardContent>
         </Card>
 
-        {/* Regular Users Content Card */}
+        {/* My Regulars Content Card */}
         <Card 
           className={cn(
             "cursor-pointer transition-all hover:shadow-md",
@@ -579,7 +598,7 @@ export function SuperAdminDashboardClient({
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <User className="h-4 w-4 text-green-500" />
-              Regular User Content
+              My Regulars
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -666,22 +685,22 @@ export function SuperAdminDashboardClient({
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="super" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-3">
             <Shield className="h-4 w-4 text-purple-500" />
-            <span className="text-xs sm:text-sm whitespace-nowrap">Public</span>
+            <span className="text-xs sm:text-sm whitespace-nowrap">My Content</span>
             <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800 text-xs hidden sm:inline">{superAdminStats.levels}</Badge>
           </TabsTrigger>
           <TabsTrigger value="admin" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-3">
             <Building2 className="h-4 w-4 text-blue-500" />
-            <span className="text-xs sm:text-sm whitespace-nowrap">Admin</span>
+            <span className="text-xs sm:text-sm whitespace-nowrap">My Admins</span>
             <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-800 text-xs hidden sm:inline">{adminStats.levels}</Badge>
           </TabsTrigger>
           <TabsTrigger value="regular" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-3">
             <User className="h-4 w-4 text-green-500" />
-            <span className="text-xs sm:text-sm whitespace-nowrap">Regular</span>
+            <span className="text-xs sm:text-sm whitespace-nowrap">My Regulars</span>
             <Badge variant="secondary" className="ml-1 bg-green-100 text-green-800 text-xs hidden sm:inline">{regularStats.levels}</Badge>
           </TabsTrigger>
         </TabsList>
 
-        {/* Quick Actions & Search - Only show Add buttons on Public tab */}
+        {/* Quick Actions & Search - Only show Add buttons on My Content tab */}
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between mt-6">
           <div className="flex flex-wrap gap-1.5 sm:gap-2">
             {activeTab === "super" && (
@@ -806,14 +825,14 @@ export function SuperAdminDashboardClient({
           </div>
         </div>
 
-        {/* Public Content Tab */}
+        {/* My Content Tab */}
         <TabsContent value="super" className="space-y-4">
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-start gap-3">
             <Shield className="h-5 w-5 text-purple-600 mt-0.5" />
             <div>
-              <p className="font-medium text-purple-800">Public Platform Content</p>
+              <p className="font-medium text-purple-800">My Content</p>
               <p className="text-sm text-purple-700">
-                Content created by super admins is visible to all users. This forms the foundation of the learning curriculum.
+                Your own content is visible to users you manage. This forms the foundation of your institution's learning curriculum.
               </p>
             </div>
           </div>
@@ -822,7 +841,7 @@ export function SuperAdminDashboardClient({
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Shield className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium">No public content yet</p>
+                <p className="text-lg font-medium">No content yet</p>
                 <p className="text-sm text-muted-foreground">
                   Create levels, subjects, and resources that will be available to all users
                 </p>
@@ -855,7 +874,7 @@ export function SuperAdminDashboardClient({
                     <div className="min-w-0 flex-1">
                       <span className="font-semibold text-base sm:text-lg truncate block">{level.title}</span>
                       <Badge variant="outline" className="mt-0.5 bg-purple-100 text-purple-800 border-purple-300 text-xs sm:ml-2 sm:mt-0">
-                        Public
+                        My Content
                       </Badge>
                     </div>
                     <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
@@ -1173,14 +1192,14 @@ export function SuperAdminDashboardClient({
           )}
         </TabsContent>
 
-        {/* Admin Content Tab */}
+        {/* My Admins Content Tab */}
         <TabsContent value="admin" className="space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
             <Building2 className="h-5 w-5 text-blue-600 mt-0.5" />
             <div>
-              <p className="font-medium text-blue-800">Admin Content</p>
+              <p className="font-medium text-blue-800">My Admins Content</p>
               <p className="text-sm text-blue-700">
-                Content created by admin users for their institutions. You can view and manage all admin content.
+                Content created by admins you manage. You can view and manage content from all admins in your institution.
               </p>
             </div>
           </div>
@@ -1191,7 +1210,7 @@ export function SuperAdminDashboardClient({
                 <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-lg font-medium">No admin content yet</p>
                 <p className="text-sm text-muted-foreground">
-                  Admins will create content for their institutions
+                  Your admins will create content for your institution
                 </p>
               </CardContent>
             </Card>
@@ -1454,14 +1473,14 @@ export function SuperAdminDashboardClient({
           )}
         </TabsContent>
 
-        {/* Regular User Content Tab */}
+        {/* My Regulars Content Tab */}
         <TabsContent value="regular" className="space-y-4">
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
             <User className="h-5 w-5 text-green-600 mt-0.5" />
             <div>
-              <p className="font-medium text-green-800">Regular User Content</p>
+              <p className="font-medium text-green-800">My Regulars Content</p>
               <p className="text-sm text-green-700">
-                Personal content created by regular users. You can view and manage all user content.
+                Personal content created by regular users you manage. You can view content from all regular users in your institution.
               </p>
             </div>
           </div>
@@ -1472,7 +1491,7 @@ export function SuperAdminDashboardClient({
                 <User className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-lg font-medium">No regular user content yet</p>
                 <p className="text-sm text-muted-foreground">
-                  Regular users will create their personal content
+                  Your regular users will create their personal content
                 </p>
               </CardContent>
             </Card>

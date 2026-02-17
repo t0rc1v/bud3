@@ -1,4 +1,5 @@
 import { getAllAdmins, getAllRoles } from "@/lib/actions/admin-permissions";
+import { getAllUsers } from "@/lib/actions/admin";
 import { ManageAdminsClient } from "@/components/admin/manage-admins-client";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
@@ -20,14 +21,21 @@ export default async function ManageAdminsPage() {
     redirect("/admin");
   }
 
-  const admins = await getAllAdmins();
-  const roles = await getAllRoles();
+  const [admins, roles, allUsers] = await Promise.all([
+    getAllAdmins(),
+    getAllRoles(),
+    getAllUsers(),
+  ]);
+
+  // Filter to get only regular users (for promotion search)
+  const regularUsers = allUsers.filter(user => user.role === "regular");
 
   return (
     <ManageAdminsClient 
       admins={admins} 
       roles={roles}
       currentUserId={currentUser.id}
+      regularUsers={regularUsers}
     />
   );
 }

@@ -125,6 +125,39 @@ export const adminRegulars = pgTable("admin_regulars", {
   uniqueAdminRegular: { columns: [table.adminId, table.regularId] },
 }));
 
+// Super Admin Admins table - tracks which admins belong to which super-admin
+export const superAdminAdmins = pgTable("super_admin_admins", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  superAdminId: uuid('super_admin_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  adminId: uuid('admin_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  createdAt,
+  updatedAt,
+}, (table) => ({
+  uniqueSuperAdminAdmin: { columns: [table.superAdminId, table.adminId] },
+}));
+
+// Super Admin Regulars table - tracks which regulars belong to which super-admin
+export const superAdminRegulars = pgTable("super_admin_regulars", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  superAdminId: uuid('super_admin_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  regularId: uuid('regular_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  regularEmail: varchar('regular_email', { length: 255 }).notNull(),
+  metadata: jsonb('metadata'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+}, (table) => ({
+  uniqueSuperAdminRegular: { columns: [table.superAdminId, table.regularId] },
+}));
+
 // Roles table for role-based permissions (managed by super-admin)
 export const role = pgTable("role", {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -186,6 +219,10 @@ export const userRoles = pgTable("user_roles", {
 export const userRelations = relations(user, ({ many }) => ({
   adminRegulars: many(adminRegulars, { relationName: "admin" }),
   regularEntries: many(adminRegulars, { relationName: "regular" }),
+  superAdminAdmins: many(superAdminAdmins, { relationName: "superAdmin" }),
+  adminOfSuperAdmin: many(superAdminAdmins, { relationName: "adminUser" }),
+  superAdminRegulars: many(superAdminRegulars, { relationName: "superAdmin" }),
+  regularOfSuperAdmin: many(superAdminRegulars, { relationName: "regularUser" }),
   permissions: many(userPermission),
   roles: many(userRoles),
   grantedPermissions: many(userPermission, { relationName: "permissionGranter" }),
@@ -238,6 +275,34 @@ export const adminRegularsRelations = relations(adminRegulars, ({ one }) => ({
     fields: [adminRegulars.regularId],
     references: [user.id],
     relationName: "regular",
+  }),
+}));
+
+// Super Admin Admins relations
+export const superAdminAdminsRelations = relations(superAdminAdmins, ({ one }) => ({
+  superAdmin: one(user, {
+    fields: [superAdminAdmins.superAdminId],
+    references: [user.id],
+    relationName: "superAdmin",
+  }),
+  admin: one(user, {
+    fields: [superAdminAdmins.adminId],
+    references: [user.id],
+    relationName: "adminUser",
+  }),
+}));
+
+// Super Admin Regulars relations
+export const superAdminRegularsRelations = relations(superAdminRegulars, ({ one }) => ({
+  superAdmin: one(user, {
+    fields: [superAdminRegulars.superAdminId],
+    references: [user.id],
+    relationName: "superAdmin",
+  }),
+  regular: one(user, {
+    fields: [superAdminRegulars.regularId],
+    references: [user.id],
+    relationName: "regularUser",
   }),
 }));
 

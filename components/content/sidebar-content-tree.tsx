@@ -19,6 +19,7 @@ import {
   MoreVertical,
   Eye,
   User,
+  Users,
   Shield,
   Building2,
   Crown,
@@ -68,6 +69,8 @@ import {
   deleteTopicWithSession,
   deleteResource,
   getResourceById,
+  getRegularSuperAdminId,
+  getSuperAdminAdminIds,
 } from "@/lib/actions/admin";
 import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import type {
@@ -86,7 +89,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";
 
-type ContentTab = "my" | "institution" | "public" | "super" | "admin" | "regular";
+type ContentTab = "my" | "admin(s)" | "institution" | "super" | "admin" | "regular";
 type UserRole = "regular" | "admin" | "super_admin";
 
 interface SidebarContentTreeProps {
@@ -117,6 +120,23 @@ export function SidebarContentTree({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [levels, setLevels] = useState<LevelWithFullHierarchy[]>(initialLevels);
+  
+  // State for super-admin's admin IDs (for regular users)
+  const [superAdminAdminIds, setSuperAdminAdminIds] = useState<string[]>([]);
+  
+  // Fetch super-admin's admins for regular users
+  useEffect(() => {
+    if (userRole === "regular") {
+      const fetchSuperAdminAdmins = async () => {
+        const superAdminId = await getRegularSuperAdminId(userId);
+        if (superAdminId) {
+          const adminIds = await getSuperAdminAdminIds(superAdminId);
+          setSuperAdminAdminIds(adminIds);
+        }
+      };
+      fetchSuperAdminAdmins();
+    }
+  }, [userRole, userId]);
 
   // Determine available tabs based on user role if not provided
   const tabs = useMemo(() => {
@@ -126,15 +146,15 @@ export function SidebarContentTree({
       case "super_admin":
         return ["super", "admin", "regular"] as ContentTab[];
       case "admin":
-        return ["my", "public"] as ContentTab[];
+        return ["my", "institution"] as ContentTab[];
       case "regular":
-        return adminIds.length > 0 
-          ? ["my", "institution", "public"] as ContentTab[]
-          : ["my", "public"] as ContentTab[];
+        return superAdminAdminIds.length > 0 
+          ? ["my", "admin(s)", "institution"] as ContentTab[]
+          : ["my", "institution"] as ContentTab[];
       default:
         return ["my"] as ContentTab[];
     }
-  }, [availableTabs, userRole, adminIds]);
+  }, [availableTabs, userRole, superAdminAdminIds]);
 
   // Determine default tab
   const initialTab = defaultTab || tabs[0];
@@ -173,22 +193,24 @@ export function SidebarContentTree({
     [levels, userId]
   );
 
-  const institutionLevels = useMemo(() => 
-    levels.filter((g) => g.ownerRole === "admin" && adminIds.includes(g.ownerId || "")),
-    [levels, adminIds]
+  // Admin(s) Content: content owned by admins under the user's super-admin
+  const adminLevels = useMemo(() => 
+    levels.filter((g) => g.ownerRole === "admin" && superAdminAdminIds.includes(g.ownerId || "")),
+    [levels, superAdminAdminIds]
   );
 
-  const publicLevels = useMemo(() => 
+  // Institution Content: content owned by the user's super-admin
+  const institutionLevels = useMemo(() => 
     levels.filter((g) => g.ownerRole === "super_admin"),
     [levels]
   );
 
-  const adminLevels = useMemo(() => 
+  const adminAllLevels = useMemo(() => 
     levels.filter((g) => g.ownerRole === "admin"),
     [levels]
   );
 
-  const regularLevels = useMemo(() => 
+  const regularAllLevels = useMemo(() => 
     levels.filter((g) => g.ownerRole === "regular"),
     [levels]
   );
@@ -197,14 +219,14 @@ export function SidebarContentTree({
   const currentTabLevels = useMemo(() => {
     switch (activeTab) {
       case "my": return myLevels;
+      case "admin(s)": return adminLevels;
       case "institution": return institutionLevels;
-      case "public": return publicLevels;
-      case "super": return publicLevels;
-      case "admin": return adminLevels;
-      case "regular": return regularLevels;
+      case "super": return institutionLevels;
+      case "admin": return adminAllLevels;
+      case "regular": return regularAllLevels;
       default: return myLevels;
     }
-  }, [activeTab, myLevels, institutionLevels, publicLevels, adminLevels, regularLevels]);
+  }, [activeTab, myLevels, adminLevels, institutionLevels, adminAllLevels, regularAllLevels]);
 
   // Filter levels based on search
   const filteredLevels = useMemo(() => {
@@ -400,8 +422,8 @@ export function SidebarContentTree({
   const getTabIcon = (tab: ContentTab) => {
     switch (tab) {
       case "my": return <User className="h-3 w-3" />;
+      case "admin(s)": return <Users className="h-3 w-3" />;
       case "institution": return <Building2 className="h-3 w-3" />;
-      case "public":
       case "super": return <Shield className="h-3 w-3" />;
       case "admin": return <Building2 className="h-3 w-3" />;
       case "regular": return <User className="h-3 w-3" />;
@@ -413,11 +435,11 @@ export function SidebarContentTree({
   const getTabLabel = (tab: ContentTab) => {
     switch (tab) {
       case "my": return "My";
+      case "admin(s)": return "Admin(s)";
       case "institution": return "Institution";
-      case "public": return "Public";
-      case "super": return "Public";
-      case "admin": return "Admin";
-      case "regular": return "Regular";
+      case "super": return "My Content";
+      case "admin": return "My Admins";
+      case "regular": return "My Regulars";
       default: return tab;
     }
   };
@@ -426,8 +448,8 @@ export function SidebarContentTree({
   const getTabColor = (tab: ContentTab) => {
     switch (tab) {
       case "my": return "text-blue-600";
-      case "institution": return "text-green-600";
-      case "public":
+      case "admin(s)": return "text-green-600";
+      case "institution": return "text-purple-600";
       case "super": return "text-purple-600";
       case "admin": return "text-blue-600";
       case "regular": return "text-green-600";

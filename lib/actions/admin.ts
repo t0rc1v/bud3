@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { level, subject, topic, resource, adminRegulars, user, unlockedContent, unlockFee } from "@/lib/db/schema";
+import { level, subject, topic, resource, adminRegulars, user, unlockedContent, unlockFee, superAdminAdmins, superAdminRegulars } from "@/lib/db/schema";
 import { getUserByClerkId } from "@/lib/actions/auth";
 import { hasUserUnlockedContent, getUnlockFeeByResource } from "@/lib/actions/credits";
 import { eq, and, desc, asc, inArray, or, isNull } from "drizzle-orm";
@@ -36,7 +36,8 @@ import type {
 // ==========================================
 
 /**
- * Get the admin IDs for a regular user (supports multiple admins)
+ * Get the admin IDs for a regular user (supports multiple admins via old table)
+ * Note: This is kept for backward compatibility, but new logic uses superAdminRegulars
  */
 export async function getRegularAdminIds(regularId: string): Promise<string[]> {
   const adminRegularsList = await db
@@ -47,11 +48,45 @@ export async function getRegularAdminIds(regularId: string): Promise<string[]> {
 }
 
 /**
- * Build visibility filter for content queries based on ownership rules:
- * - Super-admin content: visible to all (view-only for non-owners)
- * - Admin content: visible to the admin + their regulars only (not other admins)
- * - Regular content: visible to themselves only
- * - Regular users with multiple admins: can view content from ALL their admins
+ * Get the super-admin ID for a regular user (new hierarchy)
+ */
+export async function getRegularSuperAdminId(regularId: string): Promise<string | null> {
+  const result = await db
+    .select()
+    .from(superAdminRegulars)
+    .where(eq(superAdminRegulars.regularId, regularId))
+    .limit(1)
+    .then(res => res[0] || null);
+  return result?.superAdminId || null;
+}
+
+/**
+ * Get all admin IDs for a super-admin (new hierarchy)
+ */
+export async function getSuperAdminAdminIds(superAdminId: string): Promise<string[]> {
+  const superAdminAdminsList = await db
+    .select()
+    .from(superAdminAdmins)
+    .where(eq(superAdminAdmins.superAdminId, superAdminId));
+  return superAdminAdminsList.map(sa => sa.adminId);
+}
+
+/**
+ * Get all regular IDs for a super-admin (new hierarchy)
+ */
+export async function getSuperAdminRegularIds(superAdminId: string): Promise<string[]> {
+  const superAdminRegularsList = await db
+    .select()
+    .from(superAdminRegulars)
+    .where(eq(superAdminRegulars.superAdminId, superAdminId));
+  return superAdminRegularsList.map(sr => sr.regularId);
+}
+
+/**
+ * Build visibility filter for content queries based on new ownership hierarchy:
+ * - Super-admin: sees own + their admins' + their regulars' content
+ * - Admin: sees own + their super-admin's content
+ * - Regular: sees own + their super-admin's + their super-admin's admins' content
  * 
  * Management rule: users can only manage (CRUD) their own content regardless of role
  */
@@ -59,36 +94,88 @@ export async function buildContentVisibilityFilter(
   userId: string,
   userRole: UserRole,
   adminIds: string[] = []
-) {
+): Promise<ReturnType<typeof or> | undefined> {
   if (userRole === "super_admin") {
-    // Super-admin sees all content (can manage all)
-    return undefined;
+    // Super-admin sees own + their admins' + their regulars' content
+    const superAdminAdminIds = await getSuperAdminAdminIds(userId);
+    const superAdminRegularIds = await getSuperAdminRegularIds(userId);
+    
+    const conditions = [
+      eq(level.ownerId, userId),
+      eq(level.ownerRole, "super_admin"),
+    ];
+    
+    // Add admins' content
+    if (superAdminAdminIds.length > 0) {
+      superAdminAdminIds.forEach(adminId => {
+        conditions.push(eq(level.ownerId, adminId));
+      });
+    }
+    
+    // Add regulars' content
+    if (superAdminRegularIds.length > 0) {
+      superAdminRegularIds.forEach(regularId => {
+        conditions.push(eq(level.ownerId, regularId));
+      });
+    }
+    
+    conditions.push(eq(level.visibility, "public"));
+    
+    return or(...conditions);
   }
 
   if (userRole === "admin") {
+    // Find the super-admin this admin belongs to
+    const superAdminResult = await db
+      .select()
+      .from(superAdminAdmins)
+      .where(eq(superAdminAdmins.adminId, userId))
+      .limit(1)
+      .then(res => res[0] || null);
+    
+    const superAdminId = superAdminResult?.superAdminId;
+    
     // Admin sees:
     // 1. Their own content (can manage)
-    // 2. Super-admin content (view-only)
+    // 2. Their super-admin's content (view-only)
     // 3. Public visibility content
-    return or(
+    const conditions = [
       eq(level.ownerId, userId),
-      eq(level.ownerRole, "super_admin"),
-      eq(level.visibility, "public")
-    );
+      eq(level.visibility, "public"),
+    ];
+    
+    if (superAdminId) {
+      conditions.push(eq(level.ownerId, superAdminId));
+    }
+    
+    return or(...conditions);
   }
 
   // Regular user sees:
   // 1. Their own content (can manage)
-  // 2. Content from ALL their admins (view-only)
-  // 3. Super-admin content (view-only)
+  // 2. Their super-admin's content (view-only)
+  // 3. Their super-admin's admins' content (view-only)
   // 4. Public visibility content
-  const conditions = [
+  const superAdminId = await getRegularSuperAdminId(userId);
+  const conditions: ReturnType<typeof eq>[] = [
     eq(level.ownerId, userId),
-    eq(level.ownerRole, "super_admin"),
     eq(level.visibility, "public"),
   ];
-
-  // Add conditions for each admin the regular user belongs to
+  
+  if (superAdminId) {
+    // Add super-admin's content
+    conditions.push(eq(level.ownerId, superAdminId));
+    
+    // Add super-admin's admins' content
+    const superAdminAdminIds = await getSuperAdminAdminIds(superAdminId);
+    if (superAdminAdminIds.length > 0) {
+      superAdminAdminIds.forEach(adminId => {
+        conditions.push(eq(level.ownerId, adminId));
+      });
+    }
+  }
+  
+  // Also support old adminRegulars table for backward compatibility
   if (adminIds.length > 0) {
     adminIds.forEach(adminId => {
       conditions.push(eq(level.ownerId, adminId));
@@ -99,12 +186,10 @@ export async function buildContentVisibilityFilter(
 }
 
 /**
- * Check if a user can access specific content based on ownership rules:
- * - Super-admin content: visible to all (view-only for non-owners)
- * - Admin content: visible to the admin + their regulars only
- * - Regular content: visible to themselves only
- * - Regular users with multiple admins: can view content from ALL their admins
- */
+ * Check if a user can access specific content based on new ownership hierarchy:
+ * - Super-admin: can access own + their admins' + their regulars' content
+ * - Admin: can access own + their super-admin's content
+ * - Regular: can access own + their super-admin's + their super-admin's admins' content
 export async function canAccessContent(
   contentOwnerId: string,
   contentOwnerRole: UserRole,
@@ -112,67 +197,75 @@ export async function canAccessContent(
   userId: string,
   userRole: UserRole
 ): Promise<boolean> {
-  // Super-admin can access everything
-  if (userRole === "super_admin") return true;
+  // Super-admin can access own + their admins' + their regulars' content
+  if (userRole === "super_admin") {
+    if (contentOwnerId === userId) return true;
+    
+    // Check if content owner is one of this super-admin's admins
+    const superAdminAdminIds = await getSuperAdminAdminIds(userId);
+    if (superAdminAdminIds.includes(contentOwnerId)) return true;
+    
+    // Check if content owner is one of this super-admin's regulars
+    const superAdminRegularIds = await getSuperAdminRegularIds(userId);
+    if (superAdminRegularIds.includes(contentOwnerId)) return true;
+    
+    return false;
+  }
 
   // Owner can always access their own content
   if (contentOwnerId === userId) return true;
 
-  // Super-admin content is viewable by everyone
-  if (contentOwnerRole === "super_admin") return true;
-
-  // Check based on content owner role
-  if (contentOwnerRole === "admin") {
-    // Admin content: only visible to admin + their regulars
-    if (userRole === "admin") {
-      // Admins can only see their own content, not other admins'
-      return contentOwnerId === userId;
+  if (userRole === "admin") {
+    // Find this admin's super-admin
+    const superAdminResult = await db
+      .select()
+      .from(superAdminAdmins)
+      .where(eq(superAdminAdmins.adminId, userId))
+      .limit(1)
+      .then(res => res[0] || null);
+    
+    const superAdminId = superAdminResult?.superAdminId;
+    
+    // Admin can access their super-admin's content
+    if (contentOwnerId === superAdminId) return true;
+    
+    // Check visibility settings for other content
+    switch (contentVisibility) {
+      case "public":
+        return true;
+      default:
+        // For all other cases, only allow if user is the owner (already checked above)
+        return false;
     }
-    if (userRole === "regular") {
-      // Regular can see if they belong to this admin
-      const adminIds = await getRegularAdminIds(userId);
-      return adminIds.includes(contentOwnerId);
+  }
+
+  if (userRole === "regular") {
+    // Find this regular's super-admin
+    const superAdminId = await getRegularSuperAdminId(userId);
+    
+    if (superAdminId) {
+      // Regular can access their super-admin's content
+      if (contentOwnerId === superAdminId) return true;
+      
+      // Regular can access their super-admin's admins' content
+      const superAdminAdminIds = await getSuperAdminAdminIds(superAdminId);
+      if (superAdminAdminIds.includes(contentOwnerId)) return true;
     }
-    return false;
+    
+    // Support old adminRegulars table for backward compatibility
+    const adminIds = await getRegularAdminIds(userId);
+    if (adminIds.includes(contentOwnerId)) return true;
+    
+    // Check visibility settings
+    switch (contentVisibility) {
+      case "public":
+        return true;
+      default:
+        return false;
+    }
   }
 
-  if (contentOwnerRole === "regular") {
-    // Regular content: only visible to themselves
-    return contentOwnerId === userId;
-  }
-
-  // For content without a clear owner role, check visibility settings
-  // BUT still enforce that admins can only see their own content
-  switch (contentVisibility) {
-    case "public":
-      return true;
-    case "admin_only":
-      // For admin_only visibility, only the owner admin should see it
-      // NOT other admins
-      if (userRole === "admin") {
-        return contentOwnerId === userId;
-      }
-      return userRole === "super_admin" as UserRole;
-    case "admin_and_regulars":
-      if (userRole === "admin") {
-        // Admins can only see their own admin_and_regulars content
-        return contentOwnerId === userId;
-      }
-      if (userRole === "regular") {
-        const adminIds = await getRegularAdminIds(userId);
-        return contentOwnerId === userId || adminIds.includes(contentOwnerId);
-      }
-      return userRole === "super_admin" as UserRole;
-    case "regular_only":
-      if (userRole === "regular") {
-        const adminIds = await getRegularAdminIds(userId);
-        return contentOwnerId === userId || adminIds.includes(contentOwnerId);
-      }
-      return false;
-    default:
-      // Default: if ownerRole is not set, only allow if user is the owner
-      return contentOwnerId === userId;
-  }
+  return false;
 }
 
 /**

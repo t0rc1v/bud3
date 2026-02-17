@@ -251,31 +251,19 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
                 <Gift className="h-4 w-4" />
                 Rewards & Unlocks
               </Link>
-              <Link
-                href="/admin/manage-unlock-fees"
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
-                  pathname === "/admin/manage-unlock-fees"
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Coins className="h-4 w-4" />
-                Manage Unlock Fees
-              </Link>
-              <Link
-                href="/admin/regulars"
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
-                  pathname === "/admin/regulars"
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Users className="h-4 w-4" />
-                Manage Regulars
-              </Link>
-            </nav>
+                <Link
+                  href="/admin/manage-unlock-fees"
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                    pathname === "/admin/manage-unlock-fees"
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <Coins className="h-4 w-4" />
+                  Manage Unlock Fees
+                </Link>
+              </nav>
           </div>
         )}
       </div>

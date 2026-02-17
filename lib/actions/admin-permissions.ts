@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { user, role, rolePermission, userPermission, userRoles } from "@/lib/db/schema";
+import { user, role, rolePermission, userPermission, userRoles, superAdminAdmins } from "@/lib/db/schema";
 import { eq, and, inArray, desc, asc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { Permission } from "@/lib/permissions";
@@ -434,6 +434,9 @@ export async function deleteAdmin(
     // Delete user role assignments
     await db.delete(userRoles).where(eq(userRoles.userId, adminId));
 
+    // Remove from superAdminAdmins table
+    await db.delete(superAdminAdmins).where(eq(superAdminAdmins.adminId, adminId));
+
     // Delete the user (or update role back to regular)
     await db
       .update(user)
@@ -668,28 +671,45 @@ export async function getUserPermissions(userId: string): Promise<string[]> {
   return [...new Set(allPermissions)];
 }
 
-// ============== PROMOTE USER TO ADMIN ==============
+// ============== PROMOTE USER TO ADMIN BY EMAIL ==============
 
-export async function promoteUserToAdmin(
-  userId: string,
+export async function promoteUserToAdminByEmail(
+  email: string,
   promotedByUserId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; user?: { id: string; email: string; name: string | null } }> {
   try {
-    // Check if user exists
+    // Find user by email
     const targetUser = await db
       .select()
       .from(user)
-      .where(eq(user.id, userId))
+      .where(eq(user.email, email))
       .limit(1)
       .then(res => res[0] || null);
 
     if (!targetUser) {
-      return { success: false, error: "User not found" };
+      return { success: false, error: "No user found with this email address" };
     }
 
     // Check if already an admin
     if (targetUser.role === "admin" || targetUser.role === "super_admin") {
       return { success: false, error: "User is already an admin" };
+    }
+
+    // Check if user is a regular
+    if (targetUser.role !== "regular") {
+      return { success: false, error: "Only regular users can be promoted to admin" };
+    }
+
+    // Get the super-admin who is promoting
+    const superAdmin = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, promotedByUserId))
+      .limit(1)
+      .then(res => res[0] || null);
+
+    if (!superAdmin || superAdmin.role !== "super_admin") {
+      return { success: false, error: "Only super-admins can promote users to admin" };
     }
 
     // Update role to admin
@@ -699,13 +719,101 @@ export async function promoteUserToAdmin(
         role: "admin",
         updatedAt: new Date(),
       })
-      .where(eq(user.id, userId));
+      .where(eq(user.id, targetUser.id));
+
+    // Add to superAdminAdmins table to track relationship
+    await db.insert(superAdminAdmins).values({
+      superAdminId: promotedByUserId,
+      adminId: targetUser.id,
+    });
 
     revalidatePath("/super-admin/manage-admins");
-    return { success: true };
+    return { 
+      success: true,
+      user: {
+        id: targetUser.id,
+        email: targetUser.email,
+        name: targetUser.name,
+      }
+    };
   } catch (error) {
     console.error("Error promoting user to admin:", error);
     return { success: false, error: "Failed to promote user to admin" };
+  }
+}
+
+// ============== REVOKE ADMIN TO REGULAR BY EMAIL ==============
+
+export async function revokeAdminToRegularByEmail(
+  email: string,
+  revokedByUserId: string
+): Promise<{ success: boolean; error?: string; user?: { id: string; email: string; name: string | null } }> {
+  try {
+    // Find user by email
+    const targetUser = await db
+      .select()
+      .from(user)
+      .where(eq(user.email, email))
+      .limit(1)
+      .then(res => res[0] || null);
+
+    if (!targetUser) {
+      return { success: false, error: "No user found with this email address" };
+    }
+
+    // Check if user is a super-admin (cannot revoke)
+    if (targetUser.role === "super_admin") {
+      return { success: false, error: "Cannot revoke super-admin privileges through this interface" };
+    }
+
+    // Check if user is an admin
+    if (targetUser.role !== "admin") {
+      return { success: false, error: "User is not an admin" };
+    }
+
+    // Get the super-admin who is revoking
+    const superAdmin = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, revokedByUserId))
+      .limit(1)
+      .then(res => res[0] || null);
+
+    if (!superAdmin || superAdmin.role !== "super_admin") {
+      return { success: false, error: "Only super-admins can revoke admin privileges" };
+    }
+
+    // Update role to regular
+    await db
+      .update(user)
+      .set({
+        role: "regular",
+        updatedAt: new Date(),
+      })
+      .where(eq(user.id, targetUser.id));
+
+    // Remove from superAdminAdmins table
+    await db
+      .delete(superAdminAdmins)
+      .where(
+        and(
+          eq(superAdminAdmins.superAdminId, revokedByUserId),
+          eq(superAdminAdmins.adminId, targetUser.id)
+        )
+      );
+
+    revalidatePath("/super-admin/manage-admins");
+    return { 
+      success: true,
+      user: {
+        id: targetUser.id,
+        email: targetUser.email,
+        name: targetUser.name,
+      }
+    };
+  } catch (error) {
+    console.error("Error revoking admin to regular:", error);
+    return { success: false, error: "Failed to revoke admin privileges" };
   }
 }
 

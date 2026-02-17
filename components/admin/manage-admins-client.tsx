@@ -46,7 +46,10 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
 import type { Permission } from "@/lib/permissions";
+import type { User } from "@/lib/types";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { 
   Permissions, 
   PermissionDescriptions, 
@@ -64,7 +67,8 @@ import {
   removeRoleFromUser,
   updateAdminRole,
   deleteAdmin,
-  promoteUserToAdmin,
+  promoteUserToAdminByEmail,
+  revokeAdminToRegularByEmail,
   type AdminWithPermissions,
   type RoleWithPermissions,
 } from "@/lib/actions/admin-permissions";
@@ -92,11 +96,13 @@ interface ManageAdminsClientProps {
   admins: AdminWithPermissions[];
   roles: RoleWithPermissions[];
   currentUserId: string;
+  regularUsers: User[];
 }
 
-export function ManageAdminsClient({ admins: initialAdmins, roles: initialRoles, currentUserId }: ManageAdminsClientProps) {
+export function ManageAdminsClient({ admins: initialAdmins, roles: initialRoles, currentUserId, regularUsers }: ManageAdminsClientProps) {
   const [admins, setAdmins] = useState<AdminWithPermissions[]>(initialAdmins);
   const [roles, setRoles] = useState<RoleWithPermissions[]>(initialRoles);
+  const [regularsList] = useState<User[]>(regularUsers);
   const [activeTab, setActiveTab] = useState("admins");
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -156,6 +162,7 @@ export function ManageAdminsClient({ admins: initialAdmins, roles: initialRoles,
             admins={admins} 
             roles={roles}
             currentUserId={currentUserId}
+            regularUsers={regularsList}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             onDataChange={refreshData}
@@ -183,6 +190,7 @@ function AdminsTab({
   admins,
   roles,
   currentUserId,
+  regularUsers,
   searchQuery,
   setSearchQuery,
   onDataChange,
@@ -190,31 +198,95 @@ function AdminsTab({
   admins: AdminWithPermissions[];
   roles: RoleWithPermissions[];
   currentUserId: string;
+  regularUsers: User[];
   searchQuery: string;
   setSearchQuery: (value: string) => void;
   onDataChange: () => void;
 }) {
   const [isPromoting, setIsPromoting] = useState(false);
+  const [isRevoking, setIsRevoking] = useState(false);
   const [promoteEmail, setPromoteEmail] = useState("");
+  const [revokeEmail, setRevokeEmail] = useState("");
+  const [isPromotingLoading, setIsPromotingLoading] = useState(false);
+  const [isRevokingLoading, setIsRevokingLoading] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState<AdminWithPermissions | null>(null);
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
+  const [regularSearchQuery, setRegularSearchQuery] = useState("");
+  const isMobile = useIsMobile();
 
-  const filteredAdmins = admins.filter(
-    (admin) =>
-      admin.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      admin.role.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter regular users for promotion search
+  const filteredRegulars = regularSearchQuery
+    ? regularUsers.filter(
+        (user) =>
+          user.email.toLowerCase().includes(regularSearchQuery.toLowerCase()) ||
+          (user.name && user.name.toLowerCase().includes(regularSearchQuery.toLowerCase()))
+      )
+    : [];
 
-  const handlePromoteToAdmin = async () => {
-    if (!promoteEmail || !promoteEmail.includes("@")) {
+  const filteredAdmins = searchQuery
+    ? admins.filter(
+        (admin) =>
+          admin.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          admin.role.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : admins;
+
+  const handlePromoteToAdmin = async (email?: string) => {
+    const targetEmail = email || promoteEmail;
+    if (!targetEmail || !targetEmail.includes("@")) {
+      toast.error("Please enter a valid email address");
       return;
     }
     
-    // This would need to be implemented in actions to find user by email
-    // For now, show a message
-    alert(`To promote ${promoteEmail} to admin, use the user management interface.`);
-    setPromoteEmail("");
-    setIsPromoting(false);
+    setIsPromotingLoading(true);
+    try {
+      const result = await promoteUserToAdminByEmail(targetEmail, currentUserId);
+      
+      if (result.success) {
+        toast.success(`${result.user?.name || result.user?.email} has been promoted to admin`);
+        setPromoteEmail("");
+        setRegularSearchQuery("");
+        setIsPromoting(false);
+        onDataChange();
+      } else {
+        toast.error(result.error || "Failed to promote user");
+      }
+    } catch (error) {
+      console.error("Error promoting user:", error);
+      toast.error("Failed to promote user");
+    } finally {
+      setIsPromotingLoading(false);
+    }
+  };
+
+  const handleQuickPromote = (email: string) => {
+    handlePromoteToAdmin(email);
+  };
+
+  const handleRevokeAdmin = async () => {
+    if (!revokeEmail || !revokeEmail.includes("@")) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+    
+    setIsRevokingLoading(true);
+    try {
+      const result = await revokeAdminToRegularByEmail(revokeEmail, currentUserId);
+      
+      if (result.success) {
+        toast.success(`${result.user?.name || result.user?.email} has been revoked from admin and is now a regular user`);
+        setRevokeEmail("");
+        setIsRevoking(false);
+        onDataChange();
+      } else {
+        toast.error(result.error || "Failed to revoke admin");
+      }
+    } catch (error) {
+      console.error("Error revoking admin:", error);
+      toast.error("Failed to revoke admin");
+    } finally {
+      setIsRevokingLoading(false);
+    }
   };
 
   const handleDeleteAdmin = async (adminId: string) => {
@@ -239,32 +311,22 @@ function AdminsTab({
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                 <Users className="h-5 w-5" />
                 Administrator Accounts
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm">
                 Manage existing administrators and their permissions
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search admins..."
-                  className="pl-8 w-[250px]"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+            <div className="flex flex-col sm:flex-row gap-2">
               <Dialog open={isPromoting} onOpenChange={setIsPromoting}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button className="w-full sm:w-auto">
                     <UserPlus className="mr-2 h-4 w-4" />
-                    Promote User
+                    Promote to Admin
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -273,46 +335,171 @@ function AdminsTab({
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                      <Label htmlFor="email">User Email</Label>
+                      <Label htmlFor="promote-email">User Email</Label>
                       <Input
-                        id="email"
+                        id="promote-email"
+                        type="email"
                         placeholder="user@example.com"
                         value={promoteEmail}
                         onChange={(e) => setPromoteEmail(e.target.value)}
                       />
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      The user must already have an account in the system.
+                      The user must already have a regular account in the system. 
+                      They will be promoted to admin and added to your institution.
                     </p>
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsPromoting(false)}>
+                    <Button variant="outline" onClick={() => setIsPromoting(false)} disabled={isPromotingLoading}>
                       Cancel
                     </Button>
-                    <Button onClick={handlePromoteToAdmin}>Promote to Admin</Button>
+                    <Button onClick={() => handlePromoteToAdmin()} disabled={isPromotingLoading || !promoteEmail}>
+                      {isPromotingLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Promoting...
+                        </>
+                      ) : (
+                        "Promote to Admin"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={isRevoking} onOpenChange={setIsRevoking}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Shield className="mr-2 h-4 w-4" />
+                    Revoke Admin
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Revoke Admin Privileges</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="revoke-email">Admin Email</Label>
+                      <Input
+                        id="revoke-email"
+                        type="email"
+                        placeholder="admin@example.com"
+                        value={revokeEmail}
+                        onChange={(e) => setRevokeEmail(e.target.value)}
+                      />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      This will revoke admin privileges from the user and revert them to a regular user.
+                      Super-admin accounts cannot be revoked through this interface.
+                    </p>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsRevoking(false)} disabled={isRevokingLoading}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      onClick={handleRevokeAdmin} 
+                      disabled={isRevokingLoading || !revokeEmail}
+                    >
+                      {isRevokingLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Revoking...
+                        </>
+                      ) : (
+                        "Revoke Admin"
+                      )}
+                    </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Regular Users Search for Promotion */}
+          <div className="space-y-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search regular users to promote..."
+                className="pl-8 w-full"
+                value={regularSearchQuery}
+                onChange={(e) => setRegularSearchQuery(e.target.value)}
+              />
+            </div>
+            
+            {/* Filtered Regular Users List */}
+            {regularSearchQuery && filteredRegulars.length > 0 && (
+              <div className="rounded-md border">
+                <div className="bg-muted px-3 py-2 text-sm font-medium">
+                  Matching Regular Users ({filteredRegulars.length})
+                </div>
+                <div className="divide-y max-h-48 overflow-y-auto">
+                  {filteredRegulars.slice(0, 5).map((user) => (
+                    <div key={user.id} className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
+                      <div className="min-w-0 flex-1 mr-2">
+                        <p className="font-medium text-sm truncate">{user.email}</p>
+                        {user.name && <p className="text-xs text-muted-foreground truncate">{user.name}</p>}
+                      </div>
+                      <Button 
+                        size="sm" 
+                        onClick={() => handleQuickPromote(user.email)}
+                        disabled={isPromotingLoading}
+                        className="flex-shrink-0"
+                      >
+                        {isPromotingLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <UserPlus className="h-3 w-3 sm:mr-1" />
+                            <span className="hidden sm:inline">Promote</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {regularSearchQuery && filteredRegulars.length === 0 && (
+              <p className="text-sm text-muted-foreground px-1">No regular users found matching &quot;{regularSearchQuery}&quot;</p>
+            )}
+          </div>
+
+          {/* Admin Search */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search administrators..."
+              className="pl-8 w-full"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          
           {filteredAdmins.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No administrators found</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Direct Permissions</TableHead>
-                  <TableHead>Assigned Roles</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
+            <div className="overflow-x-auto -mx-2 px-2">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[40%]">Email</TableHead>
+                    <TableHead className="w-[20%]">Role</TableHead>
+                    <TableHead className="hidden sm:table-cell w-[15%]">Permissions</TableHead>
+                    <TableHead className="hidden sm:table-cell w-[20%]">Roles</TableHead>
+                    <TableHead className="w-[80px] sm:w-[100px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
               <TableBody>
                 {filteredAdmins.map((admin) => (
                   <TableRow key={admin.id}>
@@ -320,22 +507,26 @@ function AdminsTab({
                     <TableCell>
                       <Badge 
                         variant={admin.role === "super_admin" ? "default" : "secondary"}
-                        className={admin.role === "super_admin" ? "bg-yellow-500 hover:bg-yellow-600" : ""}
+                        className={`${admin.role === "super_admin" ? "bg-yellow-500 hover:bg-yellow-600" : ""} text-xs sm:text-sm`}
                       >
                         {admin.role === "super_admin" ? (
                           <span className="flex items-center gap-1">
                             <Crown className="h-3 w-3" />
-                            Super Admin
+                            <span className="hidden sm:inline">Super Admin</span>
+                            <span className="sm:hidden">Super</span>
                           </span>
                         ) : (
-                          "Admin"
+                          <span className="flex items-center gap-1">
+                            <Shield className="h-3 w-3" />
+                            Admin
+                          </span>
                         )}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Badge variant="outline">{admin.directPermissions.length}</Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <div className="flex flex-wrap gap-1">
                         {admin.assignedRoles.length > 0 ? (
                           admin.assignedRoles.map((role) => (
@@ -444,6 +635,7 @@ function AdminsTab({
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

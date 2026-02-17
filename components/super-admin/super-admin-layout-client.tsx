@@ -144,6 +144,18 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
                     <Users className="h-4 w-4" />
                     Manage Admins
                   </Link>
+                  <Link
+                    href="/super-admin/regulars"
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                      pathname === "/super-admin/regulars"
+                        ? "bg-purple-100 text-purple-700"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <Users className="h-4 w-4" />
+                    Manage Regulars
+                  </Link>
                 </nav>
               </div>
             </div>
@@ -275,6 +287,18 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
             >
               <Users className="h-4 w-4" />
               Manage Admins
+            </Link>
+            <Link
+              href="/super-admin/regulars"
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                pathname === "/super-admin/regulars"
+                  ? "bg-purple-100 text-purple-700"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <Users className="h-4 w-4" />
+              Manage Regulars
             </Link>
           </nav>
         </div>

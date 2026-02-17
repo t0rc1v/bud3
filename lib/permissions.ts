@@ -208,7 +208,7 @@ export const PermissionGroups = {
     FinancePermissions.CREDITS_PURCHASE,
   ],
   
-  // Admin user permissions - can manage all their own content including levels
+  // Admin user permissions - can manage all their own content but not regulars
   ADMIN_USER: [
     // Levels - full management
     ContentPermissions.LEVELS_READ,
@@ -230,12 +230,8 @@ export const PermissionGroups = {
     ContentPermissions.RESOURCES_CREATE,
     ContentPermissions.RESOURCES_UPDATE,
     ContentPermissions.RESOURCES_DELETE,
-    // User management
+    // Only read regulars, not manage them (moved to super-admin)
     UserPermissions.REGULARS_READ,
-    UserPermissions.REGULARS_CREATE,
-    UserPermissions.REGULARS_ADD,
-    UserPermissions.REGULARS_REMOVE,
-    UserPermissions.REGULARS_MANAGE,
     AdminPermissions.ADMINS_READ,
     // Finance and rewards
     FinancePermissions.CREDITS_GIFT,

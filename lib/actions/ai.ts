@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { chat, chatMessage, aiMemory, aiAssignment, aiQuiz, aiQuizAttempt } from "@/lib/db/schema";
+import { chat, chatMessage, aiMemory, aiAssignment, aiQuiz, aiQuizAttempt, aiFlashcard } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
@@ -526,4 +526,109 @@ export async function deleteAIAssignment(id: string): Promise<void> {
 // Delete AI Quiz (soft delete)
 export async function deleteAIQuiz(id: string): Promise<void> {
   await db.update(aiQuiz).set({ isActive: false }).where(eq(aiQuiz.id, id));
+}
+
+// AI Flashcard Interfaces
+export interface AIFlashcardItem {
+  id: string;
+  userId: string;
+  chatId: string | null;
+  title: string;
+  subject: string;
+  topic: string | null;
+  totalCards: number;
+  cards: unknown;
+  settings: unknown;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface FlashcardData {
+  id: string;
+  front: string;
+  back: string;
+  tags?: string[];
+  difficulty?: 'easy' | 'medium' | 'hard';
+}
+
+// Save AI Generated Flashcards
+export async function saveAIFlashcards({
+  userId,
+  chatId,
+  title,
+  subject,
+  topic,
+  totalCards,
+  cards,
+  settings,
+}: {
+  userId: string;
+  chatId?: string;
+  title: string;
+  subject: string;
+  topic?: string;
+  totalCards: number;
+  cards: FlashcardData[];
+  settings?: unknown;
+}): Promise<AIFlashcardItem> {
+  const result = await db
+    .insert(aiFlashcard)
+    .values({
+      userId,
+      chatId: chatId || null,
+      title,
+      subject,
+      topic: topic || null,
+      totalCards,
+      cards,
+      settings: settings || null,
+      isActive: true,
+    })
+    .returning();
+
+  const saved = result[0];
+  return {
+    ...saved,
+    cards: saved.cards as unknown,
+    settings: saved.settings as unknown,
+  };
+}
+
+// Get AI Flashcard by ID
+export async function getAIFlashcardById(id: string): Promise<AIFlashcardItem | null> {
+  const result = await db
+    .select()
+    .from(aiFlashcard)
+    .where(and(eq(aiFlashcard.id, id), eq(aiFlashcard.isActive, true)))
+    .limit(1);
+
+  if (result.length === 0) return null;
+
+  const item = result[0];
+  return {
+    ...item,
+    cards: item.cards as unknown,
+    settings: item.settings as unknown,
+  };
+}
+
+// Get AI Flashcards by User
+export async function getAIFlashcardsByUser(userId: string): Promise<AIFlashcardItem[]> {
+  const items = await db
+    .select()
+    .from(aiFlashcard)
+    .where(and(eq(aiFlashcard.userId, userId), eq(aiFlashcard.isActive, true)))
+    .orderBy(desc(aiFlashcard.createdAt));
+
+  return items.map(item => ({
+    ...item,
+    cards: item.cards as unknown,
+    settings: item.settings as unknown,
+  }));
+}
+
+// Delete AI Flashcard (soft delete)
+export async function deleteAIFlashcard(id: string): Promise<void> {
+  await db.update(aiFlashcard).set({ isActive: false }).where(eq(aiFlashcard.id, id));
 }

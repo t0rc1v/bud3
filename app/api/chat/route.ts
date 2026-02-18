@@ -9,6 +9,8 @@ import {
   researchMaterials,
   formatSearchResultsForAI,
 } from '@/lib/ai/tools';
+import { getTokenCache } from '@/lib/ai/token-cache';
+import { compactContext, getContextStats } from '@/lib/ai/context-compaction';
 
 interface MemoryItem {
   id: string;
@@ -143,23 +145,42 @@ You have access to the following tools. Use them strategically based on the user
 6. server_actions - Use this to call specific backend functions that are exposed to you. This allows you to perform system operations like managing regular users, levels, or resources when the user requests them.
 7. web_browse - Use this when the user provides a specific URL and asks you to read, summarize, or analyze its content. Works with web pages, PDFs, and documents.
 8. get_current_time - Use this to get the current date and time. Use when the user asks about scheduling, deadlines, or time-sensitive calculations.
-9. create_assignment - Use this to create assignments, homeworks, quizzes, or continuous assessment tests for ADMINS. This generates a PRINTABLE DOCUMENT with an 'Export to PDF' button. Use this when:
+ 9. create_assignment - Use this to create assignments, homeworks, quizzes, or continuous assessment tests for ADMINS. This generates a PRINTABLE DOCUMENT that displays in a MODAL COMPONENT with built-in 'Export to PDF' and 'Print' buttons. The user can view, print, and export directly from the modal - DO NOT offer to manually provide content in other formats or offer alternative export methods. Use this when:
    - Admins want to create paper-based assessments
    - Creating worksheets for classroom distribution
    - Preparing homework that students complete offline
    - Making continuous assessment tests (CATs)
    - Generating printable exams with answer keys
+   IMPORTANT: For practice questions at the end of a topic or sub-topic, generate AT LEAST 10 questions to ensure comprehensive concept coverage.
    
-10. create_quiz - Use this to create interactive quizzes for REGULAR USERS. This generates an INTERACTIVE QUIZ that students can take DIRECTLY IN THE APP. Use this when:
-    - Students want to take online assessments
-    - Creating practice tests for self-study
-    - Building interactive learning activities
-    - Making formative assessments with immediate feedback
-    - Allowing students to retake quizzes for practice
+  10. create_quiz - Use this to create interactive quizzes for REGULAR USERS. This generates an INTERACTIVE QUIZ that displays in a MODAL COMPONENT with built-in 'Export to PDF' and 'Print' buttons for viewing/printing the quiz content and answer key. Students can take the quiz DIRECTLY IN THE APP. The user can view, print, and export directly from the modal - DO NOT offer to manually provide content in other formats or offer alternative export methods. Use this when:
+       - Students want to take online assessments
+       - Creating practice tests for self-study
+       - Building interactive learning activities
+       - Making formative assessments with immediate feedback
+       - Allowing students to retake quizzes for practice
+       CRITICAL REQUIREMENT: You MUST generate EXACTLY 30 questions for comprehensive exam coverage. This is a hard requirement - no exceptions. 
+       - Count your questions carefully before calling the tool
+       - If you only have 10-15 questions in mind, expand by creating variations on the same concepts
+       - Mix question types: multiple choice, true/false, short answer, fill in blank
+       - Cover all aspects of the topic thoroughly - don't stop at basic coverage
+       - Example: If the topic is "Photosynthesis", generate questions about: light reactions, Calvin cycle, factors affecting rate, chemical equation, plant structures involved, comparison with respiration, etc. - enough to reach 30 questions total
+
+11. generate_summary - Use this to create a comprehensive summary that captures the full context of a conversation, document, or topic. Use when the user asks for summaries, recaps, or wants to condense information while preserving key details.
+
+12. generate_overview - Use this to generate a comprehensive overview of a subject or topic. Creates structured content with introduction, main sections, and conclusion. Use for topic introductions or subject reviews.
+
+13. identify_keywords - Use this to extract and identify key terms, concepts, and vocabulary from content. Each keyword includes the term, definition, and multiple examples. Use for vocabulary building and concept mapping.
+
+14. generate_study_guide - Use this to create a comprehensive study guide with multiple sections including overview, key concepts, important terms, practice problems, and review points. Use for exam preparation and structured learning.
+
+15. create_flashcards - Use this to create interactive flashcard study sets for learners. Generates AT LEAST 15 flashcards with questions/answers on the front and detailed explanations on the back. Use for memorization, vocabulary learning, and quick concept review.
 
 IMPORTANT DISTINCTION:
-- Teachers/Admins → create_assignment (creates printable PDF-ready documents)
-- Students/Learners → create_quiz (creates interactive in-app assessments)
+- Teachers/Admins → create_assignment (creates printable PDF-ready documents, 10+ questions for topic practice)
+- Students/Learners → create_quiz (creates interactive in-app assessments, 30+ questions for exam prep)
+- Study Tools → generate_summary, generate_overview, identify_keywords, generate_study_guide (content analysis and learning aids)
+- Memorization → create_flashcards (15+ cards for quick review and memorization)
 
 When responding:
 - Be concise and educational
@@ -194,10 +215,74 @@ When responding:
     systemPrompt += `\nWhen the user asks about any of these topics, use the fetch_memory tool with the appropriate category or search term to get the full details.`;
   }
 
+  // CONTEXT LENGTH MANAGEMENT
+  // Check and compact context if needed before sending to AI
+  const MAX_CONTEXT_TOKENS = 1000000; // 1M token limit
+  const WARNING_THRESHOLD = 800000; // 800K tokens
+  
+  // Calculate current context size
+  const contextStats = getContextStats(messages);
+  let processedMessages = messages;
+  
+  // Log context stats for monitoring (development only)
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[Chat Context] Messages: ${contextStats.messageCount}, Estimated tokens: ${contextStats.estimatedTokens}, Usage: ${contextStats.percentUsed}%`);
+    
+    // Log individual message stats if there are oversized messages
+    if (contextStats.oversizedMessageCount > 0) {
+      console.warn(`[Chat Context] Found ${contextStats.oversizedMessageCount} oversized messages. Largest: ${contextStats.largestMessageTokens.toLocaleString()} tokens at index ${contextStats.largestMessageIndex}`);
+    }
+    
+    // Log first messages stats if they dominate context
+    if (contextStats.firstMessagesTotalTokens > WARNING_THRESHOLD * 0.3) {
+      console.warn(`[Chat Context] First messages dominate context: ${contextStats.firstMessagesTotalTokens.toLocaleString()} tokens (${Math.round((contextStats.firstMessagesTotalTokens / contextStats.estimatedTokens) * 100)}% of total)`);
+    }
+  }
+  
+  // If context exceeds warning threshold, try to compact
+  if (contextStats.estimatedTokens > WARNING_THRESHOLD) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Chat Context] Compacting context...`);
+    }
+    
+    const compactionResult = compactContext(messages, {
+      maxTokens: MAX_CONTEXT_TOKENS,
+      warningThreshold: WARNING_THRESHOLD,
+      compactionThreshold: 500000,
+    });
+    
+    processedMessages = compactionResult.messages;
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Chat Context] Compaction applied: ${compactionResult.action}, Removed: ${compactionResult.removedCount} items`);
+    }
+    
+    // Check if still over limit after compaction
+    const newStats = getContextStats(processedMessages);
+    if (newStats.estimatedTokens > MAX_CONTEXT_TOKENS) {
+      console.error(`[Chat Context] Context exceeds maximum limit even after compaction: ${newStats.estimatedTokens} tokens`);
+      return new Response(
+        JSON.stringify({
+          type: 'error',
+          error: {
+            type: 'context_length_exceeded',
+            code: 'context_length_exceeded',
+            message: 'Your conversation has grown too large for this model. Please start a new chat to continue.',
+            param: 'messages',
+          }
+        }),
+        { 
+          status: 400, 
+          headers: { 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+  }
+
   const result = streamText({
     model: getModel(),
     system: systemPrompt,
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(processedMessages),
     stopWhen: stepCountIs(5),
     tools: {
       web_search: tool({
@@ -617,8 +702,8 @@ When responding:
           }
         },
       }),
-      create_assignment: tool({
-        description: 'Create assignments, homeworks, quizzes, or continuous assessment tests for TEACHERS and ADMINS. This generates a printable document with questions, answer key, and instructions. The output includes an "Export to PDF" button for easy printing and distribution. Use this when educators need paper-based assessments or worksheets.',
+create_assignment: tool({
+        description: 'Create assignments, homeworks, quizzes, or continuous assessment tests for TEACHERS and ADMINS. This generates a printable document with questions, answer key, and instructions. The output includes an "Export to PDF" button for easy printing and distribution. Use this when educators need paper-based assessments or worksheets, or for practice questions at the end of a topic or sub-topic. IMPORTANT: Generate AT LEAST 10 questions to ensure comprehensive coverage of the topic or sub-topic concepts.',
         inputSchema: z.object({
           title: z.string().describe('Title of the assignment (e.g., "Mathematics Quiz - Algebra", "Homework Assignment 3")'),
           subject: z.string().describe('Subject area (e.g., "Mathematics", "Science", "English")'),
@@ -731,8 +816,8 @@ When responding:
           }
         },
       }),
-      create_quiz: tool({
-        description: 'Create interactive quizzes for LEARNERS that can be taken within the app. This generates a quiz with the quiz artifact component, allowing students to answer questions interactively, get immediate feedback, and track their score. Use this for online assessments, practice tests, and formative evaluations.',
+create_quiz: tool({
+        description: 'Create interactive quizzes for LEARNERS that can be taken within the app. This generates a quiz that displays in a MODAL COMPONENT with built-in "Export to PDF" and "Print" buttons for viewing/printing the quiz questions and answer key. Students can answer questions interactively, get immediate feedback, and track their score. Use this for online assessments, practice tests, formative evaluations, and exam preparation covering broad knowledge across multiple topics. IMPORTANT: Generate AT LEAST 30 questions for comprehensive exam coverage or when testing broad knowledge across multiple topics.',
         inputSchema: z.object({
           title: z.string().describe('Title of the quiz (e.g., "Practice Quiz: Photosynthesis", "Weekly Math Test")'),
           subject: z.string().describe('Subject area (e.g., "Biology", "Mathematics", "History")'),
@@ -765,6 +850,14 @@ When responding:
         }),
         execute: async ({ title, subject, description, instructions, questions, settings = {} }) => {
           try {
+            // Check if minimum questions requirement is met
+            const MIN_QUESTIONS = 30;
+            let warningMessage = null;
+            if (questions.length < MIN_QUESTIONS) {
+              warningMessage = `Note: This quiz contains ${questions.length} questions, which is below the recommended minimum of ${MIN_QUESTIONS} questions for comprehensive exam coverage.`;
+              console.warn(`[create_quiz] Warning: Quiz "${title}" has only ${questions.length} questions (minimum recommended: ${MIN_QUESTIONS})`);
+            }
+
             const defaultSettings = {
               shuffleQuestions: false,
               shuffleOptions: false,
@@ -845,6 +938,10 @@ When responding:
                   })),
                 },
               },
+              exportOptions: {
+                canExportPDF: true,
+                canPrint: true,
+              },
               actions: {
                 canStart: true,
                 canSave: true,
@@ -858,6 +955,264 @@ When responding:
             return {
               success: false,
               error: `Failed to create quiz: ${error instanceof Error ? error.message : String(error)}`,
+            };
+          }
+        },
+      }),
+      generate_summary: tool({
+        description: 'Generate a comprehensive summary that captures the full context and key details of provided content. Use this when the user asks for summaries, recaps, or wants to condense information while preserving important context. Creates structured summaries with main points, key takeaways, and contextual information preserved.',
+        inputSchema: z.object({
+          content: z.string().describe('The content to summarize (can be conversation text, document content, or topic description)'),
+          context: z.string().optional().describe('Additional context about the content (e.g., source, purpose, audience)'),
+          format: z.enum(['brief', 'detailed', 'comprehensive']).describe('Summary detail level: brief (1-2 paragraphs), detailed (bullet points with explanations), comprehensive (structured sections with full context)'),
+          focusAreas: z.array(z.string()).optional().describe('Specific areas or themes to emphasize in the summary'),
+        }),
+        execute: async ({ content, context, format = 'comprehensive', focusAreas }) => {
+          try {
+            // Process and structure the summary
+            const summary = {
+              success: true,
+              format: 'summary',
+              content: content,
+              context: context || null,
+              detailLevel: format,
+              focusAreas: focusAreas || [],
+              generatedAt: new Date().toISOString(),
+              metadata: {
+                contentLength: content.length,
+                hasContext: !!context,
+                format,
+              },
+            };
+
+            return summary;
+          } catch (error) {
+            return {
+              success: false,
+              error: `Failed to generate summary: ${error instanceof Error ? error.message : String(error)}`,
+            };
+          }
+        },
+      }),
+      generate_overview: tool({
+        description: 'Generate a comprehensive overview of a topic or subject. Creates structured content with introduction, main sections covering key aspects, and conclusion. Use this for topic introductions, subject reviews, or creating comprehensive learning overviews.',
+        inputSchema: z.object({
+          topic: z.string().describe('The main topic or subject to overview (e.g., "Photosynthesis", "World War II", "Algebraic Equations")'),
+          subject: z.string().describe('Subject area (e.g., "Biology", "History", "Mathematics")'),
+          level: z.string().optional().describe('Target level (e.g., "High School", "Undergraduate", "Beginner", "Advanced")'),
+          depth: z.enum(['basic', 'intermediate', 'advanced']).describe('Depth of coverage: basic (fundamentals only), intermediate (concepts + applications), advanced (comprehensive with nuances)'),
+          sections: z.array(z.string()).optional().describe('Optional: Specific sections to include in the overview'),
+        }),
+        execute: async ({ topic, subject, level, depth = 'intermediate', sections }) => {
+          try {
+            const overview = {
+              success: true,
+              format: 'overview',
+              topic,
+              subject,
+              level: level || 'General',
+              depth,
+              sections: sections || [],
+              generatedAt: new Date().toISOString(),
+              metadata: {
+                topic,
+                subject,
+                level: level || 'General',
+                depth,
+                customSections: (sections || []).length > 0,
+              },
+            };
+
+            return overview;
+          } catch (error) {
+            return {
+              success: false,
+              error: `Failed to generate overview: ${error instanceof Error ? error.message : String(error)}`,
+            };
+          }
+        },
+      }),
+      identify_keywords: tool({
+        description: 'Identify and extract key terms, concepts, and vocabulary from content. Each keyword includes the term itself, a clear definition, and multiple examples. Use this for vocabulary building, concept mapping, terminology study, and understanding domain-specific language.',
+        inputSchema: z.object({
+          content: z.string().describe('The content to analyze for keywords (text, document, or topic description)'),
+          maxKeywords: z.number().optional().describe('Maximum number of keywords to identify (default: 20, max: 50)'),
+          includeDefinitions: z.boolean().optional().describe('Include definitions for each keyword (default: true)'),
+          includeExamples: z.boolean().optional().describe('Include examples for each keyword (default: true)'),
+          category: z.string().optional().describe('Category or domain for context (e.g., "Science", "Literature", "Business")'),
+        }),
+        execute: async ({ content, maxKeywords = 20, includeDefinitions = true, includeExamples = true, category }) => {
+          try {
+            const keywords = {
+              success: true,
+              format: 'keywords',
+              content: content,
+              category: category || 'General',
+              settings: {
+                maxKeywords,
+                includeDefinitions,
+                includeExamples,
+              },
+              generatedAt: new Date().toISOString(),
+              metadata: {
+                contentLength: content.length,
+                maxKeywords,
+                hasCategory: !!category,
+              },
+            };
+
+            return keywords;
+          } catch (error) {
+            return {
+              success: false,
+              error: `Failed to identify keywords: ${error instanceof Error ? error.message : String(error)}`,
+            };
+          }
+        },
+      }),
+      generate_study_guide: tool({
+        description: 'Generate a comprehensive study guide with multiple structured sections for effective learning. Includes overview, key concepts, important terms, practice problems, and review materials. Use this for exam preparation, structured learning, or comprehensive topic review.',
+        inputSchema: z.object({
+          topic: z.string().describe('The main topic or subject for the study guide'),
+          subject: z.string().describe('Subject area (e.g., "Physics", "Literature", "Chemistry")'),
+          level: z.string().optional().describe('Target academic level (e.g., "High School", "College", "Graduate")'),
+          sections: z.array(z.enum([
+            'overview',
+            'key_concepts',
+            'important_terms',
+            'core_principles',
+            'practical_applications',
+            'common_misconceptions',
+            'practice_problems',
+            'quick_review',
+            'further_reading'
+          ])).optional().describe('Specific sections to include. If not provided, all sections will be included.'),
+          focusAreas: z.array(z.string()).optional().describe('Specific topics or concepts to emphasize in the guide'),
+        }),
+        execute: async ({ topic, subject, level, sections, focusAreas }) => {
+          try {
+            const defaultSections = [
+              'overview',
+              'key_concepts',
+              'important_terms',
+              'core_principles',
+              'practical_applications',
+              'common_misconceptions',
+              'practice_problems',
+              'quick_review',
+              'further_reading'
+            ];
+
+            const studyGuide = {
+              success: true,
+              format: 'study_guide',
+              topic,
+              subject,
+              level: level || 'General',
+              sections: sections || defaultSections,
+              focusAreas: focusAreas || [],
+              generatedAt: new Date().toISOString(),
+              metadata: {
+                topic,
+                subject,
+                level: level || 'General',
+                sectionCount: (sections || defaultSections).length,
+                hasFocusAreas: !!(focusAreas && focusAreas.length > 0),
+              },
+            };
+
+            return studyGuide;
+          } catch (error) {
+            return {
+              success: false,
+              error: `Failed to generate study guide: ${error instanceof Error ? error.message : String(error)}`,
+            };
+          }
+        },
+      }),
+      create_flashcards: tool({
+        description: 'Create interactive flashcard study sets for learners. Generates flashcards with questions/prompts on the front and detailed answers/explanations on the back. Each flashcard includes optional tags and difficulty levels. Use this for memorization, vocabulary learning, quick concept review, and spaced repetition practice. IMPORTANT: Generate AT LEAST 15 flashcards for comprehensive coverage.',
+        inputSchema: z.object({
+          title: z.string().describe('Title of the flashcard set (e.g., "Biology Terms", "Spanish Vocabulary", "Calculus Formulas")'),
+          subject: z.string().describe('Subject area (e.g., "Biology", "Spanish", "Mathematics")'),
+          topic: z.string().optional().describe('Specific topic within the subject (e.g., "Cell Structure", "Verb Conjugations")'),
+          flashcards: z.array(z.object({
+            id: z.string().describe('Unique identifier for the flashcard (e.g., "fc1", "fc2")'),
+            front: z.string().describe('Front side content - question, term, or prompt'),
+            back: z.string().describe('Back side content - answer, definition, or detailed explanation'),
+            tags: z.array(z.string()).optional().describe('Optional tags for categorization (e.g., ["definition", "formula", "example"])'),
+            difficulty: z.enum(['easy', 'medium', 'hard']).optional().describe('Difficulty level of the card'),
+          })).describe('Array of flashcards - must contain AT LEAST 15 flashcards'),
+          settings: z.object({
+            shuffle: z.boolean().optional().describe('Allow shuffling cards during study (default: true)'),
+            showDifficulty: z.boolean().optional().describe('Show difficulty indicator on cards (default: true)'),
+            reviewMode: z.enum(['sequential', 'random', 'spaced']).optional().describe('Review mode: sequential (in order), random (shuffled), spaced (based on difficulty)'),
+          }).optional().describe('Flashcard study settings'),
+        }),
+        execute: async ({ title, subject, topic, flashcards, settings = {} }) => {
+          try {
+            // Validate minimum flashcard count
+            if (flashcards.length < 15) {
+              return {
+                success: false,
+                error: `Flashcard set must contain at least 15 cards. Only ${flashcards.length} provided.`,
+              };
+            }
+
+            const defaultSettings = {
+              shuffle: true,
+              showDifficulty: true,
+              reviewMode: 'random',
+              ...settings,
+            };
+
+            // Save to database
+            const { saveAIFlashcards } = await import('@/lib/actions/ai');
+            const savedFlashcard = await saveAIFlashcards({
+              userId: dbUserId,
+              chatId,
+              title,
+              subject,
+              topic,
+              totalCards: flashcards.length,
+              cards: flashcards,
+              settings: defaultSettings,
+            });
+
+            const flashcardSet = {
+              success: true,
+              format: 'flashcards',
+              artifact: 'flashcards',
+              flashcardId: savedFlashcard.id,
+              metadata: {
+                title,
+                subject,
+                topic: topic || null,
+                totalCards: flashcards.length,
+                createdAt: savedFlashcard.createdAt.toISOString(),
+              },
+              flashcards: {
+                title,
+                subject,
+                topic: topic || null,
+                cards: flashcards.map((card, index) => ({
+                  number: index + 1,
+                  ...card,
+                })),
+                settings: defaultSettings,
+              },
+              actions: {
+                canStudy: true,
+                canSave: true,
+                canShuffle: defaultSettings.shuffle,
+              },
+            };
+
+            return flashcardSet;
+          } catch (error) {
+            return {
+              success: false,
+              error: `Failed to create flashcards: ${error instanceof Error ? error.message : String(error)}`,
             };
           }
         },

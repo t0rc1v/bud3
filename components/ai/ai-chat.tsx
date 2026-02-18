@@ -40,6 +40,7 @@ import { AddResourceToChat, type ChatResource as Resource } from "./add-resource
 import type { UserRole } from "@/lib/types";
 import { AssignmentModalTrigger } from "./assignment-modal";
 import { QuizModalTrigger } from "./quiz-modal";
+import { FlashcardModalTrigger } from "./flashcard-modal";
 import { MarkdownRenderer } from "./markdown-renderer";
 import {
   Tool,
@@ -127,6 +128,8 @@ export function AIChat({
   const newlyCreatedChatRef = useRef<string | null>(null);
   // Track last chat ID to prevent duplicate loads when dependencies change
   const lastChatIdRef = useRef<string | null>(null);
+  // Track which resource IDs have already been sent to avoid repetition
+  const sentResourceIdsRef = useRef<Set<string>>(new Set());
   
   // Helper function to update URL with chatId
   const updateUrlWithChatId = useCallback((newChatId: string | undefined) => {
@@ -352,7 +355,12 @@ export function AIChat({
     const userMessage = input;
     
     // Convert attached resources to FileUIPart format for AI SDK
-    const fileParts = attachedResources.map((resource) => ({
+    // Only include resources that haven't been sent yet to avoid context repetition
+    const unsentResources = attachedResources.filter(
+      (resource) => !sentResourceIdsRef.current.has(resource.id)
+    );
+    
+    const fileParts = unsentResources.map((resource) => ({
       type: "file" as const,
       url: resource.url,
       mediaType: getMediaType(resource.type),
@@ -366,6 +374,11 @@ export function AIChat({
         text: userMessage,
         files: fileParts,
       };
+      
+      // Mark resources as sent
+      unsentResources.forEach((resource) => {
+        sentResourceIdsRef.current.add(resource.id);
+      });
       
       try {
         const newChat = await createChat({
@@ -390,6 +403,12 @@ export function AIChat({
         text: userMessage,
         files: fileParts,
       });
+      
+      // Mark resources as sent and clear from UI
+      unsentResources.forEach((resource) => {
+        sentResourceIdsRef.current.add(resource.id);
+      });
+      setAttachedResources([]);
     }
 
     setInput("");
@@ -437,6 +456,7 @@ export function AIChat({
       // Reset refs for new chat
       lastChatIdRef.current = null;
       newlyCreatedChatRef.current = newChat.id;
+      sentResourceIdsRef.current.clear(); // Reset sent resources tracking
     } catch (error) {
       console.error("Failed to create chat:", error);
     }
@@ -454,6 +474,7 @@ export function AIChat({
         // Reset refs when deleting current chat
         lastChatIdRef.current = null;
         newlyCreatedChatRef.current = null;
+        sentResourceIdsRef.current.clear(); // Reset sent resources tracking
       }
     } catch (error) {
       console.error("Failed to delete chat:", error);
@@ -469,6 +490,7 @@ export function AIChat({
     // Reset refs to allow the effect to load the new chat
     lastChatIdRef.current = null;
     newlyCreatedChatRef.current = null;
+    sentResourceIdsRef.current.clear(); // Reset sent resources tracking for new chat
     // Note: Messages will be loaded by the useEffect when chatIdToLoad changes
   };
 
@@ -831,9 +853,10 @@ export function AIChat({
                       
                       // Create Assignment Tool
                       if (toolType === "tool-create_assignment") {
-                        // AI SDK wraps output as { type: "json", value: {...} }
+                        // AI SDK wraps output as { type: "json", value: {...} } during streaming
+                        // When loaded from DB, output is stored directly without wrapper
                         const outputWrapper = output as { type?: string; value?: { success?: boolean; format?: string; assignmentId?: string; metadata?: unknown; content?: unknown; answerKey?: unknown; exportOptions?: unknown; error?: string } } | undefined;
-                        const assignmentOutput = outputWrapper?.value;
+                        const assignmentOutput = outputWrapper?.value ?? output;
 
                         if (assignmentOutput?.success) {
                           return (
@@ -862,9 +885,10 @@ export function AIChat({
 
                       // Create Quiz Tool
                       if (toolType === "tool-create_quiz") {
-                        // AI SDK wraps output as { type: "json", value: {...} }
+                        // AI SDK wraps output as { type: "json", value: {...} } during streaming
+                        // When loaded from DB, output is stored directly without wrapper
                         const outputWrapper = output as { type?: string; value?: { success?: boolean; format?: string; artifact?: string; quizId?: string; metadata?: unknown; quiz?: unknown; actions?: unknown; error?: string } } | undefined;
-                        const quizOutput = outputWrapper?.value;
+                        const quizOutput = outputWrapper?.value ?? output;
 
                         if (quizOutput?.success) {
                           return (
@@ -885,6 +909,38 @@ export function AIChat({
                               <ToolOutput
                                 errorText={quizOutput?.error}
                                 output={quizOutput?.success ? "Quiz created successfully" : undefined}
+                              />
+                            </ToolContent>
+                          </Tool>
+                        );
+                      }
+
+                      // Create Flashcard Tool
+                      if (toolType === "tool-create_flashcards") {
+                        // AI SDK wraps output as { type: "json", value: {...} } during streaming
+                        // When loaded from DB, output is stored directly without wrapper
+                        const outputWrapper = output as { type?: string; value?: { success?: boolean; format?: string; artifact?: string; flashcardId?: string; metadata?: unknown; flashcards?: unknown; actions?: unknown; error?: string } } | undefined;
+                        const flashcardOutput = outputWrapper?.value ?? output;
+
+                        if (flashcardOutput?.success) {
+                          return (
+                            <div key={i} className="mt-2 w-full min-w-0">
+                              <FlashcardModalTrigger data={flashcardOutput as unknown as React.ComponentProps<typeof FlashcardModalTrigger>['data']} />
+                            </div>
+                            );
+                        }
+
+                        return (
+                          <Tool key={i} defaultOpen={false} className="mt-2">
+                            <ToolHeader
+                              toolType={toolType}
+                              state={state}
+                            />
+                            <ToolContent>
+                              <ToolInput input={input} />
+                              <ToolOutput
+                                errorText={flashcardOutput?.error}
+                                output={flashcardOutput?.success ? "Flashcards created successfully" : undefined}
                               />
                             </ToolContent>
                           </Tool>

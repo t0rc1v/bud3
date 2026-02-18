@@ -121,8 +121,8 @@ export function AssignmentModal({ data }: AssignmentModalProps) {
 }
 
 // Compact version for chat interface - just shows the trigger button
-export function AssignmentModalTrigger({ data }: AssignmentModalProps) {
-  const [open, setOpen] = useState(false);
+export function AssignmentModalTrigger({ data, autoOpen = false }: AssignmentModalProps & { autoOpen?: boolean }) {
+  const [open, setOpen] = useState(autoOpen);
 
   if (!data.success) {
     return (

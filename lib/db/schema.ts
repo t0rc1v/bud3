@@ -663,7 +663,26 @@ export const aiQuizAttempt = pgTable("ai_quiz_attempt", {
   createdAt,
 });
 
-// Relations for assignments and quizzes
+// AI Generated Flashcards Table - for interactive flashcard study sets
+export const aiFlashcard = pgTable("ai_flashcard", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  chatId: uuid('chat_id')
+    .references(() => chat.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  subject: varchar('subject', { length: 100 }).notNull(),
+  topic: varchar('topic', { length: 255 }),
+  totalCards: integer('total_cards').notNull(),
+  cards: jsonb('cards').notNull(), // array of flashcard objects {id, front, back, tags, difficulty}
+  settings: jsonb('settings'), // study settings {shuffle, showDifficulty, reviewMode}
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+});
+
+// Relations for assignments, quizzes, and flashcards
 export const aiAssignmentRelations = relations(aiAssignment, ({ one }) => ({
   user: one(user, {
     fields: [aiAssignment.userId],
@@ -695,5 +714,16 @@ export const aiQuizAttemptRelations = relations(aiQuizAttempt, ({ one }) => ({
   user: one(user, {
     fields: [aiQuizAttempt.userId],
     references: [user.id],
+  }),
+}));
+
+export const aiFlashcardRelations = relations(aiFlashcard, ({ one }) => ({
+  user: one(user, {
+    fields: [aiFlashcard.userId],
+    references: [user.id],
+  }),
+  chat: one(chat, {
+    fields: [aiFlashcard.chatId],
+    references: [chat.id],
   }),
 }));

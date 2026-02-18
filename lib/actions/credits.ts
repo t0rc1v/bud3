@@ -811,47 +811,45 @@ export async function giftCredits(
   const isSuperAdmin = adminUserData.role === "super_admin";
   const minimumBalance = DEFAULT_CREDIT_CONFIG.minimumAdminCreditBalance;
 
-  // Check admin's credit balance (super admins bypass this check)
-  if (!isSuperAdmin) {
-    // Check active credits (not total balance)
-    const adminCredit = await getOrCreateUserCredit(adminUserId);
-    const activeBalance = await getActiveCreditBalance(adminUserId);
-    const requiredBalance = amount + minimumBalance;
+  // Check admin's credit balance (applies to all admin types including super-admins)
+  // Check active credits (not total balance)
+  const adminCredit = await getOrCreateUserCredit(adminUserId);
+  const activeBalance = await getActiveCreditBalance(adminUserId);
+  const requiredBalance = amount + minimumBalance;
 
-    if (activeBalance < amount) {
-      // Not enough active credits - block the action with detailed warning
-      const expiredAmount = adminCredit.balance - activeBalance;
-      throw new Error(
-        `Insufficient active credits. You have ${activeBalance} active credits available, ` +
-        `but ${expiredAmount > 0 ? `${expiredAmount} credits have expired` : 'all credits are expired'}. ` +
-        `You need ${amount} credits to gift and must maintain a minimum balance of ${minimumBalance} credits. ` +
-        `Please purchase more credits to continue.`
-      );
-    }
-
-    if (activeBalance < requiredBalance) {
-      // Enough active credits but would violate minimum balance requirement
-      throw new Error(
-        `Insufficient credits. You have ${activeBalance} active credits, but need ${amount} credits to gift ` +
-        `and must maintain a minimum balance of ${minimumBalance} active credits. ` +
-        `Required: ${requiredBalance} active credits.`
-      );
-    }
-
-    // Deduct credits from admin (transfer transaction)
-    await createCreditTransaction({
-      userId: adminUserId,
-      type: "transfer",
-      amount: -amount,
-      description: `Transferred ${amount} credits to ${targetUserEmail}`,
-      metadata: {
-        targetUserId: targetUser.id,
-        targetUserEmail,
-        reason,
-        transferType: "gift_outgoing",
-      },
-    });
+  if (activeBalance < amount) {
+    // Not enough active credits - block the action with detailed warning
+    const expiredAmount = adminCredit.balance - activeBalance;
+    throw new Error(
+      `Insufficient active credits. You have ${activeBalance} active credits available, ` +
+      `but ${expiredAmount > 0 ? `${expiredAmount} credits have expired` : 'all credits are expired'}. ` +
+      `You need ${amount} credits to gift and must maintain a minimum balance of ${minimumBalance} credits. ` +
+      `Please purchase more credits to continue.`
+    );
   }
+
+  if (activeBalance < requiredBalance) {
+    // Enough active credits but would violate minimum balance requirement
+    throw new Error(
+      `Insufficient credits. You have ${activeBalance} active credits, but need ${amount} credits to gift ` +
+      `and must maintain a minimum balance of ${minimumBalance} active credits. ` +
+      `Required: ${requiredBalance} active credits.`
+    );
+  }
+
+  // Deduct credits from admin (transfer transaction)
+  await createCreditTransaction({
+    userId: adminUserId,
+    type: "transfer",
+    amount: -amount,
+    description: `Transferred ${amount} credits to ${targetUserEmail}`,
+    metadata: {
+      targetUserId: targetUser.id,
+      targetUserEmail,
+      reason,
+      transferType: "gift_outgoing",
+    },
+  });
 
   // For super-admins: if expirationDays is null/undefined, credits never expire
   // For regular admins: always use default expiration (30 days) - they can't set custom expiration
@@ -897,8 +895,8 @@ export async function giftCredits(
     transaction,
     userId: targetUser.id,
     email: targetUser.email,
-    deductedFromAdmin: !isSuperAdmin,
-    adminBalanceAfter: !isSuperAdmin ? await getUserCreditBalance(adminUserId) : undefined,
+    deductedFromAdmin: true,
+    adminBalanceAfter: await getUserCreditBalance(adminUserId),
     expiresAt: transaction.expiresAt,
   };
 }

@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getUserByClerkId } from "@/lib/actions/auth";
-import { RewardsManager } from "@/components/admin/rewards-manager";
+import { SuperAdminRewardsManager } from "@/components/super-admin/rewards-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +21,7 @@ export default async function SuperAdminRewardsPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <RewardsManager 
-        userRole="super_admin" 
-        hasCreditReward={true}
-      />
+      <SuperAdminRewardsManager />
     </div>
   );
 }

@@ -638,8 +638,8 @@ export function UnifiedAdminPageClient({
                   <div className="min-w-0 flex-1">
                     <span className="font-semibold text-base sm:text-lg truncate block">{level.title}</span>
                   </div>
-                  <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
-                    ({level.subjects.length} subjects)
+                  <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
+                    {level.subjects.length}
                   </span>
                 </div>
                 <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -703,8 +703,8 @@ export function UnifiedAdminPageClient({
                             )}
                             <span className="text-lg sm:text-2xl flex-shrink-0">{subject.icon}</span>
                             <span className="font-medium text-sm sm:text-base truncate">{subject.name}</span>
-                            <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
-                              ({subject.topics.length} topics)
+                            <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
+                              {subject.topics.length}
                             </span>
                           </div>
                           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -768,8 +768,8 @@ export function UnifiedAdminPageClient({
                                       )}
                                       <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
                                       <span className="font-medium text-sm sm:text-base truncate">{topic.title}</span>
-                                      <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
-                                        ({topic.resources?.length || 0} resources)
+                                      <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
+                                        {topic.resources?.length || 0}
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -976,8 +976,8 @@ export function UnifiedAdminPageClient({
                         Public
                       </Badge>
                     </div>
-                    <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
-                      ({level.subjects.length} subjects)
+                    <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
+                      {level.subjects.length}
                     </span>
                   </div>
                 </div>
@@ -1004,8 +1004,8 @@ export function UnifiedAdminPageClient({
                               )}
                               <span className="text-lg sm:text-2xl flex-shrink-0">{subject.icon}</span>
                               <span className="font-medium text-sm sm:text-base truncate">{subject.name}</span>
-                              <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
-                                ({subject.topics.length} topics)
+                              <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
+                                {subject.topics.length}
                               </span>
                             </div>
                           </div>
@@ -1032,8 +1032,8 @@ export function UnifiedAdminPageClient({
                                         )}
                                         <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500 flex-shrink-0" />
                                         <span className="font-medium text-sm sm:text-base truncate">{topic.title}</span>
-                                        <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
-                                          ({topic.resources?.length || 0} resources)
+                                        <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
+                                          {topic.resources?.length || 0}
                                         </span>
                                       </div>
                                     </div>

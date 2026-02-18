@@ -220,6 +220,15 @@ export function SuperAdminDashboardClient({
       return userMap.get(ownerId) || "Unknown";
     };
   }, [initialUsers]);
+
+  // Helper function to get owner email from user ID
+  const getOwnerEmail = useMemo(() => {
+    const emailMap = new Map(initialUsers.map(u => [u.id, u.email || "Unknown"]));
+    return (ownerId: string | null) => {
+      if (!ownerId) return "Unknown";
+      return emailMap.get(ownerId) || "Unknown";
+    };
+  }, [initialUsers]);
   
   // My Admins Content: content owned by admins under this super-admin
   const adminLevels = useMemo(() => 
@@ -619,7 +628,7 @@ export function SuperAdminDashboardClient({
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
               <Users className="h-4 w-4 text-blue-500" />
-              <span className="hidden sm:inline">Total Users</span>
+              <span className="inline">Total Users</span>
               <span className="sm:hidden">Users</span>
             </CardTitle>
           </CardHeader>
@@ -686,17 +695,17 @@ export function SuperAdminDashboardClient({
           <TabsTrigger value="super" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-3">
             <Shield className="h-4 w-4 text-purple-500" />
             <span className="text-xs sm:text-sm whitespace-nowrap">My Content</span>
-            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800 text-xs hidden sm:inline">{superAdminStats.levels}</Badge>
+            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800 text-xs inline">{superAdminStats.levels}</Badge>
           </TabsTrigger>
           <TabsTrigger value="admin" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-3">
             <Building2 className="h-4 w-4 text-blue-500" />
             <span className="text-xs sm:text-sm whitespace-nowrap">My Admins</span>
-            <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-800 text-xs hidden sm:inline">{adminStats.levels}</Badge>
+            <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-800 text-xs inline">{adminStats.levels}</Badge>
           </TabsTrigger>
           <TabsTrigger value="regular" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-3">
             <User className="h-4 w-4 text-green-500" />
             <span className="text-xs sm:text-sm whitespace-nowrap">My Regulars</span>
-            <Badge variant="secondary" className="ml-1 bg-green-100 text-green-800 text-xs hidden sm:inline">{regularStats.levels}</Badge>
+            <Badge variant="secondary" className="ml-1 bg-green-100 text-green-800 text-xs inline">{regularStats.levels}</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -877,8 +886,8 @@ export function SuperAdminDashboardClient({
                         My Content
                       </Badge>
                     </div>
-                    <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
-                      ({level.subjects?.length || 0} subjects)
+                    <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
+                      {level.subjects?.length || 0}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -887,7 +896,7 @@ export function SuperAdminDashboardClient({
                         <DialogTrigger asChild>
                           <Button variant="outline" size="icon" className="sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={(e) => e.stopPropagation()}>
                             <Plus className="h-4 w-4 sm:mr-1" />
-                            <span className="hidden sm:inline">Add Subject</span>
+                            {/* <span className="inline">Add Subject</span> */}
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[425px]">
@@ -955,8 +964,8 @@ export function SuperAdminDashboardClient({
                               )}
                               <span className="text-lg sm:text-2xl flex-shrink-0">{subject.icon}</span>
                               <span className="font-medium text-sm sm:text-base truncate">{subject.name}</span>
-                              <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
-                                ({subject.topics?.length || 0} topics)
+                              <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
+                                {subject.topics?.length || 0}
                               </span>
                             </div>
                             <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -965,7 +974,7 @@ export function SuperAdminDashboardClient({
                                   <DialogTrigger asChild>
                                     <Button variant="ghost" size="icon" className="sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={(e) => e.stopPropagation()}>
                                       <Plus className="h-4 w-4 sm:mr-1" />
-                                      <span className="hidden sm:inline">Add Topic</span>
+                                      {/* <span className="inline">Add Topic</span> */}
                                     </Button>
                                   </DialogTrigger>
                                   <DialogContent className="sm:max-w-[425px]">
@@ -1036,11 +1045,11 @@ export function SuperAdminDashboardClient({
                               {topic.ownerId && (
                                 <Badge variant="outline" className="ml-1 bg-blue-50 text-blue-600 border-blue-200 text-xs flex-shrink-0">
                                   <User className="h-3 w-3 mr-1" />
-                                  <span className="hidden sm:inline">{getOwnerName(topic.ownerId)}</span>
+                                  <span className="inline">{getOwnerName(topic.ownerId)}</span>
                                 </Badge>
                               )}
-                              <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
-                                ({topic.resources?.length || 0} resources)
+                              <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
+                                {topic.resources?.length || 0}
                               </span>
                             </div>
                                       <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -1049,7 +1058,7 @@ export function SuperAdminDashboardClient({
                                             <DialogTrigger asChild>
                                               <Button variant="ghost" size="icon" className="sm:h-9 sm:w-auto sm:px-3 sm:py-2" onClick={(e) => e.stopPropagation()}>
                                                 <Plus className="h-4 w-4 sm:mr-1" />
-                                                <span className="hidden sm:inline">Add Resource</span>
+                                                {/* <span className="inline">Add Resource</span> */}
                                               </Button>
                                             </DialogTrigger>
                                             <DialogContent className="sm:max-w-[425px]">
@@ -1117,13 +1126,13 @@ export function SuperAdminDashboardClient({
                                                   <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
                                                 )}
                                                 <span className="text-xs sm:text-sm truncate">{resource.title}</span>
-                                                <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 hidden sm:inline">
+                                                <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 inline">
                                                   ({resource.type})
                                                 </span>
                                                 {!isUnlocked && resource.isLocked && (
                                                   <span className="text-[10px] sm:text-xs text-yellow-600 font-medium flex items-center gap-1 flex-shrink-0">
                                                     <CreditCard className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                                    <span className="hidden sm:inline">Ksh </span>
+                                                    <span className="inline">Ksh </span>
                                                     <span className="sm:hidden">K</span>
                                                     {resource.unlockFee}
                                                   </span>
@@ -1236,20 +1245,15 @@ export function SuperAdminDashboardClient({
                     </div>
                     <div className="min-w-0 flex-1">
                       <span className="font-semibold text-base sm:text-lg truncate block">{level.title}</span>
-                      <div className="flex flex-wrap gap-1 mt-0.5">
-                        <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300 text-xs">
-                          Admin
+                      {level.ownerId && (
+                        <Badge variant="outline" className="mt-0.5 bg-blue-50 text-blue-600 border-blue-200 text-xs">
+                          <User className="h-3 w-3 mr-1" />
+                          <span className="truncate max-w-[150px] inline">{getOwnerEmail(level.ownerId)}</span>
                         </Badge>
-                        {level.ownerId && (
-                          <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 text-xs">
-                            <User className="h-3 w-3 mr-1" />
-                            <span className="hidden sm:inline">{getOwnerName(level.ownerId)}</span>
-                          </Badge>
-                        )}
-                      </div>
+                      )}
                     </div>
-                    <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
-                      ({level.subjects?.length || 0} subjects)
+                    <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
+                      {level.subjects?.length || 0}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -1299,8 +1303,8 @@ export function SuperAdminDashboardClient({
                               )}
                               <span className="text-lg sm:text-2xl flex-shrink-0">{subject.icon}</span>
                               <span className="font-medium text-sm sm:text-base truncate">{subject.name}</span>
-                              <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
-                                ({subject.topics?.length || 0} topics)
+                              <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
+                                {subject.topics?.length || 0}
                               </span>
                             </div>
                             <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -1353,11 +1357,11 @@ export function SuperAdminDashboardClient({
                               {topic.ownerId && (
                                 <Badge variant="outline" className="ml-1 bg-green-50 text-green-600 border-green-200 text-xs flex-shrink-0">
                                   <User className="h-3 w-3 mr-1" />
-                                  <span className="hidden sm:inline">{getOwnerName(topic.ownerId)}</span>
+                                  <span className="inline">{getOwnerName(topic.ownerId)}</span>
                                 </Badge>
                               )}
-                              <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
-                                ({topic.resources?.length || 0} resources)
+                              <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
+                                {topic.resources?.length || 0}
                               </span>
                             </div>
                                       <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -1407,13 +1411,13 @@ export function SuperAdminDashboardClient({
                                                   <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
                                                 )}
                                                 <span className="text-xs sm:text-sm truncate">{resource.title}</span>
-                                                <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 hidden sm:inline">
+                                                <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 inline">
                                                   ({resource.type})
                                                 </span>
                                                 {!isUnlocked && resource.isLocked && (
                                                   <span className="text-[10px] sm:text-xs text-yellow-600 font-medium flex items-center gap-1 flex-shrink-0">
                                                     <CreditCard className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                                    <span className="hidden sm:inline">Ksh </span>
+                                                    <span className="inline">Ksh </span>
                                                     <span className="sm:hidden">K</span>
                                                     {resource.unlockFee}
                                                   </span>
@@ -1517,20 +1521,15 @@ export function SuperAdminDashboardClient({
                     </div>
                     <div className="min-w-0 flex-1">
                       <span className="font-semibold text-base sm:text-lg truncate block">{level.title}</span>
-                      <div className="flex flex-wrap gap-1 mt-0.5">
-                        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300 text-xs">
-                          Regular
+                      {level.ownerId && (
+                        <Badge variant="outline" className="mt-0.5 bg-green-50 text-green-600 border-green-200 text-xs">
+                          <User className="h-3 w-3 mr-1" />
+                          <span className="truncate max-w-[150px] inline">{getOwnerEmail(level.ownerId)}</span>
                         </Badge>
-                        {level.ownerId && (
-                          <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200 text-xs">
-                            <User className="h-3 w-3 mr-1" />
-                            <span className="hidden sm:inline">{getOwnerName(level.ownerId)}</span>
-                          </Badge>
-                        )}
-                      </div>
+                      )}
                     </div>
-                    <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
-                      ({level.subjects?.length || 0} subjects)
+                    <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
+                      {level.subjects?.length || 0}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -1580,8 +1579,8 @@ export function SuperAdminDashboardClient({
                               )}
                               <span className="text-lg sm:text-2xl flex-shrink-0">{subject.icon}</span>
                               <span className="font-medium text-sm sm:text-base truncate">{subject.name}</span>
-                              <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
-                                ({subject.topics?.length || 0} topics)
+                              <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
+                                {subject.topics?.length || 0}
                               </span>
                             </div>
                             <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -1623,20 +1622,20 @@ export function SuperAdminDashboardClient({
                                       className="flex items-center justify-between p-2 pl-6 sm:p-3 sm:pl-12 cursor-pointer hover:bg-green-50/20 gap-2"
                                       onClick={() => toggleTopic(topic.id)}
                                     >
-                                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                                        {expandedTopics.has(topic.id) ? (
-                                          <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                                        ) : (
-                                          <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                                        )}
-                                        <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-500 flex-shrink-0" />
-                                        <span className="font-medium text-sm sm:text-base truncate">{topic.title}</span>
-                                        <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 hidden sm:inline">
-                                          ({topic.resources?.length || 0} resources)
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                                        <DropdownMenu>
+                                       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                         {expandedTopics.has(topic.id) ? (
+                                           <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+                                         ) : (
+                                           <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+                                         )}
+                                         <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-500 flex-shrink-0" />
+                                         <span className="font-medium text-sm sm:text-base truncate">{topic.title}</span>
+                               <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
+                                 {topic.resources?.length || 0}
+                               </span>
+                                       </div>
+                                       <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                                         <DropdownMenu>
                                           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                             <Button variant="ghost" size="icon">
                                               <MoreVertical className="h-4 w-4" />
@@ -1682,13 +1681,13 @@ export function SuperAdminDashboardClient({
                                                   <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
                                                 )}
                                                 <span className="text-xs sm:text-sm truncate">{resource.title}</span>
-                                                <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 hidden sm:inline">
+                                                <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 inline">
                                                   ({resource.type})
                                                 </span>
                                                 {!isUnlocked && resource.isLocked && (
                                                   <span className="text-[10px] sm:text-xs text-yellow-600 font-medium flex items-center gap-1 flex-shrink-0">
                                                     <CreditCard className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                                    <span className="hidden sm:inline">Ksh </span>
+                                                    <span className="inline">Ksh </span>
                                                     <span className="sm:hidden">K</span>
                                                     {resource.unlockFee}
                                                   </span>

@@ -35,7 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { createChat, deleteChat, getUserChats, getChatMessages, type Chat } from "@/lib/actions/ai";
+import { createChat, deleteChat, getUserChats, getChatMessages, updateChatTitle, type Chat } from "@/lib/actions/ai";
 import { AddResourceToChat, type ChatResource as Resource } from "./add-resource-to-chat";
 import type { UserRole } from "@/lib/types";
 import { AssignmentModalTrigger } from "./assignment-modal";
@@ -67,6 +67,55 @@ const TYPE_COLORS = {
   audio: "bg-purple-100 text-purple-800 hover:bg-purple-200",
   image: "bg-green-100 text-green-800 hover:bg-green-200",
 };
+
+// Helper function to generate contextual chat title from message and resources
+function generateChatTitle(input: string, resources: Resource[]): string {
+  // Clean up the input - remove extra whitespace and limit length
+  const cleanInput = input.trim().slice(0, 100);
+  
+  if (cleanInput.length === 0) {
+    return resources.length > 0 
+      ? `Chat about ${resources[0].title.slice(0, 30)}${resources[0].title.length > 30 ? '...' : ''}`
+      : "New Chat";
+  }
+  
+  // If input is a question, extract the key subject
+  let title = cleanInput;
+  
+  // Remove common question prefixes
+  const prefixes = [
+    /^(can you|could you|would you|will you|please|help me|i need|i want|how do|how can|how to|what is|what are|tell me about|explain|describe|analyze|compare|summarize)\s+/i,
+    /^(create|make|generate|write|build|design|develop)\s+(a|an|the)?\s*/i,
+  ];
+  
+  for (const prefix of prefixes) {
+    title = title.replace(prefix, "");
+  }
+  
+  // Remove trailing punctuation
+  title = title.replace(/[?.!,;:]$/, "");
+  
+  // Truncate to reasonable length
+  const maxLength = resources.length > 0 ? 40 : 50;
+  if (title.length > maxLength) {
+    title = title.slice(0, maxLength) + "...";
+  }
+  
+  // If there are resources, append context
+  if (resources.length > 0) {
+    const resourceHint = resources.length === 1 
+      ? ` [${resources[0].title.slice(0, 20)}${resources[0].title.length > 20 ? '...' : ''}]`
+      : ` [${resources.length} resources]`;
+    
+    // Make sure title + resource hint isn't too long
+    if (title.length + resourceHint.length > 60) {
+      title = title.slice(0, Math.max(20, 60 - resourceHint.length)) + "...";
+    }
+    title += resourceHint;
+  }
+  
+  return title || "New Chat";
+}
 
 interface AIChatProps {
   userId: string;
@@ -130,6 +179,8 @@ export function AIChat({
   const lastChatIdRef = useRef<string | null>(null);
   // Track which resource IDs have already been sent to avoid repetition
   const sentResourceIdsRef = useRef<Set<string>>(new Set());
+  // Track if chat was created via "New Chat" button and needs title update after first message
+  const needsTitleUpdateRef = useRef<boolean>(false);
   
   // Helper function to update URL with chatId
   const updateUrlWithChatId = useCallback((newChatId: string | undefined) => {
@@ -381,20 +432,24 @@ export function AIChat({
       });
       
       try {
+        const chatTitle = generateChatTitle(input, unsentResources);
         const newChat = await createChat({
           userId,
-          title: input.slice(0, 50) + (input.length > 50 ? "..." : ""),
+          title: chatTitle,
         });
         // Mark this chat as newly created to prevent the load effect from overwriting messages
         newlyCreatedChatRef.current = newChat.id;
         setChatId(newChat.id);
         updateUrlWithChatId(newChat.id); // Update URL with new chat ID
         setChats((prev) => [newChat, ...prev]);
+        // Chat created with contextual title, no need for title update
+        needsTitleUpdateRef.current = false;
         // Message will be sent by the effect after chatId state updates
       } catch (error) {
         console.error("Failed to create chat:", error);
         pendingMessageRef.current = null;
         newlyCreatedChatRef.current = null;
+        needsTitleUpdateRef.current = false;
         return;
       }
     } else {
@@ -409,6 +464,25 @@ export function AIChat({
         sentResourceIdsRef.current.add(resource.id);
       });
       setAttachedResources([]);
+      
+      // If chat needs title update (created via "New Chat" button without resources), update it now
+      if (needsTitleUpdateRef.current && chatId) {
+        const newTitle = generateChatTitle(userMessage, []);
+        // Update title in background (don't block UI)
+        updateChatTitle({ chatId, title: newTitle })
+          .then((updatedChat) => {
+            // Update local chat list state
+            setChats((prev) =>
+              prev.map((chat) =>
+                chat.id === chatId ? { ...chat, title: updatedChat.title } : chat
+              )
+            );
+          })
+          .catch((error) => {
+            console.error("Failed to update chat title:", error);
+          });
+        needsTitleUpdateRef.current = false;
+      }
     }
 
     setInput("");
@@ -444,9 +518,11 @@ export function AIChat({
 
   const handleNewChat = async () => {
     try {
+      // Generate contextual title based on attached resources if any
+      const chatTitle = generateChatTitle("", attachedResources);
       const newChat = await createChat({
         userId,
-        title: "New Chat",
+        title: chatTitle,
       });
       setChatId(newChat.id);
       updateUrlWithChatId(newChat.id); // Update URL with new chat ID
@@ -457,6 +533,8 @@ export function AIChat({
       lastChatIdRef.current = null;
       newlyCreatedChatRef.current = newChat.id;
       sentResourceIdsRef.current.clear(); // Reset sent resources tracking
+      // Mark chat as needing title update after first message (if no resources attached)
+      needsTitleUpdateRef.current = attachedResources.length === 0;
     } catch (error) {
       console.error("Failed to create chat:", error);
     }
@@ -475,6 +553,7 @@ export function AIChat({
         lastChatIdRef.current = null;
         newlyCreatedChatRef.current = null;
         sentResourceIdsRef.current.clear(); // Reset sent resources tracking
+        needsTitleUpdateRef.current = false; // Reset title update flag
       }
     } catch (error) {
       console.error("Failed to delete chat:", error);
@@ -491,6 +570,7 @@ export function AIChat({
     lastChatIdRef.current = null;
     newlyCreatedChatRef.current = null;
     sentResourceIdsRef.current.clear(); // Reset sent resources tracking for new chat
+    needsTitleUpdateRef.current = false; // Reset title update flag
     // Note: Messages will be loaded by the useEffect when chatIdToLoad changes
   };
 

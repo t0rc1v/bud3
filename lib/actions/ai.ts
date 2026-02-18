@@ -121,6 +121,26 @@ export async function deleteChat(chatId: string): Promise<void> {
   revalidatePath("/");
 }
 
+export async function updateChatTitle({
+  chatId,
+  title,
+}: {
+  chatId: string;
+  title: string;
+}): Promise<Chat> {
+  const result = await db
+    .update(chat)
+    .set({
+      title,
+      updatedAt: new Date(),
+    })
+    .where(eq(chat.id, chatId))
+    .returning();
+
+  revalidatePath("/");
+  return result[0];
+}
+
 export async function getMemoryItems(userId: string): Promise<AIMemoryItem[]> {
   const items = await db
     .select()

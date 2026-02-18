@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1770914205962,
-      "tag": "0000_lovely_hercules",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1771342374777,
-      "tag": "0001_nice_shatterstar",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1771392980883,
-      "tag": "0002_bored_maginty",
+      "when": 1771414666815,
+      "tag": "0000_perfect_wolfpack",
       "breakpoints": true
     }
   ]

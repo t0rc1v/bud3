@@ -168,9 +168,7 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
         </div>
         
         <div className="flex items-center gap-2">
-          <div suppressHydrationWarning>
-            <UserButton />
-          </div>
+          {isClient && <UserButton />}
           
           <Sheet>
             <SheetTrigger asChild>
@@ -332,9 +330,7 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
                 <span className="sr-only">Toggle chat</span>
               </Button>
             </div>
-            <div suppressHydrationWarning>
-              <UserButton />
-            </div>
+            {isClient && <UserButton />}
           </div>
         </div>
         

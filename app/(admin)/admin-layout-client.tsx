@@ -150,9 +150,7 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
           <div suppressHydrationWarning>
             <CreditModal trigger={<CreditBadge className="cursor-pointer" />} />
           </div>
-          <div suppressHydrationWarning>
-            <UserButton />
-          </div>
+          {isClient && <UserButton />}
           
           <Sheet>
             <SheetTrigger asChild>
@@ -299,9 +297,7 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
                 <span className="sr-only">Toggle chat</span>
               </Button>
             </div>
-            <div suppressHydrationWarning>
-              <UserButton />
-            </div>
+            {isClient && <UserButton />}
           </div>
         </div>
         

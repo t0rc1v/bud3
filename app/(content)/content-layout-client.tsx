@@ -139,9 +139,7 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole, init
             <div suppressHydrationWarning>
               <CreditModal trigger={<CreditBadge className="cursor-pointer" />} />
             </div>
-            <div suppressHydrationWarning>
-              <UserButton />
-            </div>
+            {isClient && <UserButton />}
             
             <Sheet>
               <SheetTrigger asChild>
@@ -268,9 +266,7 @@ export function ContentLayoutClient({ children, userId, dbUserId, userRole, init
                 <span className="sr-only">Toggle chat</span>
               </Button>
             </div>
-            <div suppressHydrationWarning>
-              <UserButton />
-            </div>
+            {isClient && <UserButton />}
           </div>
         </div>
         

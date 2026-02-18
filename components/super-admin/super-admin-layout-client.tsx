@@ -13,6 +13,7 @@ import { usePathname } from "next/navigation";
 import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
 import { UserButton } from "@clerk/nextjs";
 import { UnlockedResourcesProvider } from "@/components/credits/unlocked-resources-context";
+import { CreditModal, CreditBadge } from "@/components/credits/credit-modal";
 import type { Resource } from "@/lib/types";
 import type { LevelWithFullHierarchy } from "@/lib/types";
 
@@ -168,6 +169,9 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
         </div>
         
         <div className="flex items-center gap-2">
+          <div suppressHydrationWarning>
+            <CreditModal trigger={<CreditBadge className="cursor-pointer" />} />
+          </div>
           {isClient && <UserButton />}
           
           <Sheet>
@@ -318,6 +322,9 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
           </div>
           
           <div className="flex items-center gap-4">
+            <div suppressHydrationWarning>
+              <CreditModal trigger={<CreditBadge className="cursor-pointer" />} />
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">AI Chat</span>
               <Button

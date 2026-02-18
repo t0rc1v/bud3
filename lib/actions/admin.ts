@@ -190,6 +190,7 @@ export async function buildContentVisibilityFilter(
  * - Super-admin: can access own + their admins' + their regulars' content
  * - Admin: can access own + their super-admin's content
  * - Regular: can access own + their super-admin's + their super-admin's admins' content
+ */
 export async function canAccessContent(
   contentOwnerId: string,
   contentOwnerRole: UserRole,

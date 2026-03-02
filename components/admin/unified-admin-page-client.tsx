@@ -167,9 +167,9 @@ export function UnifiedAdminPageClient({
   }, [searchParams, levels]);
 
   // Separate content by owner role and owner ID
-  // My Content: only content owned by the current user (admin's own content)
+  // My Content: only content owned by the current user (regardless of role when created)
   const myLevels = useMemo(() => 
-    levels.filter((g) => g.ownerRole === "admin" && g.ownerId === userId),
+    levels.filter((g) => g.ownerId === userId),
     [levels, userId]
   );
   

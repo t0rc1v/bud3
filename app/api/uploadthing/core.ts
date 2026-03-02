@@ -15,8 +15,8 @@ const authenticateUser = async () => {
 export const ourFileRouter = {
   // Notes/PDF files
   notesUploader: f({
-    pdf: { maxFileSize: "16MB", maxFileCount: 1 },
-    text: { maxFileSize: "4MB", maxFileCount: 1 },
+    pdf: { maxFileSize: "128MB", maxFileCount: 1 },
+    text: { maxFileSize: "128MB", maxFileCount: 1 },
   })
     .middleware(async () => {
       const { userId } = await authenticateUser();
@@ -24,11 +24,11 @@ export const ourFileRouter = {
     })
     .onUploadComplete(async ({ metadata, file }) => {
       console.log("Notes upload complete for userId:", metadata.userId);
-      console.log("File URL:", file.url);
+      console.log("File URL:", file.ufsUrl);
       return {
         uploadedBy: metadata.userId,
         type: metadata.type,
-        url: file.url,
+        url: file.ufsUrl,
         ufsUrl: file.ufsUrl,
         key: file.key,
       };
@@ -44,11 +44,11 @@ export const ourFileRouter = {
     })
     .onUploadComplete(async ({ metadata, file }) => {
       console.log("Video upload complete for userId:", metadata.userId);
-      console.log("File URL:", file.url);
+      console.log("File URL:", file.ufsUrl);
       return {
         uploadedBy: metadata.userId,
         type: metadata.type,
-        url: file.url,
+        url: file.ufsUrl,
         ufsUrl: file.ufsUrl,
         key: file.key,
       };
@@ -64,11 +64,11 @@ export const ourFileRouter = {
     })
     .onUploadComplete(async ({ metadata, file }) => {
       console.log("Audio upload complete for userId:", metadata.userId);
-      console.log("File URL:", file.url);
+      console.log("File URL:", file.ufsUrl);
       return {
         uploadedBy: metadata.userId,
         type: metadata.type,
-        url: file.url,
+        url: file.ufsUrl,
         ufsUrl: file.ufsUrl,
         key: file.key,
       };
@@ -76,7 +76,7 @@ export const ourFileRouter = {
 
   // Image files
   imageUploader: f({
-    image: { maxFileSize: "16MB", maxFileCount: 1 },
+    image: { maxFileSize: "16MB", maxFileCount: 4 },
   })
     .middleware(async () => {
       const { userId } = await authenticateUser();
@@ -84,11 +84,11 @@ export const ourFileRouter = {
     })
     .onUploadComplete(async ({ metadata, file }) => {
       console.log("Image upload complete for userId:", metadata.userId);
-      console.log("File URL:", file.url);
+      console.log("File URL:", file.ufsUrl);
       return {
         uploadedBy: metadata.userId,
         type: metadata.type,
-        url: file.url,
+        url: file.ufsUrl,
         ufsUrl: file.ufsUrl,
         key: file.key,
       };

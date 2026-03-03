@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { resource, unlockFee, user } from "@/lib/db/schema";
+import { resource, unlockFee } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getResources } from "@/lib/actions/admin";
 import { DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
+import { checkUserPermission } from "@/lib/actions/admin-permissions";
+import { FinancePermissions } from "@/lib/permissions";
 
 // This endpoint initializes unlock fees for all resources that don't have one
 export async function POST(req: Request) {
@@ -18,15 +20,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if user is admin or super_admin
-    const currentUser = await db
-      .select()
-      .from(user)
-      .where(eq(user.clerkId, userId))
-      .limit(1)
-      .then(res => res[0] || null);
-
-    if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "super_admin")) {
+    // Check granular permission instead of raw role check
+    const hasPermission = await checkUserPermission(userId, FinancePermissions.UNLOCK_FEE_MANAGE);
+    if (!hasPermission) {
       return NextResponse.json(
         { error: "Forbidden" },
         { status: 403 }

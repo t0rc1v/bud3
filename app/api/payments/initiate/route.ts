@@ -1,22 +1,35 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { 
-  initiateSTKPush, 
-  isValidPhoneNumber, 
+import {
+  initiateSTKPush,
+  isValidPhoneNumber,
   formatPhoneNumber,
-  CREDIT_PRICING 
+  CREDIT_PRICING
 } from "@/lib/mpesa";
 import { createCreditPurchase } from "@/lib/actions/credits";
 import { getUserByClerkId } from "@/lib/actions/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
   try {
     const { userId: clerkId } = await auth();
-    
+
     if (!clerkId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // Rate limit: 5 payment initiations per 2 minutes per user
+    const rateLimit = checkRateLimit(`payment:${clerkId}`, 5, 2 * 60 * 1000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many payment requests. Please wait a moment before trying again." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+        }
       );
     }
 

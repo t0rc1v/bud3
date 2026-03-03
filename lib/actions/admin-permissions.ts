@@ -216,70 +216,105 @@ export async function deleteRole(roleId: string): Promise<{ success: boolean; er
 
 // ============== ADMIN USER MANAGEMENT ==============
 
+/**
+ * Shared helper: fetches direct permissions and role-based permissions for a single admin.
+ * Runs at most 4 queries regardless of how many roles the admin has.
+ */
+async function fetchAdminPermissionsData(adminId: string): Promise<{
+  directPermissions: string[];
+  assignedRoles: RoleWithPermissions[];
+  allPermissions: string[];
+}> {
+  const [directPerms, assignedRolesData] = await Promise.all([
+    db.select().from(userPermission).where(
+      and(eq(userPermission.userId, adminId), eq(userPermission.isActive, true))
+    ),
+    db.select().from(userRoles).where(eq(userRoles.userId, adminId)),
+  ]);
+
+  const roleIds = assignedRolesData.map(ur => ur.roleId);
+  const [rolesData, rolePermissionsData] = roleIds.length > 0
+    ? await Promise.all([
+        db.select().from(role).where(inArray(role.id, roleIds)),
+        db.select().from(rolePermission).where(inArray(rolePermission.roleId, roleIds)),
+      ])
+    : [[], []];
+
+  const assignedRoles: RoleWithPermissions[] = rolesData.map((r) => ({
+    ...r,
+    permissions: rolePermissionsData
+      .filter(p => p.roleId === r.id)
+      .map(p => p.permission),
+  }));
+
+  const directPermissionStrings = directPerms.map(p => p.permission);
+  const rolePermissionStrings = assignedRoles.flatMap(r => r.permissions);
+  const allPermissions = [...new Set([...directPermissionStrings, ...rolePermissionStrings])];
+
+  return { directPermissions: directPermissionStrings, assignedRoles, allPermissions };
+}
+
 export async function getAllAdmins(): Promise<AdminWithPermissions[]> {
-  // Get all users with admin or super_admin roles
   const adminUsers = await db
     .select()
     .from(user)
     .where(inArray(user.role, ["admin", "super_admin" as const]))
     .orderBy(desc(user.createdAt));
 
-  // Get permissions and roles for each admin
-  const adminsWithPermissions: AdminWithPermissions[] = await Promise.all(
-    adminUsers.map(async (adminUser): Promise<AdminWithPermissions> => {
-      // Get direct permissions
-      const directPerms = await db
-        .select()
-        .from(userPermission)
-        .where(and(
-          eq(userPermission.userId, adminUser.id),
-          eq(userPermission.isActive, true)
-        ));
+  if (adminUsers.length === 0) return [];
 
-      // Get assigned roles
-      const assignedRolesData = await db
-        .select()
-        .from(userRoles)
-        .where(eq(userRoles.userId, adminUser.id));
-      
-      // Fetch role details and permissions
-      const roleIds = assignedRolesData.map(ur => ur.roleId);
-      const rolesData = roleIds.length > 0
-        ? await db.select().from(role).where(inArray(role.id, roleIds))
-        : [];
-      
-      const rolePermissionsData = roleIds.length > 0
-        ? await db.select().from(rolePermission).where(inArray(rolePermission.roleId, roleIds))
-        : [];
+  const adminIds = adminUsers.map(u => u.id);
 
-      const assignedRoles = rolesData.map((r) => ({
+  // Batch-fetch all permissions and roles in 4 total queries instead of 4 × N
+  const [allDirectPerms, allUserRoles] = await Promise.all([
+    db.select().from(userPermission).where(
+      and(inArray(userPermission.userId, adminIds), eq(userPermission.isActive, true))
+    ),
+    db.select().from(userRoles).where(inArray(userRoles.userId, adminIds)),
+  ]);
+
+  const allRoleIds = [...new Set(allUserRoles.map(ur => ur.roleId))];
+  const [allRolesData, allRolePermissions] = allRoleIds.length > 0
+    ? await Promise.all([
+        db.select().from(role).where(inArray(role.id, allRoleIds)),
+        db.select().from(rolePermission).where(inArray(rolePermission.roleId, allRoleIds)),
+      ])
+    : [[], []];
+
+  return adminUsers.map((adminUser): AdminWithPermissions => {
+    const directPerms = allDirectPerms
+      .filter(p => p.userId === adminUser.id)
+      .map(p => p.permission);
+
+    const userRoleIds = allUserRoles
+      .filter(ur => ur.userId === adminUser.id)
+      .map(ur => ur.roleId);
+
+    const assignedRoles: RoleWithPermissions[] = allRolesData
+      .filter(r => userRoleIds.includes(r.id))
+      .map(r => ({
         ...r,
-        permissions: rolePermissionsData
-          .filter(p => p.roleId === r.id)
-          .map((p) => p.permission),
+        permissions: allRolePermissions
+          .filter(rp => rp.roleId === r.id)
+          .map(rp => rp.permission),
       }));
 
-      // Combine all permissions (direct + from roles)
-      const directPermissionStrings = directPerms.map((p) => p.permission);
-      const rolePermissionStrings = assignedRoles.flatMap((r) => r.permissions);
-      const allPermissions = [...new Set([...directPermissionStrings, ...rolePermissionStrings])];
+    const rolePermStrings = assignedRoles.flatMap(r => r.permissions);
+    const allPermissions = [...new Set([...directPerms, ...rolePermStrings])];
 
-      return {
-        id: adminUser.id,
-        userId: adminUser.clerkId,
-        email: adminUser.email,
-        role: adminUser.role,
-        onboardingCompleted: adminUser.onboardingCompleted,
-        createdAt: adminUser.createdAt,
-        updatedAt: adminUser.updatedAt,
-        directPermissions: directPermissionStrings,
-        assignedRoles,
-        allPermissions,
-      };
-    })
-  );
-
-  return adminsWithPermissions;
+    return {
+      id: adminUser.id,
+      userId: adminUser.clerkId,
+      email: adminUser.email,
+      role: adminUser.role,
+      onboardingCompleted: adminUser.onboardingCompleted,
+      createdAt: adminUser.createdAt,
+      updatedAt: adminUser.updatedAt,
+      directPermissions: directPerms,
+      assignedRoles,
+      allPermissions,
+    };
+  });
 }
 
 export async function getAdminById(id: string): Promise<AdminWithPermissions | null> {
@@ -290,63 +325,26 @@ export async function getAdminById(id: string): Promise<AdminWithPermissions | n
       eq(user.id, id),
       inArray(user.role, ["admin", "super_admin" as const])
     ))
-    .limit(1);
+    .limit(1)
+    .then(res => res[0] || null);
 
-  if (!adminUser[0]) return null;
+  if (!adminUser) return null;
 
-  const admin = adminUser[0];
+  const { directPermissions, assignedRoles, allPermissions } =
+    await fetchAdminPermissionsData(adminUser.id);
 
-  // Get direct permissions
-  const directPerms = await db
-    .select()
-    .from(userPermission)
-    .where(and(
-      eq(userPermission.userId, admin.id),
-      eq(userPermission.isActive, true)
-    ));
-
-  // Get assigned roles
-  const assignedRolesData = await db
-    .select()
-    .from(userRoles)
-    .where(eq(userRoles.userId, admin.id));
-  
-  // Fetch role details and permissions
-  const roleIds = assignedRolesData.map(ur => ur.roleId);
-  const rolesData = roleIds.length > 0
-    ? await db.select().from(role).where(inArray(role.id, roleIds))
-    : [];
-  
-  const rolePermissionsData = roleIds.length > 0
-    ? await db.select().from(rolePermission).where(inArray(rolePermission.roleId, roleIds))
-    : [];
-
-  const assignedRoles = rolesData.map((r) => ({
-    ...r,
-    permissions: rolePermissionsData
-      .filter(p => p.roleId === r.id)
-      .map((p) => p.permission),
-  }));
-
-  // Combine all permissions
-  const directPermissionStrings = directPerms.map((p) => p.permission);
-  const rolePermissionStrings = assignedRoles.flatMap((r) => r.permissions);
-  const allPermissions = [...new Set([...directPermissionStrings, ...rolePermissionStrings])];
-
-  const result: AdminWithPermissions = {
-    id: admin.id,
-    userId: admin.clerkId,
-    email: admin.email,
-    role: admin.role,
-    onboardingCompleted: admin.onboardingCompleted,
-    createdAt: admin.createdAt,
-    updatedAt: admin.updatedAt,
-    directPermissions: directPermissionStrings,
+  return {
+    id: adminUser.id,
+    userId: adminUser.clerkId,
+    email: adminUser.email,
+    role: adminUser.role,
+    onboardingCompleted: adminUser.onboardingCompleted,
+    createdAt: adminUser.createdAt,
+    updatedAt: adminUser.updatedAt,
+    directPermissions,
     assignedRoles,
     allPermissions,
   };
-  
-  return result;
 }
 
 export async function updateAdminRole(

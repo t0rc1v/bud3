@@ -1,16 +1,25 @@
 import { NextResponse } from "next/server";
 import { parseCallbackData, CallbackData } from "@/lib/mpesa";
-import { 
-  updateCreditPurchaseStatus, 
-  getCreditPurchaseByCheckoutId 
+import {
+  updateCreditPurchaseStatus,
+  getCreditPurchaseByCheckoutId
 } from "@/lib/actions/credits";
 
 export async function POST(req: Request) {
   try {
+    // Validate callback secret token to reject spoofed requests
+    const { searchParams } = new URL(req.url);
+    const token = searchParams.get("token");
+    const expectedToken = process.env.MPESA_CALLBACK_SECRET;
+
+    if (!expectedToken || token !== expectedToken) {
+      return NextResponse.json({ ResultCode: 1, ResultDesc: "Unauthorized" }, { status: 401 });
+    }
+
     const callbackBody: CallbackData = await req.json();
-    
+
     const parsedData = parseCallbackData(callbackBody);
-    
+
     if (!parsedData.checkoutRequestId) {
       console.error("Invalid callback data: missing checkoutRequestId");
       return NextResponse.json({ success: false, error: "Invalid callback data" }, { status: 400 });
@@ -28,7 +37,6 @@ export async function POST(req: Request) {
     // Guard: reject callbacks for purchases that are already in a terminal state
     // This prevents replay attacks from re-completing a cancelled/failed purchase
     if (purchase.status === "completed" || purchase.status === "refunded") {
-      console.warn(`Callback received for already-terminal purchase ${purchase.id} (status: ${purchase.status})`);
       return NextResponse.json({ ResultCode: 0, ResultDesc: "Already processed" });
     }
 
@@ -46,41 +54,27 @@ export async function POST(req: Request) {
       }
     }
 
-    // Update purchase status based on result
-    // M-Pesa Result Codes:
-    // 0: Success
-    // 1032: Request cancelled by user
-    // 1037: Transaction not found / still processing
-    // 2001: Wrong PIN
-    // 1: Other errors (e.g., insufficient funds)
-
     const resultCode = parsedData.resultCode;
     const resultCodeStr = String(resultCode);
 
     if (parsedData.isSuccessful) {
-      // Success
       await updateCreditPurchaseStatus(purchase.id, "completed", {
         mpesaReceiptNumber: parsedData.mpesaReceiptNumber,
         resultCode: resultCodeStr,
         resultDesc: parsedData.resultDesc,
         transactionDate: parsedData.transactionDate ? new Date(parsedData.transactionDate) : new Date(),
       });
-      
-      console.log(`Payment completed for purchase ${purchase.id}`);
     } else if (resultCode === 1032) {
-      // User cancelled
       await updateCreditPurchaseStatus(purchase.id, "cancelled", {
         resultCode: resultCodeStr,
         resultDesc: parsedData.resultDesc || "Request cancelled by user",
       });
-      console.log(`Payment cancelled for purchase ${purchase.id}`);
     } else {
-      // Actual failure
+      console.error(`Payment failed for purchase ${purchase.id} (code: ${resultCodeStr}): ${parsedData.resultDesc}`);
       await updateCreditPurchaseStatus(purchase.id, "failed", {
         resultCode: resultCodeStr,
         resultDesc: parsedData.resultDesc,
       });
-      console.log(`Payment failed for purchase ${purchase.id} (code: ${resultCodeStr})`);
     }
 
     // Always return success to M-Pesa to acknowledge receipt
@@ -91,18 +85,11 @@ export async function POST(req: Request) {
 
   } catch (error) {
     console.error("Callback processing error:", error);
-    
+
     // Return success to M-Pesa anyway to prevent retries
     return NextResponse.json({
       ResultCode: 0,
       ResultDesc: "Callback received",
     });
   }
-}
-
-// Also handle GET requests for testing
-export async function GET(req: Request) {
-  return NextResponse.json({ 
-    message: "M-Pesa callback endpoint is active. Use POST to receive callbacks." 
-  });
 }

@@ -75,9 +75,8 @@ export async function POST(req: Request) {
     // Create purchase record using database UUID, not Clerk ID
     const purchase = await createCreditPurchase(dbUser.id, formattedPhone, amount, type);
 
-    // Initiate STK Push
-    const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/callback`;
-    console.log('Initiating STK Push with callback URL:', callbackUrl);
+    // Initiate STK Push — include secret token so the callback endpoint can reject spoofed requests
+    const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/callback?token=${process.env.MPESA_CALLBACK_SECRET}`;
     
     const stkResponse = await initiateSTKPush({
       phoneNumber: formattedPhone,

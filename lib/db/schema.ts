@@ -1,4 +1,4 @@
-import { pgTable, text, integer, boolean, timestamp, uuid, varchar, jsonb, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, boolean, timestamp, uuid, varchar, jsonb, pgEnum, uniqueIndex, index } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 
@@ -34,7 +34,9 @@ export const user = pgTable("user", {
   verifiedBy: uuid('verified_by'),
   createdAt,
   updatedAt,
-});
+}, (table) => ({
+  roleIdx: index("user_role_idx").on(table.role),
+}));
 
 // Content visibility enum - shared across all content types
 export const contentVisibilityEnum = pgEnum('content_visibility_enum', ["public", "admin_only", "admin_and_regulars", "regular_only"]);
@@ -122,7 +124,7 @@ export const adminRegulars = pgTable("admin_regulars", {
   createdAt,
   updatedAt,
 }, (table) => ({
-  uniqueAdminRegular: { columns: [table.adminId, table.regularId] },
+  uniqueAdminRegular: uniqueIndex("uc_admin_regulars").on(table.adminId, table.regularId),
 }));
 
 // Super Admin Admins table - tracks which admins belong to which super-admin
@@ -137,7 +139,7 @@ export const superAdminAdmins = pgTable("super_admin_admins", {
   createdAt,
   updatedAt,
 }, (table) => ({
-  uniqueSuperAdminAdmin: { columns: [table.superAdminId, table.adminId] },
+  uniqueSuperAdminAdmin: uniqueIndex("uc_super_admin_admins").on(table.superAdminId, table.adminId),
 }));
 
 // Super Admin Regulars table - tracks which regulars belong to which super-admin
@@ -155,7 +157,7 @@ export const superAdminRegulars = pgTable("super_admin_regulars", {
   createdAt,
   updatedAt,
 }, (table) => ({
-  uniqueSuperAdminRegular: { columns: [table.superAdminId, table.regularId] },
+  uniqueSuperAdminRegular: uniqueIndex("uc_super_admin_regulars").on(table.superAdminId, table.regularId),
 }));
 
 // Roles table for role-based permissions (managed by super-admin)
@@ -177,7 +179,7 @@ export const rolePermission = pgTable("role_permission", {
   permission: varchar('permission', { length: 100 }).notNull(),
   createdAt,
 }, (table) => ({
-  uniqueRolePermission: { columns: [table.roleId, table.permission] },
+  uniqueRolePermission: uniqueIndex("uc_role_permission").on(table.roleId, table.permission),
 }));
 
 // User permissions table - for user-based permissions (admins can have different permissions)
@@ -195,7 +197,7 @@ export const userPermission = pgTable("user_permission", {
   createdAt,
   updatedAt,
 }, (table) => ({
-  uniqueUserPermission: { columns: [table.userId, table.permission] },
+  uniqueUserPermission: uniqueIndex("uc_user_permission").on(table.userId, table.permission),
 }));
 
 // User roles table - links users to roles (optional role assignment)
@@ -212,7 +214,7 @@ export const userRoles = pgTable("user_roles", {
   assignedAt: timestamp('assigned_at', { withTimezone: true }).notNull().defaultNow(),
   createdAt,
 }, (table) => ({
-  uniqueUserRole: { columns: [table.userId, table.roleId] },
+  uniqueUserRole: uniqueIndex("uc_user_roles").on(table.userId, table.roleId),
 }));
 
 // Relations
@@ -433,7 +435,7 @@ export const userCredit = pgTable("user_credit", {
   expiredCredits: integer('expired_credits').notNull().default(0), // Total credits that have expired
   updatedAt,
 }, (table) => ({
-  uniqueUserCredit: { columns: [table.userId] },
+  uniqueUserCredit: uniqueIndex("uc_user_credit").on(table.userId),
 }));
 
 // Credit transaction types
@@ -461,8 +463,8 @@ export const creditTransaction = pgTable("credit_transaction", {
   expiresAt: timestamp('expires_at', { withTimezone: true }), // null means never expires (super-admin gifts)
   createdAt,
 }, (table) => ({
-  expiresAtIdx: { columns: [table.expiresAt] },
-  userExpiresAtIdx: { columns: [table.userId, table.expiresAt] },
+  expiresAtIdx: index("ct_expires_at_idx").on(table.expiresAt),
+  userExpiresAtIdx: index("ct_user_expires_at_idx").on(table.userId, table.expiresAt),
 }));
 
 // M-Pesa payment tracking
@@ -520,10 +522,10 @@ export const unlockFee = pgTable("unlock_fee", {
   createdAt,
   updatedAt,
 }, (table) => ({
-  // Ensure only one of resource/topic/subject is set
-  checkResource: { columns: [table.type, table.resourceId] },
-  checkTopic: { columns: [table.type, table.topicId] },
-  checkSubject: { columns: [table.type, table.subjectId] },
+  // One fee record per resource/topic/subject (NULLs are distinct in Postgres unique indexes)
+  uniqueResourceFee: uniqueIndex("uc_unlock_fee_resource").on(table.resourceId),
+  uniqueTopicFee: uniqueIndex("uc_unlock_fee_topic").on(table.topicId),
+  uniqueSubjectFee: uniqueIndex("uc_unlock_fee_subject").on(table.subjectId),
 }));
 
 // Track unlocked content per user
@@ -544,7 +546,7 @@ export const unlockedContent = pgTable("unlocked_content", {
   unlockedAt: timestamp('unlocked_at', { withTimezone: true }).notNull().defaultNow(),
   createdAt,
 }, (table) => ({
-  uniqueUserUnlock: { columns: [table.userId, table.unlockFeeId] },
+  uniqueUserUnlock: uniqueIndex("uc_unlocked_content").on(table.userId, table.unlockFeeId),
 }));
 
 // Relations for credit tables

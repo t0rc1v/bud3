@@ -172,8 +172,6 @@ export async function addCredits(
 export async function getUserActiveTransactions(userId: string) {
   const now = new Date();
 
-  console.log("user in transaction", userId);
-  
   return db
     .select()
     .from(creditTransaction)
@@ -314,26 +312,79 @@ export async function updateCreditPurchaseStatus(
   if (data?.merchantRequestId) updateData.merchantRequestId = data.merchantRequestId;
   if (data?.transactionDate) updateData.transactionDate = data.transactionDate;
 
-  await db
-    .update(creditPurchase)
-    .set(updateData)
-    .where(eq(creditPurchase.id, purchaseId));
-
-  // If completed and wasn't already completed, add credits to user (only for credit purchases, not unlocks)
+  // For the "completed" path, atomically update the purchase status AND add credits
+  // so a partial failure can't leave the purchase as completed without credits being added.
   if (status === "completed" && !wasAlreadyCompleted && currentPurchase.purchaseType === "credits") {
-    console.log(`Adding ${currentPurchase.creditsPurchased} credits to user ${currentPurchase.userId}`);
-    await addCredits(
-      currentPurchase.userId,
-      currentPurchase.creditsPurchased,
-      "purchase",
-      `Purchased ${currentPurchase.creditsPurchased} credits via M-Pesa`,
-      {
-        purchaseId: currentPurchase.id,
-        mpesaReceiptNumber: data?.mpesaReceiptNumber,
-        amountKes: currentPurchase.amountKes,
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const txDb = drizzle(client);
+
+      // 1. Update purchase status inside transaction
+      await txDb
+        .update(creditPurchase)
+        .set(updateData)
+        .where(eq(creditPurchase.id, purchaseId));
+
+      // 2. Get or create user credit record inside transaction
+      let creditRecord = await txDb
+        .select()
+        .from(userCredit)
+        .where(eq(userCredit.userId, currentPurchase.userId))
+        .limit(1)
+        .then(r => r[0] || null);
+
+      if (!creditRecord) {
+        [creditRecord] = await txDb
+          .insert(userCredit)
+          .values({ userId: currentPurchase.userId, balance: 0, totalPurchased: 0, totalUsed: 0 })
+          .returning();
       }
-    );
-    console.log(`Credits added successfully`);
+
+      const creditsToAdd = currentPurchase.creditsPurchased;
+      const newBalance = creditRecord.balance + creditsToAdd;
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + DEFAULT_CREDIT_CONFIG.CREDIT_EXPIRATION_DAYS);
+
+      // 3. Insert credit transaction
+      await txDb.insert(creditTransaction).values({
+        userId: currentPurchase.userId,
+        type: "purchase",
+        amount: creditsToAdd,
+        balanceAfter: newBalance,
+        description: `Purchased ${creditsToAdd} credits via M-Pesa`,
+        metadata: {
+          purchaseId: currentPurchase.id,
+          mpesaReceiptNumber: data?.mpesaReceiptNumber,
+          amountKes: currentPurchase.amountKes,
+        },
+        expiresAt,
+      });
+
+      // 4. Update user credit balance
+      await txDb
+        .update(userCredit)
+        .set({
+          balance: newBalance,
+          totalPurchased: creditRecord.totalPurchased + creditsToAdd,
+          updatedAt: new Date(),
+        })
+        .where(eq(userCredit.userId, currentPurchase.userId));
+
+      await client.query("COMMIT");
+      console.log(`Credits added successfully for purchase ${purchaseId}`);
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  } else {
+    // For non-completed or already-completed statuses just update the purchase record
+    await db
+      .update(creditPurchase)
+      .set(updateData)
+      .where(eq(creditPurchase.id, purchaseId));
   }
 }
 
@@ -837,40 +888,119 @@ export async function giftCredits(
     );
   }
 
-  // Deduct credits from admin (transfer transaction)
-  await createCreditTransaction({
-    userId: adminUserId,
-    type: "transfer",
-    amount: -amount,
-    description: `Transferred ${amount} credits to ${targetUserEmail}`,
-    metadata: {
-      targetUserId: targetUser.id,
-      targetUserEmail,
-      reason,
-      transferType: "gift_outgoing",
-    },
-  });
-
   // For super-admins: if expirationDays is null/undefined, credits never expire
   // For regular admins: always use default expiration (30 days) - they can't set custom expiration
   const giftExpirationDays = isSuperAdmin ? expirationDays : undefined;
 
-  // Add credits to target user (gift transaction)
-  const transaction = await addCredits(
-    targetUser.id,
-    amount,
-    "gift",
-    `Received ${amount} credits from ${isSuperAdmin ? "Super Admin" : "Admin"}`,
-    {
-      adminUserId,
-      adminEmail: adminUserData.email,
-      reason,
-      transferType: "gift_incoming",
-      isFromSuperAdmin: isSuperAdmin,
-      expiresInDays: giftExpirationDays,
-    },
-    giftExpirationDays
-  );
+  // Calculate recipient expiration date
+  let recipientExpiresAt: Date | null = null;
+  if (giftExpirationDays !== null && giftExpirationDays !== undefined) {
+    recipientExpiresAt = new Date();
+    recipientExpiresAt.setDate(recipientExpiresAt.getDate() + giftExpirationDays);
+  } else if (giftExpirationDays === undefined) {
+    recipientExpiresAt = new Date();
+    recipientExpiresAt.setDate(recipientExpiresAt.getDate() + DEFAULT_CREDIT_CONFIG.CREDIT_EXPIRATION_DAYS);
+  }
+  // giftExpirationDays === null → never expires (recipientExpiresAt stays null)
+
+  // Atomically deduct from admin and add to recipient so a partial failure
+  // can't leave the admin debited without the recipient being credited.
+  let transaction: typeof creditTransaction.$inferSelect;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const txDb = drizzle(client);
+
+    // Re-fetch admin credit record inside transaction to guard against race conditions
+    const adminCreditTx = await txDb
+      .select()
+      .from(userCredit)
+      .where(eq(userCredit.userId, adminUserId))
+      .limit(1)
+      .then(r => r[0] || null);
+
+    if (!adminCreditTx || adminCreditTx.balance < requiredBalance) {
+      await client.query("ROLLBACK");
+      throw new Error(
+        `Insufficient credits. Required: ${requiredBalance} active credits.`
+      );
+    }
+
+    const adminNewBalance = adminCreditTx.balance - amount;
+
+    // 1. Insert admin deduction
+    await txDb.insert(creditTransaction).values({
+      userId: adminUserId,
+      type: "transfer",
+      amount: -amount,
+      balanceAfter: adminNewBalance,
+      description: `Transferred ${amount} credits to ${targetUserEmail}`,
+      metadata: { targetUserId: targetUser.id, targetUserEmail, reason, transferType: "gift_outgoing" },
+    });
+
+    // 2. Update admin credit balance
+    await txDb
+      .update(userCredit)
+      .set({ balance: adminNewBalance, totalUsed: adminCreditTx.totalUsed + amount, updatedAt: new Date() })
+      .where(eq(userCredit.userId, adminUserId));
+
+    // 3. Get or create recipient credit record
+    let recipientCredit = await txDb
+      .select()
+      .from(userCredit)
+      .where(eq(userCredit.userId, targetUser.id))
+      .limit(1)
+      .then(r => r[0] || null);
+
+    if (!recipientCredit) {
+      [recipientCredit] = await txDb
+        .insert(userCredit)
+        .values({ userId: targetUser.id, balance: 0, totalPurchased: 0, totalUsed: 0 })
+        .returning();
+    }
+
+    const recipientNewBalance = recipientCredit.balance + amount;
+
+    // 4. Insert recipient gift transaction
+    const [insertedTx] = await txDb
+      .insert(creditTransaction)
+      .values({
+        userId: targetUser.id,
+        type: "gift",
+        amount,
+        balanceAfter: recipientNewBalance,
+        description: `Received ${amount} credits from ${isSuperAdmin ? "Super Admin" : "Admin"}`,
+        metadata: {
+          adminUserId,
+          adminEmail: adminUserData.email,
+          reason,
+          transferType: "gift_incoming",
+          isFromSuperAdmin: isSuperAdmin,
+          expiresInDays: giftExpirationDays,
+        },
+        expiresAt: recipientExpiresAt,
+      })
+      .returning();
+    transaction = insertedTx;
+
+    // 5. Update recipient credit balance
+    await txDb
+      .update(userCredit)
+      .set({
+        balance: recipientNewBalance,
+        totalPurchased: recipientCredit.totalPurchased + amount,
+        updatedAt: new Date(),
+      })
+      .where(eq(userCredit.userId, targetUser.id));
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 
   // Get admin name for email
   const senderName = adminUserData.institutionName || adminUserData.email || "Admin";

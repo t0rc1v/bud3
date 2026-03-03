@@ -1,13 +1,12 @@
 // M-Pesa Daraja API Integration
-// Note: crypto imports removed as they're not currently used but reserved for future signature verification
 
 // M-Pesa Daraja API Configuration
 const MPESA_CONFIG = {
   environment: process.env.MPESA_ENVIRONMENT || 'sandbox', // 'sandbox' or 'production'
   sandbox: {
     baseUrl: 'https://sandbox.safaricom.co.ke',
-    shortcode: process.env.MPESA_SANDBOX_SHORTCODE || '174379',
-    passkey: process.env.MPESA_SANDBOX_PASSKEY || 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919',
+    shortcode: process.env.MPESA_SANDBOX_SHORTCODE || '',
+    passkey: process.env.MPESA_SANDBOX_PASSKEY || '',
     consumerKey: process.env.MPESA_SANDBOX_CONSUMER_KEY || '',
     consumerSecret: process.env.MPESA_SANDBOX_CONSUMER_SECRET || '',
     tillNumber: process.env.MPESA_TILL_NUMBER || '',
@@ -21,6 +20,14 @@ const MPESA_CONFIG = {
     tillNumber: process.env.MPESA_TILL_NUMBER || '',
   },
 };
+
+// In-memory token cache to avoid fetching a new token on every request
+// M-Pesa tokens are valid for ~3600 seconds; we refresh at 3000s to be safe
+interface TokenCache {
+  token: string;
+  expiresAt: number;
+}
+let tokenCache: TokenCache | null = null;
 
 // Credit pricing configuration
 export const CREDIT_PRICING = {
@@ -51,24 +58,36 @@ function getConfig() {
   return MPESA_CONFIG[env];
 }
 
-// Generate OAuth token
+// Generate OAuth token (cached for 3000s to avoid redundant requests)
 export async function generateAuthToken(): Promise<string> {
+  const now = Date.now();
+
+  // Return cached token if still valid
+  if (tokenCache && now < tokenCache.expiresAt) {
+    return tokenCache.token;
+  }
+
   const config = getConfig();
   const credentials = Buffer.from(`${config.consumerKey}:${config.consumerSecret}`).toString('base64');
-  
+
   const response = await fetch(`${config.baseUrl}/oauth/v1/generate?grant_type=client_credentials`, {
     method: 'GET',
     headers: {
       'Authorization': `Basic ${credentials}`,
     },
   });
-  
+
   if (!response.ok) {
     throw new Error(`Failed to generate auth token: ${response.statusText}`);
   }
-  
+
   const data = await response.json();
-  return data.access_token;
+  const token: string = data.access_token;
+
+  // Cache token for 3000s (M-Pesa tokens are valid ~3600s)
+  tokenCache = { token, expiresAt: now + 3000 * 1000 };
+
+  return token;
 }
 
 // Generate password for STK push
@@ -155,8 +174,6 @@ export async function initiateSTKPush(
       TransactionDesc: request.transactionDesc.substring(0, 13), // Max 13 chars
     };
     
-    console.log('STK Push Request:', JSON.stringify(payload, null, 2));
-    
     const response = await fetch(`${config.baseUrl}/mpesa/stkpush/v1/processrequest`, {
       method: 'POST',
       headers: {
@@ -167,8 +184,7 @@ export async function initiateSTKPush(
     });
     
     const data = await response.json();
-    console.log('STK Push Response:', JSON.stringify(data, null, 2));
-    
+
     if (response.ok && data.ResponseCode === '0') {
       return {
         success: true,

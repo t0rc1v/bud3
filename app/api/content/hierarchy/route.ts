@@ -1,15 +1,26 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getLevelsFullHierarchy } from "@/lib/actions/admin";
+import { checkUserPermission } from "@/lib/actions/admin-permissions";
+import { ContentPermissions } from "@/lib/permissions";
 
 export async function GET(req: Request) {
   try {
     const { userId } = await auth();
-    
+
     if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // Restrict to users with content read permission (admins/super_admins)
+    const hasPermission = await checkUserPermission(userId, ContentPermissions.LEVELS_READ);
+    if (!hasPermission) {
+      return NextResponse.json(
+        { error: "Forbidden" },
+        { status: 403 }
       );
     }
 

@@ -3,6 +3,8 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { resource, unlockFee } from "@/lib/db/schema";
+import { checkUserPermission } from "@/lib/actions/admin-permissions";
+import { ContentPermissions } from "@/lib/permissions";
 
 export async function GET(
   req: Request,
@@ -10,11 +12,19 @@ export async function GET(
 ) {
   try {
     const { userId } = await auth();
-    
+
     if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    const hasPermission = await checkUserPermission(userId, ContentPermissions.RESOURCES_READ);
+    if (!hasPermission) {
+      return NextResponse.json(
+        { error: "Forbidden" },
+        { status: 403 }
       );
     }
 

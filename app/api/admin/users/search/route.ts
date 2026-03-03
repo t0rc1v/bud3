@@ -33,17 +33,15 @@ export async function GET(req: Request) {
       .then(res => res[0] || null);
 
     if (!foundUser) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      // Return 200 with null user to prevent email enumeration
+      return NextResponse.json({ user: null });
     }
 
     return NextResponse.json({
       user: {
         userId: foundUser.clerkId,
         email: foundUser.email,
-        name: foundUser.email.split('@')[0], // Simple name extraction
+        name: foundUser.email.split('@')[0],
         role: foundUser.role,
       },
     });

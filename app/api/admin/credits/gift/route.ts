@@ -46,6 +46,14 @@ export async function POST(req: Request) {
       );
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: "Invalid email format" },
+        { status: 400 }
+      );
+    }
+
     if (amount <= 0) {
       return NextResponse.json(
         { error: "Amount must be greater than 0" },
@@ -75,10 +83,18 @@ export async function POST(req: Request) {
 
   } catch (error) {
     console.error("Gift credits error:", error);
+    // Surface intentional business-logic messages (insufficient credits, user not found, etc.)
+    // but never leak raw DB or stack details to the client.
+    const knownPrefixes = [
+      "Insufficient", "User with email", "Admin user", "Admins cannot",
+      "Gift amount", "Expiration",
+    ];
+    const message = error instanceof Error ? error.message : "";
+    const isSafeMessage = knownPrefixes.some(p => message.startsWith(p));
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : "Failed to gift credits" 
+      {
+        success: false,
+        error: isSafeMessage ? message : "Failed to gift credits",
       },
       { status: 500 }
     );

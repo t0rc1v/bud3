@@ -67,7 +67,7 @@ export async function GET(
         id: resourceData.id,
         title: resourceData.title,
         type: resourceData.type,
-        unlockFee: unlockFeeData?.creditsRequired || 50,
+        unlockFee: unlockFeeData?.creditsRequired ?? null,
       },
     });
 

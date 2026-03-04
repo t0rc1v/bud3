@@ -52,10 +52,18 @@ export const CREDIT_PRICING = {
   },
 };
 
-// Get current environment config
+// Get current environment config — throws if required credentials are missing
 function getConfig() {
   const env = MPESA_CONFIG.environment as 'sandbox' | 'production';
-  return MPESA_CONFIG[env];
+  const config = MPESA_CONFIG[env];
+  if (!config.consumerKey || !config.consumerSecret || !config.shortcode || !config.passkey) {
+    throw new Error(
+      `M-Pesa ${env} credentials are incomplete. Ensure MPESA_${env.toUpperCase()}_CONSUMER_KEY, ` +
+      `MPESA_${env.toUpperCase()}_CONSUMER_SECRET, MPESA_${env.toUpperCase()}_SHORTCODE, ` +
+      `and MPESA_${env.toUpperCase()}_PASSKEY are set in environment variables.`
+    );
+  }
+  return config;
 }
 
 // Generate OAuth token (cached for 3000s to avoid redundant requests)
@@ -196,7 +204,7 @@ export async function initiateSTKPush(
     } else {
       return {
         success: false,
-        error: data.errorMessage || data.errorMessage || data.ResponseDescription || 'Failed to initiate STK push',
+        error: data.errorMessage || data.ResponseDescription || 'Failed to initiate STK push',
         responseCode: data.ResponseCode || data.errorCode,
       };
     }
@@ -257,9 +265,6 @@ export async function querySTKPush(
     }
     
     if (response.ok) {
-      // Log the response for debugging
-      console.log('STK Query Response:', JSON.stringify(data, null, 2));
-      
       return {
         success: data.ResultCode === '0',
         resultCode: String(data.ResultCode),
@@ -269,7 +274,6 @@ export async function querySTKPush(
         amount: data.CallbackMetadata?.Item?.find((item: CallbackItem) => item.Name === 'Amount')?.Value as number | undefined,
       };
     } else {
-      console.log('STK Query Error Response:', JSON.stringify(data, null, 2));
       return {
         success: false,
         error: data.errorMessage || data.ResultDesc || 'Failed to query transaction',

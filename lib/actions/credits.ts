@@ -654,8 +654,26 @@ export async function unlockContentWithCredits(
   try {
     await client.query('BEGIN');
     const txDb = drizzle(client);
-    
-    // Check if user has enough active credits within transaction
+
+    // Lock the user's credit row immediately to serialise concurrent unlock attempts.
+    // Without FOR UPDATE, two simultaneous requests can both read the same balance,
+    // both pass the sufficiency check, and both deduct — producing a negative balance.
+    const lockResult = await client.query<{
+      id: string; balance: number; total_used: number; total_purchased: number;
+    }>(
+      `SELECT id, balance, total_used, total_purchased
+       FROM user_credit WHERE user_id = $1 FOR UPDATE`,
+      [userId]
+    );
+
+    if (lockResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      throw new Error("User credit record not found");
+    }
+
+    const lockedCreditRow = lockResult.rows[0];
+
+    // Compute active balance from non-expired transactions (authoritative, within the lock)
     const now = new Date();
     const activeTransactions = await txDb
       .select()
@@ -669,7 +687,7 @@ export async function unlockContentWithCredits(
           )
         )
       );
-    
+
     const activeCredits = activeTransactions
       .filter(t => t.amount > 0)
       .reduce((sum, t) => sum + t.amount, 0);
@@ -677,12 +695,12 @@ export async function unlockContentWithCredits(
       .filter(t => t.amount < 0)
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
     const currentBalance = Math.max(0, activeCredits - usedCredits);
-    
+
     if (currentBalance < creditsRequired) {
       await client.query('ROLLBACK');
       throw new Error(`Insufficient credits. You need ${creditsRequired} credits but only have ${currentBalance} active credits.`);
     }
-    
+
     // Check if already unlocked within transaction (prevents race condition)
     const existingUnlock = await txDb
       .select()
@@ -692,12 +710,12 @@ export async function unlockContentWithCredits(
         eq(unlockedContent.unlockFeeId, unlockFeeId)
       ))
       .limit(1);
-    
+
     if (existingUnlock.length > 0) {
       await client.query('ROLLBACK');
       throw new Error("You have already unlocked this content");
     }
-    
+
     // Get unlock fee details within transaction
     const feeRecord = await txDb
       .select()
@@ -710,22 +728,10 @@ export async function unlockContentWithCredits(
       await client.query('ROLLBACK');
       throw new Error("Unlock fee record not found");
     }
-    
-    // Get current credit record
-    const creditRecord = await txDb
-      .select()
-      .from(userCredit)
-      .where(eq(userCredit.userId, userId))
-      .limit(1)
-      .then(res => res[0] || null);
-    
-    if (!creditRecord) {
-      await client.query('ROLLBACK');
-      throw new Error("User credit record not found");
-    }
-    
-    // Calculate new balance
-    const newBalance = creditRecord.balance - creditsRequired;
+
+    // Use the active balance (from locked row computation) as the new balance base
+    // to avoid charging from stale cached totals that may include expired credits
+    const newBalance = currentBalance - creditsRequired;
     
     // Deduct credits for unlock
     const [transaction] = await txDb
@@ -751,7 +757,7 @@ export async function unlockContentWithCredits(
       .update(userCredit)
       .set({
         balance: newBalance,
-        totalUsed: creditRecord.totalUsed + creditsRequired,
+        totalUsed: lockedCreditRow.total_used + creditsRequired,
         updatedAt: new Date(),
       })
       .where(eq(userCredit.userId, userId));

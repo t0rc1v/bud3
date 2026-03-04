@@ -1,10 +1,20 @@
 import { Resend, CreateEmailOptions } from 'resend';
 
-// Initialize Resend with API key from environment
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Resend client — initialized lazily so missing env vars fail loudly at send time,
+// not during build/import (where process.env may not be populated yet).
+function getResendClient(): Resend {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY environment variable is not set");
+  }
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
-// Default from email - configure this in your environment
-const DEFAULT_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@yourdomain.com';
+function getFromEmail(): string {
+  if (!process.env.RESEND_FROM_EMAIL) {
+    throw new Error("RESEND_FROM_EMAIL environment variable is not set");
+  }
+  return process.env.RESEND_FROM_EMAIL;
+}
 
 export interface EmailData {
   to: string;
@@ -19,8 +29,9 @@ export interface EmailData {
  */
 export async function sendEmail(data: EmailData) {
   try {
-    const { to, subject, html, text, from = DEFAULT_FROM_EMAIL } = data;
-    
+    const resend = getResendClient();
+    const { to, subject, html, text, from = getFromEmail() } = data;
+
     const emailOptions: CreateEmailOptions = {
       from,
       to,
@@ -28,7 +39,7 @@ export async function sendEmail(data: EmailData) {
       ...(html ? { html } : {}),
       ...(text ? { text } : {}),
     } as CreateEmailOptions;
-    
+
     const result = await resend.emails.send(emailOptions);
 
     if (result.error) {

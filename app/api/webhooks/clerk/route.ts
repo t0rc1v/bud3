@@ -57,7 +57,9 @@ export async function POST(req: Request) {
 
   // Handle user creation
   if (eventType === 'user.created') {
-    const { id, email_addresses, primary_email_address_id, public_metadata } = evt.data as unknown as {
+    // WebhookEvent is a discriminated union; after narrowing on type we cast only to
+    // the fields we use so TypeScript can still catch shape mismatches at call sites.
+    const { id, email_addresses, primary_email_address_id, public_metadata } = evt.data as {
       id: string;
       email_addresses: { id: string; email_address: string }[];
       primary_email_address_id: string;
@@ -89,7 +91,7 @@ export async function POST(req: Request) {
 
   // Handle user updates (for role changes via metadata)
   if (eventType === 'user.updated') {
-    const { id, public_metadata } = evt.data as unknown as {
+    const { id, public_metadata } = evt.data as {
       id: string;
       public_metadata?: { role?: string };
     }

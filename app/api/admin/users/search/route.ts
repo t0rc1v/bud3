@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { user } from "@/lib/db/schema";
 import { checkUserPermission } from "@/lib/actions/admin-permissions";
 import { UserPermissions } from "@/lib/permissions";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function GET(req: Request) {
   try {
@@ -22,6 +23,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Rate limit: 30 searches per minute per user
+    const rateLimit = checkRateLimit(`user-search:${userId}`, 30, 60 * 1000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please wait before searching again." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+        }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const email = searchParams.get("email");
 
@@ -32,7 +45,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(email)) {
       return NextResponse.json(
         { error: "Invalid email format" },

@@ -189,7 +189,7 @@ export async function bulkAddSuperAdminRegulars(
   const invalidEmails: string[] = [];
 
   // Validate emails
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   const validEmails = emails.filter((email) => {
     if (!emailRegex.test(email)) {
       invalidEmails.push(email);

@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { user, role, rolePermission, userPermission, userRoles, superAdminAdmins } from "@/lib/db/schema";
-import { eq, and, inArray, desc, asc } from "drizzle-orm";
+import { eq, and, inArray, desc, asc, or, isNull, gt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { Permission } from "@/lib/permissions";
 import type { User, UserRole } from "@/lib/types";
@@ -581,14 +581,16 @@ export async function checkUserPermission(
   // Use the database user ID (UUID) for permission queries, not the Clerk ID
   const dbUserId = userData.id;
 
-  // Check direct permissions
+  // Check direct permissions (only non-expired ones)
+  const now = new Date();
   const directPerm = await db
     .select()
     .from(userPermission)
     .where(and(
       eq(userPermission.userId, dbUserId),
       eq(userPermission.permission, permission),
-      eq(userPermission.isActive, true)
+      eq(userPermission.isActive, true),
+      or(isNull(userPermission.expiresAt), gt(userPermission.expiresAt, now))
     ))
     .limit(1)
     .then(res => res[0] || null);
@@ -637,13 +639,15 @@ export async function getUserPermissions(userId: string): Promise<string[]> {
     return getAllPermissions();
   }
 
-  // Get direct permissions
+  // Get direct permissions (only non-expired ones)
+  const now = new Date();
   const directPerms = await db
     .select()
     .from(userPermission)
     .where(and(
       eq(userPermission.userId, userId),
-      eq(userPermission.isActive, true)
+      eq(userPermission.isActive, true),
+      or(isNull(userPermission.expiresAt), gt(userPermission.expiresAt, now))
     ));
 
   // Get role-based permissions

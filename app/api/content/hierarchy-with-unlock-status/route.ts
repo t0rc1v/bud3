@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getLevelsFullHierarchy } from "@/lib/actions/admin";
-import { hasUserUnlockedContent, getResourceUnlockFee } from "@/lib/actions/credits";
 import { getUserByClerkId } from "@/lib/actions/auth";
 import { getRegularAdminIds } from "@/lib/actions/admin";
+import { db } from "@/lib/db";
+import { unlockFee, unlockedContent } from "@/lib/db/schema";
+import { eq, and, inArray } from "drizzle-orm";
 import { DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
 import type { LevelWithFullHierarchy, SubjectWithTopics, TopicWithResources, Resource } from "@/lib/types";
 import type { UserRole } from "@/lib/types";
@@ -218,52 +220,66 @@ export async function GET(req: Request) {
     // Filter levels based on ownership
     const filteredLevels = filterLevels(levels, userDbId, userRole, userAdminIds);
 
-    // Check unlock status for each resource
-    const levelsWithUnlockStatus = await Promise.all(
-      filteredLevels.map(async (level) => ({
-        id: level.id,
-        title: level.title,
-        ownerId: level.ownerId,
-        subjects: await Promise.all(
-          (level.subjects || []).map(async (subject) => ({
-            id: subject.id,
-            name: subject.name,
-            ownerId: subject.ownerId,
-            topics: await Promise.all(
-              (subject.topics || []).map(async (topic) => ({
-                id: topic.id,
-                title: topic.title,
-                ownerId: topic.ownerId,
-                resources: await Promise.all(
-                  (topic.resources || []).map(async (resource) => {
-                    // Get unlock fee using single source of truth
-                    const unlockFeeData = await getResourceUnlockFee(resource.id);
-                    
-                    // Check if user has unlocked this resource
-                    let isUnlocked = false;
-                    if (unlockFeeData.unlockFeeId) {
-                      isUnlocked = await hasUserUnlockedContent(clerkId, unlockFeeData.unlockFeeId);
-                    }
-
-                    return {
-                      id: resource.id,
-                      title: resource.title,
-                      type: resource.type,
-                      // SECURITY: Only expose URL if content is unlocked
-                      url: isUnlocked ? resource.url : null,
-                      description: resource.description,
-                      unlockFee: unlockFeeData.feeAmount,
-                      isUnlocked,
-                      ownerId: resource.ownerId,
-                    };
-                  })
-                ),
-              }))
-            ),
-          }))
-        ),
-      }))
+    // Collect all visible resource IDs to batch-load fees and unlocks
+    const resourceIds = filteredLevels.flatMap(l =>
+      (l.subjects || []).flatMap(s =>
+        (s.topics || []).flatMap(t =>
+          (t.resources || []).map(r => r.id)
+        )
+      )
     );
+
+    // Batch-load unlock fees and user unlocks in 2 queries instead of O(N) per-resource calls
+    // Note: uses userDbId (DB UUID) — not clerkId — to query unlockedContent.userId (UUID column)
+    const [allFees, userUnlocks] = await Promise.all([
+      resourceIds.length > 0
+        ? db.select().from(unlockFee).where(
+            and(
+              inArray(unlockFee.resourceId, resourceIds),
+              eq(unlockFee.isActive, true)
+            )
+          )
+        : [],
+      db
+        .select({ unlockFeeId: unlockedContent.unlockFeeId })
+        .from(unlockedContent)
+        .where(eq(unlockedContent.userId, userDbId)),
+    ]);
+
+    const feeByResourceId = new Map(allFees.map(f => [f.resourceId!, f]));
+    const unlockedFeeIds = new Set(userUnlocks.map(u => u.unlockFeeId));
+
+    const levelsWithUnlockStatus = filteredLevels.map((level) => ({
+      id: level.id,
+      title: level.title,
+      ownerId: level.ownerId,
+      subjects: (level.subjects || []).map((subject) => ({
+        id: subject.id,
+        name: subject.name,
+        ownerId: subject.ownerId,
+        topics: (subject.topics || []).map((topic) => ({
+          id: topic.id,
+          title: topic.title,
+          ownerId: topic.ownerId,
+          resources: (topic.resources || []).map((resource) => {
+            const fee = feeByResourceId.get(resource.id);
+            const feeAmount = fee?.feeAmount ?? DEFAULT_CREDIT_CONFIG.defaultUnlockFeeKes;
+            const isUnlocked = fee ? unlockedFeeIds.has(fee.id) : false;
+            return {
+              id: resource.id,
+              title: resource.title,
+              type: resource.type,
+              // SECURITY: Only expose URL if content is unlocked
+              url: isUnlocked ? resource.url : null,
+              description: resource.description,
+              unlockFee: feeAmount,
+              isUnlocked,
+              ownerId: resource.ownerId,
+            };
+          }),
+        })),
+      })),
+    }));
 
     return NextResponse.json({
       levels: levelsWithUnlockStatus,

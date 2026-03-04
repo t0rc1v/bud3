@@ -27,6 +27,14 @@ export async function GET(req: Request) {
       );
     }
 
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_REGEX.test(resourceId)) {
+      return NextResponse.json(
+        { error: "Invalid resource ID format" },
+        { status: 400 }
+      );
+    }
+
     // Get the resource
     const resourceData = await db
       .select()

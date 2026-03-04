@@ -49,6 +49,14 @@ export async function POST(req: Request) {
       );
     }
 
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_REGEX.test(resourceId)) {
+      return NextResponse.json(
+        { error: "Invalid resource ID format" },
+        { status: 400 }
+      );
+    }
+
     // First, fetch the resource to get its unlock fee
     const resourceData = await db
       .select()
@@ -219,6 +227,14 @@ export async function GET(req: Request) {
     if (!resourceId) {
       return NextResponse.json(
         { error: "Resource ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_REGEX.test(resourceId)) {
+      return NextResponse.json(
+        { error: "Invalid resource ID format" },
         { status: 400 }
       );
     }

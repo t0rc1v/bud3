@@ -48,6 +48,14 @@ export async function GET(req: Request) {
       );
     }
 
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_REGEX.test(resourceId)) {
+      return NextResponse.json(
+        { error: "Invalid resource ID format" },
+        { status: 400 }
+      );
+    }
+
     // Get the resource details
     const resourceData = await db
       .select()
@@ -112,12 +120,33 @@ export async function GET(req: Request) {
         );
       }
 
-      // Get the content type
-      const contentType = contentResponse.headers.get("content-type") || "application/octet-stream";
-      
+      // Whitelist allowed content types — reject anything that could execute in the browser
+      const ALLOWED_CONTENT_TYPES = new Set([
+        "application/pdf",
+        "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
+        "video/mp4", "video/webm", "video/ogg",
+        "audio/mpeg", "audio/ogg", "audio/wav", "audio/mp4",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-powerpoint",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      ]);
+
+      // Get the content type (strip charset/boundary params for comparison)
+      const rawContentType = contentResponse.headers.get("content-type") || "application/octet-stream";
+      const contentType = rawContentType.split(";")[0].trim().toLowerCase();
+
+      if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
+        console.error(`Proxy blocked disallowed content-type: ${contentType} for resource ${resourceId}`);
+        return NextResponse.json(
+          { error: "Content type not allowed" },
+          { status: 415 }
+        );
+      }
+
       // Stream the content back with security headers
       const headers = new Headers();
-      headers.set("Content-Type", contentType);
+      headers.set("Content-Type", rawContentType);
       headers.set("Cache-Control", "private, no-cache, no-store, must-revalidate");
       headers.set("Pragma", "no-cache");
       headers.set("Expires", "0");

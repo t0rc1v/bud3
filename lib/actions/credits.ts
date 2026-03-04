@@ -191,19 +191,20 @@ export async function getUserActiveTransactions(userId: string) {
  * Get the active credit balance (excluding expired credits)
  */
 export async function getActiveCreditBalance(userId: string): Promise<number> {
-  const activeTransactions = await getUserActiveTransactions(userId);
-  
-  // Sum up all active credits (positive amounts only)
-  const activeCredits = activeTransactions
-    .filter(t => t.amount > 0)
-    .reduce((sum, t) => sum + t.amount, 0);
-  
-  // Subtract used credits (negative amounts)
-  const usedCredits = activeTransactions
-    .filter(t => t.amount < 0)
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  
-  return Math.max(0, activeCredits - usedCredits);
+  // Single aggregate query instead of fetching all rows and reducing in JS
+  const result = await db
+    .select({ balance: sql<number>`COALESCE(SUM(${creditTransaction.amount}), 0)` })
+    .from(creditTransaction)
+    .where(
+      and(
+        eq(creditTransaction.userId, userId),
+        or(
+          isNull(creditTransaction.expiresAt),
+          gt(creditTransaction.expiresAt, new Date())
+        )
+      )
+    );
+  return Math.max(0, Number(result[0]?.balance ?? 0));
 }
 
 /**
@@ -772,7 +773,12 @@ export async function unlockContentWithCredits(
         amountPaidKes: 0,
       })
       .returning();
-    
+
+    if (!unlocked) {
+      await client.query('ROLLBACK');
+      throw new Error("Failed to create unlock record");
+    }
+
     await client.query('COMMIT');
     
     revalidatePath("/regular");

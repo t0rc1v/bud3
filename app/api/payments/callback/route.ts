@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { parseCallbackData, CallbackData } from "@/lib/mpesa";
 import {
   updateCreditPurchaseStatus,
@@ -12,7 +13,13 @@ export async function POST(req: Request) {
     const token = searchParams.get("token");
     const expectedToken = process.env.MPESA_CALLBACK_SECRET;
 
-    if (!expectedToken || token !== expectedToken) {
+    // Use timing-safe comparison to prevent timing attacks on token validation
+    const isValidToken =
+      !!token &&
+      !!expectedToken &&
+      token.length === expectedToken.length &&
+      timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken));
+    if (!isValidToken) {
       return NextResponse.json({ ResultCode: 1, ResultDesc: "Unauthorized" }, { status: 401 });
     }
 
@@ -62,7 +69,11 @@ export async function POST(req: Request) {
         mpesaReceiptNumber: parsedData.mpesaReceiptNumber,
         resultCode: resultCodeStr,
         resultDesc: parsedData.resultDesc,
-        transactionDate: parsedData.transactionDate ? new Date(parsedData.transactionDate) : new Date(),
+        transactionDate: (() => {
+          if (!parsedData.transactionDate) return new Date();
+          const d = new Date(parsedData.transactionDate);
+          return isNaN(d.getTime()) ? new Date() : d;
+        })(),
       });
     } else if (resultCode === 1032) {
       await updateCreditPurchaseStatus(purchase.id, "cancelled", {

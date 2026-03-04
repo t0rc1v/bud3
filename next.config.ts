@@ -29,15 +29,15 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      // Clerk requires unsafe-eval for its JS; Vercel analytics and PDF.js worker from unpkg
-      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://va.vercel-scripts.com https://*.clerk.accounts.dev https://unpkg.com",
-      "worker-src 'self' blob: https://unpkg.com",
+      // Clerk requires unsafe-eval for its JS; Vercel analytics
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://va.vercel-scripts.com https://*.clerk.accounts.dev",
+      "worker-src 'self' blob:",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      // Clerk profile images; UploadThing file storage (utfs.io); blob/data for previews
-      "img-src 'self' blob: data: https://*.clerk.accounts.dev https://utfs.io",
+      // Clerk profile images; UploadThing file storage (utfs.io / *.ufs.sh); blob/data for previews
+      "img-src 'self' blob: data: https://*.clerk.accounts.dev https://utfs.io https://*.ufs.sh",
       // Clerk auth; UploadThing upload endpoints; Vercel analytics
-      "connect-src 'self' https://va.vercel-scripts.com https://*.clerk.accounts.dev https://uploadthing.com https://*.uploadthing.com https://utfs.io https://*.ingest.uploadthing.com",
+      "connect-src 'self' https://va.vercel-scripts.com https://*.clerk.accounts.dev https://uploadthing.com https://*.uploadthing.com https://utfs.io https://*.ufs.sh https://*.ingest.uploadthing.com",
       "frame-src 'self' https://*.clerk.accounts.dev",
       "frame-ancestors 'none'",
       "base-uri 'self'",

@@ -465,6 +465,7 @@ export const creditTransaction = pgTable("credit_transaction", {
 }, (table) => ({
   expiresAtIdx: index("ct_expires_at_idx").on(table.expiresAt),
   userExpiresAtIdx: index("ct_user_expires_at_idx").on(table.userId, table.expiresAt),
+  userTypeExpiresAtIdx: index("ct_user_type_expires_at_idx").on(table.userId, table.type, table.expiresAt),
 }));
 
 // M-Pesa payment tracking
@@ -501,7 +502,10 @@ export const creditPurchase = pgTable("credit_purchase", {
   metadata: jsonb('metadata'),
   createdAt,
   updatedAt,
-});
+}, (table) => ({
+  statusIdx: index("credit_purchase_status_idx").on(table.status),
+  userStatusIdx: index("credit_purchase_user_status_idx").on(table.userId, table.status),
+}));
 
 // Unlock fees configuration
 export const unlockableTypeEnum = pgEnum("unlockable_type", [
@@ -526,6 +530,7 @@ export const unlockFee = pgTable("unlock_fee", {
   uniqueResourceFee: uniqueIndex("uc_unlock_fee_resource").on(table.resourceId),
   uniqueTopicFee: uniqueIndex("uc_unlock_fee_topic").on(table.topicId),
   uniqueSubjectFee: uniqueIndex("uc_unlock_fee_subject").on(table.subjectId),
+  isActiveIdx: index("unlock_fee_is_active_idx").on(table.isActive),
 }));
 
 // Track unlocked content per user

@@ -6,7 +6,7 @@ import {
   formatPhoneNumber,
   CREDIT_PRICING
 } from "@/lib/mpesa";
-import { createCreditPurchase } from "@/lib/actions/credits";
+import { createCreditPurchase, updateCreditPurchaseStatus } from "@/lib/actions/credits";
 import { getUserByClerkId } from "@/lib/actions/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -49,6 +49,13 @@ export async function POST(req: Request) {
     if (!phoneNumber || !amount) {
       return NextResponse.json(
         { error: "Phone number and amount are required" },
+        { status: 400 }
+      );
+    }
+
+    if (typeof amount !== "number" || !isFinite(amount)) {
+      return NextResponse.json(
+        { error: "Amount must be a valid number" },
         { status: 400 }
       );
     }
@@ -97,7 +104,6 @@ export async function POST(req: Request) {
     }
 
     // Update purchase with request IDs
-    const { updateCreditPurchaseStatus } = await import("@/lib/actions/credits");
     await updateCreditPurchaseStatus(purchase.id, "processing", {
       checkoutRequestId: stkResponse.checkoutRequestId,
       merchantRequestId: stkResponse.merchantRequestId,

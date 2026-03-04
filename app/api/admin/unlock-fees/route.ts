@@ -6,6 +6,7 @@ import { unlockFee, resource, topic, subject, level } from "@/lib/db/schema";
 import { checkUserPermission } from "@/lib/actions/admin-permissions";
 import { getUserByClerkId } from "@/lib/actions/auth";
 import { FinancePermissions } from "@/lib/permissions";
+import { DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
 
 /**
  * GET /api/admin/unlock-fees
@@ -275,6 +276,36 @@ export async function POST(req: Request) {
     else if (topicId) type = "topic";
     else type = "subject";
 
+    // Ownership check: non-super-admins can only create fees for their own content
+    const currentUser = await getUserByClerkId(clerkId);
+    if (!currentUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    if (currentUser.role !== "super_admin") {
+      let contentOwnerId: string | null = null;
+      if (type === "resource" && resourceId) {
+        const r = await db.select({ ownerId: resource.ownerId }).from(resource)
+          .where(eq(resource.id, resourceId)).limit(1).then(rows => rows[0] || null);
+        contentOwnerId = r?.ownerId ?? null;
+      } else if (type === "topic" && topicId) {
+        const t = await db.select({ ownerId: topic.ownerId }).from(topic)
+          .where(eq(topic.id, topicId)).limit(1).then(rows => rows[0] || null);
+        contentOwnerId = t?.ownerId ?? null;
+      } else if (type === "subject" && subjectId) {
+        const s = await db.select({ ownerId: subject.ownerId }).from(subject)
+          .where(eq(subject.id, subjectId)).limit(1).then(rows => rows[0] || null);
+        contentOwnerId = s?.ownerId ?? null;
+      }
+
+      if (contentOwnerId !== currentUser.id) {
+        return NextResponse.json(
+          { error: "Forbidden - You can only create unlock fees for your own content" },
+          { status: 403 }
+        );
+      }
+    }
+
     // Check if unlock fee already exists
     const existingFee = await db
       .select()
@@ -303,7 +334,7 @@ export async function POST(req: Request) {
         resourceId: resourceId || null,
         topicId: topicId || null,
         subjectId: subjectId || null,
-        feeAmount: feeAmount || 100,
+        feeAmount: feeAmount || DEFAULT_CREDIT_CONFIG.defaultUnlockFeeKes,
         creditsRequired: 0, // Not used anymore, but required by schema
         isActive,
       })

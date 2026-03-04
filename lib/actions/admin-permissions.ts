@@ -259,7 +259,7 @@ export async function getAllAdmins(): Promise<AdminWithPermissions[]> {
     .select()
     .from(user)
     .where(inArray(user.role, ["admin", "super_admin" as const]))
-    .orderBy(desc(user.createdAt));
+    .orderBy(desc(user.createdAt), asc(user.id));
 
   if (adminUsers.length === 0) return [];
 

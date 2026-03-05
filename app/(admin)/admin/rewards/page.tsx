@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { checkUserPermission, ensureAdminPermissions } from "@/lib/actions/admin-permissions";
 import { RewardPermissions } from "@/lib/permissions";
-import { RewardsManager } from "@/components/admin/rewards-manager";
+import { AdminRewardsManager } from "@/components/admin/admin-rewards-manager";
 import { getUserByClerkId } from "@/lib/actions/auth";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ export default async function AdminRewardsPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <RewardsManager 
+      <AdminRewardsManager
         userRole="admin" 
         hasCreditReward={hasCreditReward}
       />

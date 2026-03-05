@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getUserByClerkId } from "@/lib/actions/auth";
-import { SuperAdminRewardsManager } from "@/components/super-admin/rewards-manager";
+import { SuperAdminRewardsManager } from "@/components/super-admin/super-admin-rewards-manager";
 
 export const dynamic = "force-dynamic";
 

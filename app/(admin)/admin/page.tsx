@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getUserByClerkId } from "@/lib/actions/auth";
 import { getLevelsForUser } from "@/lib/actions/admin";
-import { UnifiedAdminPageClient } from "@/components/admin/unified-admin-page-client";
+import { AdminDashboardClient } from "@/components/admin/admin-dashboard-client";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ export default async function AdminPage() {
   const levels = await getLevelsForUser(user.id, user.role);
 
   return (
-    <UnifiedAdminPageClient 
+    <AdminDashboardClient
       initialLevels={levels} 
       userId={user.id} 
       userRole={user.role} 

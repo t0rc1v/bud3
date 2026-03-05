@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { AdminLayoutClient } from "./admin-layout-client";
+import { AdminLayoutClient } from "@/components/admin/admin-layout-client";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getUserByClerkId } from "@/lib/actions/auth";

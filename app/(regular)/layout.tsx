@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { ContentLayoutClient } from "@/app/(content)/content-layout-client";
+import { RegularLayoutClient } from "@/components/regular/regular-layout-client";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getUserByClerkId, hasUserCompletedOnboarding } from "@/lib/actions/auth";
@@ -35,7 +35,7 @@ export default async function RegularLayout({
   ]);
 
   return (
-    <ContentLayoutClient 
+    <RegularLayoutClient
       userId={user.id} 
       dbUserId={user.id} 
       userRole="regular"
@@ -43,6 +43,6 @@ export default async function RegularLayout({
       adminIds={adminIds}
     >
       {children}
-    </ContentLayoutClient>
+    </RegularLayoutClient>
   );
 }

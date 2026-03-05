@@ -56,15 +56,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CreateLevelForm } from "@/components/admin/create-level-form";
-import { CreateSubjectForm } from "@/components/admin/create-subject-form";
-import { CreateTopicForm } from "@/components/admin/create-topic-form";
-import { CreateResourceForm } from "@/components/admin/create-resource-form";
-import { EditLevelForm } from "@/components/admin/edit-level-form";
-import { EditSubjectForm } from "@/components/admin/edit-subject-form";
-import { EditTopicForm } from "@/components/admin/edit-topic-form";
-import { EditResourceForm } from "@/components/admin/edit-resource-form";
-import { ResourceViewer } from "@/components/admin/resource-viewer";
+import { CreateLevelForm } from "@/components/forms/create-level-form";
+import { CreateSubjectForm } from "@/components/forms/create-subject-form";
+import { CreateTopicForm } from "@/components/forms/create-topic-form";
+import { CreateResourceForm } from "@/components/forms/create-resource-form";
+import { EditLevelForm } from "@/components/forms/edit-level-form";
+import { EditSubjectForm } from "@/components/forms/edit-subject-form";
+import { EditTopicForm } from "@/components/forms/edit-topic-form";
+import { EditResourceForm } from "@/components/forms/edit-resource-form";
+import { ResourceViewer } from "@/components/resources/resource-viewer";
 import { deleteLevelWithSession, deleteSubjectWithSession, deleteTopicWithSession, deleteResource, getResourceById, getRegularSuperAdminId, getSuperAdminAdminIds } from "@/lib/actions/admin";
 import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";

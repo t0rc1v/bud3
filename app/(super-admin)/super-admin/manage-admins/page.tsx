@@ -1,6 +1,6 @@
 import { getAllAdmins, getAllRoles } from "@/lib/actions/admin-permissions";
 import { getAllUsers } from "@/lib/actions/admin";
-import { ManageAdminsClient } from "@/components/admin/manage-admins-client";
+import { ManageAdminsClient } from "@/components/super-admin/manage-admins-client";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getUserByClerkId } from "@/lib/actions/auth";

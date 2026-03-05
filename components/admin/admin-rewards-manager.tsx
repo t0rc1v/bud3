@@ -35,12 +35,12 @@ import {
   CollapsibleTrigger 
 } from "@/components/ui/collapsible";
 
-interface RewardsManagerProps {
+interface AdminRewardsManagerProps {
   userRole: "super_admin" | "admin";
   hasCreditReward: boolean;
 }
 
-export function RewardsManager({ userRole, hasCreditReward }: RewardsManagerProps) {
+export function AdminRewardsManager({ userRole, hasCreditReward }: AdminRewardsManagerProps) {
   const [activeTab, setActiveTab] = useState("credits");
   
   const canManageRewards = userRole === "super_admin" || hasCreditReward;

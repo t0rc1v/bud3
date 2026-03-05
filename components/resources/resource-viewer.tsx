@@ -39,7 +39,7 @@ import { PDFViewer } from "./viewers/pdf-viewer";
 import { VideoViewer } from "./viewers/video-viewer";
 import { AudioViewer } from "./viewers/audio-viewer";
 import { ImageViewer } from "./viewers/image-viewer";
-import { EditResourceForm } from "./edit-resource-form";
+import { EditResourceForm } from "@/components/forms/edit-resource-form";
 import { deleteResource } from "@/lib/actions/admin";
 import type { ResourceWithRelations, ResourceType } from "@/lib/types";
 

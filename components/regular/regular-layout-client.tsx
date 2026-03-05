@@ -26,7 +26,7 @@ interface ContentLayoutClientProps {
   adminIds?: string[];
 }
 
-export function ContentLayoutClient({ children, userId, dbUserId, userRole, initialLevels, adminIds = [] }: ContentLayoutClientProps) {
+export function RegularLayoutClient({ children, userId, dbUserId, userRole, initialLevels, adminIds = [] }: ContentLayoutClientProps) {
   const isMobile = useIsMobile();
   const [isClient, setIsClient] = useState(false);
   // Default to closed on mobile, open on desktop (for SSR consistency)

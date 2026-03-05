@@ -13,7 +13,8 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
-import { UserButton } from "@clerk/nextjs";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { UserButtonWrapper } from "@/components/auth/user-button-wrapper";
 import { UnlockedResourcesProvider } from "@/components/credits/unlocked-resources-context";
 import { CreditModal, CreditBadge } from "@/components/credits/credit-modal";
 import type { Resource } from "@/lib/types";
@@ -193,7 +194,8 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
           <div suppressHydrationWarning>
             <CreditModal trigger={<CreditBadge className="cursor-pointer" />} />
           </div>
-          {isClient && <UserButton />}
+          {isClient && <ThemeToggle />}
+              {isClient && <UserButtonWrapper />}
           
           <Sheet>
             <SheetTrigger asChild>
@@ -387,7 +389,8 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
                 </TooltipContent>
               </Tooltip>
 
-              {isClient && <UserButton />}
+              {isClient && <ThemeToggle />}
+              {isClient && <UserButtonWrapper />}
             </div>
           </div>
         </TooltipProvider>

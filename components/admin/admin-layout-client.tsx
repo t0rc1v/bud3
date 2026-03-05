@@ -13,7 +13,8 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
-import { UserButton } from "@clerk/nextjs";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { UserButtonWrapper } from "@/components/auth/user-button-wrapper";
 import { CreditBadge, CreditModal } from "@/components/credits/credit-modal";
 import { UnlockedResourcesProvider } from "@/components/credits/unlocked-resources-context";
 import type { Resource } from "@/lib/types";
@@ -172,7 +173,8 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
           <div suppressHydrationWarning>
             <CreditModal trigger={<CreditBadge className="cursor-pointer" />} />
           </div>
-          {isClient && <UserButton />}
+          {isClient && <ThemeToggle />}
+          {isClient && <UserButtonWrapper />}
           
           <Sheet>
             <SheetTrigger asChild>
@@ -348,7 +350,8 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
                 </TooltipContent>
               </Tooltip>
 
-              {isClient && <UserButton />}
+              {isClient && <ThemeToggle />}
+          {isClient && <UserButtonWrapper />}
             </div>
           </div>
         </TooltipProvider>

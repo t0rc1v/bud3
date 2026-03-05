@@ -6,6 +6,7 @@ import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
 import { extractRouterConfig } from "uploadthing/server";
 import { ourFileRouter } from "@/app/api/uploadthing/core";
 import { Toaster } from 'sonner';
+import { ThemeProvider } from '@/components/providers/theme-provider';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -39,13 +40,15 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en" className="dark" suppressHydrationWarning>
+      <html lang="en" suppressHydrationWarning>
         <body className={`${inter.variable} ${geistMono.variable} antialiased`}>
-          <NextSSRPlugin
-            routerConfig={extractRouterConfig(ourFileRouter)}
-          />
-          {children}
-          <Toaster />
+          <ThemeProvider attribute="class" defaultTheme="dark" disableTransitionOnChange>
+            <NextSSRPlugin
+              routerConfig={extractRouterConfig(ourFileRouter)}
+            />
+            {children}
+            <Toaster />
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>

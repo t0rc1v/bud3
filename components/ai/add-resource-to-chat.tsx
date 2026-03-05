@@ -173,7 +173,7 @@ export function AddResourceToChat({
         key={resource.id}
         onClick={() => !isLocked && handleToggleResource(resource)}
         className={cn(
-          "flex items-start gap-3 p-3 rounded-lg transition-colors",
+          "flex items-center gap-3 py-2 px-3 rounded-lg transition-colors",
           isLocked
             ? "bg-muted/50 border border-muted cursor-not-allowed"
             : attached
@@ -185,68 +185,52 @@ export function AddResourceToChat({
           checked={attached}
           disabled={isLocked}
           onChange={() => {}}
-          className="mt-1"
         />
-        <div
+        <Icon
           className={cn(
-            "p-2 rounded-lg flex-shrink-0",
-            isLocked ? "bg-muted text-muted-foreground" : TYPE_COLORS[resource.type]
+            "h-4 w-4 flex-shrink-0",
+            isLocked ? "text-muted-foreground" : TYPE_COLORS[resource.type].split(" ").find(c => c.startsWith("text-")) ?? "text-muted-foreground"
           )}
-        >
-          <Icon className="h-4 w-4" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h4 className={cn("font-medium truncate", isLocked && "text-muted-foreground")}>
-              {resource.title}
-            </h4>
-            {attached && (
-              <Check className="h-4 w-4 text-primary" />
-            )}
-          </div>
-          <p className={cn("text-sm line-clamp-2", isLocked ? "text-muted-foreground/70" : "text-muted-foreground")}>
-            {resource.description}
-          </p>
-          <div className="flex items-center gap-2 mt-2">
-            <Badge
-              variant="secondary"
-              className={cn("text-xs", isLocked ? "bg-muted text-muted-foreground" : TYPE_COLORS[resource.type])}
-            >
-              {resource.type}
-            </Badge>
-            {isLocked ? (
-              <>
-                <Lock className="h-3 w-3 text-yellow-600" />
-                <span className="text-xs text-yellow-600">Locked</span>
-                {resource.source !== "own" && (
-                  <ResourceUnlockModal
-                    resourceId={resource.id}
-                    resourceTitle={resource.title}
-                    resourceType={resource.type}
-                    unlockFeeKes={resource.unlockFee || 100}
-                    isUnlocked={false}
-                    trigger={
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className="h-6 px-2 text-xs text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 ml-auto"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <CreditCard className="h-3 w-3 mr-1" />
-                        Unlock
-                      </Button>
-                    }
-                    onUnlockSuccess={handleUnlockSuccess}
-                  />
-                )}
-              </>
-            ) : (
-              <>
-                <Unlock className="h-3 w-3 text-green-600" />
-                <span className="text-xs text-green-600">Unlocked</span>
-              </>
-            )}
-          </div>
+        />
+        <h4 className={cn("flex-1 min-w-0 truncate font-medium text-sm", isLocked && "text-muted-foreground")}>
+          {resource.title}
+        </h4>
+        {attached && <Check className="h-4 w-4 text-primary flex-shrink-0" />}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <Badge
+            variant="secondary"
+            className={cn("text-xs", isLocked ? "bg-muted text-muted-foreground" : TYPE_COLORS[resource.type])}
+          >
+            {resource.type}
+          </Badge>
+          {isLocked ? (
+            <>
+              <Lock className="h-3 w-3 text-yellow-600" />
+              {resource.source !== "own" && (
+                <ResourceUnlockModal
+                  resourceId={resource.id}
+                  resourceTitle={resource.title}
+                  resourceType={resource.type}
+                  unlockFeeKes={resource.unlockFee || 100}
+                  isUnlocked={false}
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <CreditCard className="h-3 w-3 mr-1" />
+                      Unlock
+                    </Button>
+                  }
+                  onUnlockSuccess={handleUnlockSuccess}
+                />
+              )}
+            </>
+          ) : (
+            <Unlock className="h-3 w-3 text-green-600" />
+          )}
         </div>
       </div>
     );

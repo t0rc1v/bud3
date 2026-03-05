@@ -447,12 +447,12 @@ export function SidebarContentTree({
   // Get tab color
   const getTabColor = (tab: ContentTab) => {
     switch (tab) {
-      case "my": return "text-blue-600";
-      case "admin(s)": return "text-green-600";
-      case "institution": return "text-purple-600";
-      case "super": return "text-purple-600";
-      case "admin": return "text-blue-600";
-      case "regular": return "text-green-600";
+      case "my": return "text-primary";
+      case "admin(s)": return "text-primary";
+      case "institution": return "text-primary";
+      case "super": return "text-primary";
+      case "admin": return "text-primary";
+      case "regular": return "text-primary";
       default: return "text-muted-foreground";
     }
   };
@@ -1018,7 +1018,7 @@ function SubjectNode({
           {subject.icon}
         </div>
         
-        <BookOpen className="h-3 w-3 text-green-500 flex-shrink-0" />
+        <BookOpen className="h-3 w-3 text-primary flex-shrink-0" />
         
         <span 
           className="text-[11px] flex-1 truncate"
@@ -1165,7 +1165,7 @@ function TopicNode({
           )}
         </Button>
         
-        <FolderOpen className="h-3 w-3 text-amber-500 flex-shrink-0" />
+        <FolderOpen className="h-3 w-3 text-primary flex-shrink-0" />
         
         <span 
           className="text-[11px] flex-1 truncate"
@@ -1302,7 +1302,7 @@ function ResourceNode({
       {resource.isLocked ? (
         <Lock className="h-3 w-3 text-yellow-500 flex-shrink-0" />
       ) : (
-        <FileText className="h-3 w-3 text-blue-500 flex-shrink-0" />
+        <FileText className="h-3 w-3 text-primary flex-shrink-0" />
       )}
       
       <span 
@@ -1323,7 +1323,7 @@ function ResourceNode({
             <Button 
               variant="ghost" 
               size="icon"
-              className="h-4 w-4 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+              className="h-4 w-4 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-500/10"
             >
               <CreditCard className="h-2.5 w-2.5" />
             </Button>

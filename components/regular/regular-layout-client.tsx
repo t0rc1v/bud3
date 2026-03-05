@@ -6,6 +6,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { PanelLeft, PanelRight, MessageSquare, LayoutDashboard, GraduationCap } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -26,6 +28,10 @@ interface ContentLayoutClientProps {
   adminIds?: string[];
 }
 
+function getPageTitle(pathname: string, routes: Record<string, string>): string {
+  return routes[pathname] ?? "Content";
+}
+
 export function RegularLayoutClient({ children, userId, dbUserId, userRole, initialLevels, adminIds = [] }: ContentLayoutClientProps) {
   const isMobile = useIsMobile();
   const [isClient, setIsClient] = useState(false);
@@ -44,6 +50,9 @@ export function RegularLayoutClient({ children, userId, dbUserId, userRole, init
 
   const title = userRole === "admin" ? "Institution Admin" : "Student";
   const pathname = usePathname();
+  const pageTitle = getPageTitle(pathname, {
+    "/regular": "Dashboard",
+  });
 
   // Handle resource selection from sidebar
   const handleResourceSelect = useCallback((resource: Resource) => {
@@ -91,7 +100,12 @@ export function RegularLayoutClient({ children, userId, dbUserId, userRole, init
               <SheetTitle className="sr-only">Content File Tree Sidebar</SheetTitle>
               <div className="flex h-full flex-col">
                 <div className="border-b p-4">
-                  <h2 className="font-semibold">Content</h2>
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                      <GraduationCap className="h-3.5 w-3.5" />
+                    </div>
+                    <h2 className="font-semibold">BudLMS</h2>
+                  </div>
                   <p className="text-xs text-muted-foreground">Browse content</p>
                 </div>
                 <div className="flex-1 overflow-auto">
@@ -109,18 +123,19 @@ export function RegularLayoutClient({ children, userId, dbUserId, userRole, init
                 {/* Regular User Navigation */}
                 {userRole === "regular" && (
                   <div className="border-t p-4">
-                    <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
-                      <GraduationCap className="h-4 w-4" />
+                    <Separator className="mb-3" />
+                    <div className="mb-2 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      <GraduationCap className="h-3.5 w-3.5" />
                       Student Tools
                     </div>
                     <nav className="space-y-1">
                       <Link
                         href="/regular"
                         className={cn(
-                          "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                          "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
                           pathname === "/regular"
-                            ? "bg-primary/10 text-primary"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                            : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
                         )}
                       >
                         <LayoutDashboard className="h-4 w-4" />
@@ -133,7 +148,12 @@ export function RegularLayoutClient({ children, userId, dbUserId, userRole, init
             </SheetContent>
           </Sheet>
           
-          <h1 className="font-semibold">{title}</h1>
+          <div className="flex items-center gap-2">
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-primary text-primary-foreground">
+              <GraduationCap className="h-3.5 w-3.5" />
+            </div>
+            <span className="text-sm font-semibold">{title}</span>
+          </div>
           
           <div className="flex items-center gap-2">
             <div suppressHydrationWarning>
@@ -188,10 +208,16 @@ export function RegularLayoutClient({ children, userId, dbUserId, userRole, init
           !isClient ? "w-0 overflow-hidden" : leftSidebarOpen ? "w-72" : "w-0 overflow-hidden"
         )}
       >
-        <div className="flex h-16 items-center justify-between border-b px-4">
-          <h2 className={cn("font-semibold transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
-            Content
-          </h2>
+        <div className="flex h-14 items-center gap-2.5 border-b px-4">
+          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <GraduationCap className="h-4 w-4" />
+          </div>
+          <span className={cn(
+            "font-semibold tracking-tight transition-all duration-200",
+            leftSidebarOpen ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
+          )}>
+            BudLMS
+          </span>
         </div>
         <div className="flex-1 overflow-auto">
           <SidebarContentTree
@@ -209,20 +235,21 @@ export function RegularLayoutClient({ children, userId, dbUserId, userRole, init
         {/* Regular User Navigation */}
         {userRole === "regular" && (
           <div className="border-t p-4">
-            <div className={cn("mb-2 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
-              <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                <GraduationCap className="h-4 w-4" />
-                Regular Tools
+            <div className={cn("mb-3 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
+              <Separator className="mb-3" />
+              <div className="flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <GraduationCap className="h-3.5 w-3.5" />
+                Student Tools
               </div>
             </div>
             <nav className={cn("space-y-1 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
               <Link
                 href="/regular"
                 className={cn(
-                  "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                  "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
                   pathname === "/regular"
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
                 )}
               >
                 <LayoutDashboard className="h-4 w-4" />
@@ -236,39 +263,62 @@ export function RegularLayoutClient({ children, userId, dbUserId, userRole, init
       {/* Center - Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Toggle Bar */}
-        <div className="flex h-12 items-center justify-between border-b bg-background px-4">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
-              className="h-8 w-8"
-            >
-              <PanelLeft className={cn("h-4 w-4 transition-transform", leftSidebarOpen && "rotate-180")} />
-              <span className="sr-only">Toggle file tree</span>
-            </Button>
-            <span className="text-sm text-muted-foreground">Content</span>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <div suppressHydrationWarning>
-              <CreditModal trigger={<CreditBadge className="cursor-pointer" />} />
+        <TooltipProvider>
+          <div className="flex h-14 items-center justify-between border-b bg-background px-4">
+            <div className="flex items-center gap-3">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  >
+                    <PanelLeft className={cn("h-4 w-4 transition-transform duration-200", leftSidebarOpen && "rotate-180")} />
+                    <span className="sr-only">Toggle content sidebar</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {leftSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+                </TooltipContent>
+              </Tooltip>
+
+              <Separator orientation="vertical" className="h-5" />
+
+              <div className="flex items-center gap-1.5">
+                <GraduationCap className="h-3.5 w-3.5 text-primary" />
+                <span className="text-sm font-medium text-foreground">{pageTitle}</span>
+              </div>
             </div>
+
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">AI Chat</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
-                className="h-8 w-8"
-              >
-                <PanelRight className={cn("h-4 w-4 transition-transform", rightSidebarOpen && "rotate-180")} />
-                <span className="sr-only">Toggle chat</span>
-              </Button>
+              <div suppressHydrationWarning>
+                <CreditModal trigger={<CreditBadge className="cursor-pointer" />} />
+              </div>
+
+              <Separator orientation="vertical" className="h-5" />
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  >
+                    <PanelRight className={cn("h-4 w-4 transition-transform duration-200", rightSidebarOpen && "rotate-180")} />
+                    <span className="sr-only">Toggle AI chat</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {rightSidebarOpen ? "Close AI Chat" : "Open AI Chat"}
+                </TooltipContent>
+              </Tooltip>
+
+              {isClient && <UserButton />}
             </div>
-            {isClient && <UserButton />}
           </div>
-        </div>
+        </TooltipProvider>
         
         <main className="flex-1 overflow-auto p-6">
           {children}

@@ -457,13 +457,13 @@ export function AdminDashboardClient({
         <Card 
           className={cn(
             "cursor-pointer transition-all hover:shadow-md",
-            activeTab === "my" && "ring-2 ring-blue-500 ring-offset-2"
+            activeTab === "my" && "ring-2 ring-primary ring-offset-2"
           )}
           onClick={() => setActiveTab("my")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <User className="h-4 w-4 text-blue-500" />
+              <User className="h-4 w-4 text-primary" />
               My Content
             </CardTitle>
           </CardHeader>
@@ -472,7 +472,7 @@ export function AdminDashboardClient({
             <p className="text-xs text-muted-foreground mt-1">
               {myStats.subjects} subjects, {myStats.resources} resources
             </p>
-            <p className="text-xs text-blue-600 mt-1">
+            <p className="text-xs text-foreground mt-1">
               {activeTab === "my" ? "Currently viewing" : "Click to view"}
             </p>
           </CardContent>
@@ -480,13 +480,13 @@ export function AdminDashboardClient({
         <Card 
           className={cn(
             "cursor-pointer transition-all hover:shadow-md",
-            activeTab === "institution" && "ring-2 ring-purple-500 ring-offset-2"
+            activeTab === "institution" && "ring-2 ring-primary ring-offset-2"
           )}
           onClick={() => setActiveTab("institution")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-purple-500" />
+              <Building2 className="h-4 w-4 text-primary" />
               Institution
             </CardTitle>
           </CardHeader>
@@ -495,7 +495,7 @@ export function AdminDashboardClient({
             <p className="text-xs text-muted-foreground mt-1">
               {institutionStats.subjects} subjects, {institutionStats.resources} resources
             </p>
-            <p className="text-xs text-purple-600 mt-1">
+            <p className="text-xs text-foreground mt-1">
               {activeTab === "institution" ? "Currently viewing" : "Click to view"}
             </p>
           </CardContent>
@@ -511,9 +511,9 @@ export function AdminDashboardClient({
             <Badge variant="secondary" className="ml-1 text-xs hidden sm:inline">{myStats.levels}</Badge>
           </TabsTrigger>
           <TabsTrigger value="institution" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3">
-            <Shield className="h-4 w-4 text-purple-500" />
+            <Shield className="h-4 w-4 text-primary" />
             <span className="text-xs sm:text-sm whitespace-nowrap">Institution</span>
-            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800 text-xs hidden sm:inline">{institutionStats.levels}</Badge>
+            <Badge variant="secondary" className="ml-1 bg-primary text-primary-foreground text-xs hidden sm:inline">{institutionStats.levels}</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -766,7 +766,7 @@ export function AdminDashboardClient({
                                       ) : (
                                         <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                                       )}
-                                      <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
+                                      <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
                                       <span className="font-medium text-sm sm:text-base truncate">{topic.title}</span>
                                       <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
                                         {topic.resources?.length || 0}
@@ -929,11 +929,11 @@ export function AdminDashboardClient({
           </div>
 
           {/* Institution Notice */}
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-start gap-3">
-            <Shield className="h-5 w-5 text-purple-600 mt-0.5" />
+          <div className="bg-primary/15 border border-primary/60 rounded-lg p-4 flex items-start gap-3">
+            <Shield className="h-5 w-5 text-foreground mt-0.5" />
             <div>
-              <p className="font-medium text-purple-800">Institution Content</p>
-              <p className="text-sm text-purple-700">
+              <p className="font-medium text-foreground">Institution Content</p>
+              <p className="text-sm text-foreground">
                 This content is curated by platform administrators and is available to all users. These resources are read-only and form the foundation of the learning curriculum.
               </p>
             </div>
@@ -952,10 +952,10 @@ export function AdminDashboardClient({
             </Card>
           ) : (
             filteredInstitutionLevels.map((level: LevelWithFullHierarchy) => (
-              <Card key={level.id} className="overflow-hidden border-purple-200">
+              <Card key={level.id} className="overflow-hidden border-primary/60">
                 {/* Level Header */}
                 <div 
-                  className="flex items-center justify-between p-2 sm:p-4 bg-purple-50/50 cursor-pointer hover:bg-purple-50 gap-2"
+                  className="flex items-center justify-between p-2 sm:p-4 bg-primary/10 cursor-pointer hover:bg-primary/15 gap-2"
                   onClick={() => toggleLevel(level.id)}
                 >
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -972,7 +972,7 @@ export function AdminDashboardClient({
                     </div>
                     <div className="min-w-0 flex-1">
                       <span className="font-semibold text-base sm:text-lg truncate block">{level.title}</span>
-                      <Badge variant="outline" className="mt-0.5 bg-purple-100 text-purple-800 border-purple-300 text-xs sm:ml-2 sm:mt-0">
+                      <Badge variant="outline" className="mt-0.5 bg-primary text-primary-foreground border-primary/70 text-xs sm:ml-2 sm:mt-0">
                         Public
                       </Badge>
                     </div>
@@ -993,7 +993,7 @@ export function AdminDashboardClient({
                       level.subjects.map((subject: SubjectWithTopics) => (
                         <div key={subject.id}>
                           <div 
-                            className="flex items-center justify-between p-2 pl-4 sm:p-3 sm:pl-8 border-b cursor-pointer hover:bg-purple-50/30 gap-2"
+                            className="flex items-center justify-between p-2 pl-4 sm:p-3 sm:pl-8 border-b cursor-pointer hover:bg-primary/8 gap-2"
                             onClick={() => toggleSubject(subject.id)}
                           >
                             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -1021,7 +1021,7 @@ export function AdminDashboardClient({
                                 subject.topics.map((topic: TopicWithResources) => (
                                   <div key={topic.id} className="border-b last:border-b-0">
                                     <div 
-                                      className="flex items-center justify-between p-2 pl-6 sm:p-3 sm:pl-12 cursor-pointer hover:bg-purple-50/20 gap-2"
+                                      className="flex items-center justify-between p-2 pl-6 sm:p-3 sm:pl-12 cursor-pointer hover:bg-primary/6 gap-2"
                                       onClick={() => toggleTopic(topic.id)}
                                     >
                                       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -1030,7 +1030,7 @@ export function AdminDashboardClient({
                                         ) : (
                                           <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                                         )}
-                                        <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500 flex-shrink-0" />
+                                        <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
                                         <span className="font-medium text-sm sm:text-base truncate">{topic.title}</span>
                                         <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
                                           {topic.resources?.length || 0}
@@ -1056,7 +1056,7 @@ export function AdminDashboardClient({
                                               return (
                                                 <div 
                                                   key={resource.id}
-                                                  className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-purple-50/10 rounded gap-2"
+                                                  className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-primary/5 rounded gap-2"
                                                 >
                                                   <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                                                     {resource.isLocked ? (
@@ -1088,7 +1088,7 @@ export function AdminDashboardClient({
                                                         <Button 
                                                           variant="ghost" 
                                                           size="icon"
-                                                          className="h-7 w-7 sm:h-9 sm:w-auto sm:px-3 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                                                          className="h-7 w-7 sm:h-9 sm:w-auto sm:px-3 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-500/10"
                                                         >
                                                           <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
                                                           <span className="hidden sm:inline">Unlock</span>

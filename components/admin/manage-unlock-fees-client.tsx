@@ -269,15 +269,15 @@ export default function ManageUnlockFeesClient({ userRole, userId, dbUserId }: M
         <div>
           <div className="flex items-center gap-2">
             {isSuperAdmin ? (
-              <Crown className="h-5 w-5 text-purple-600" />
+              <Crown className="h-5 w-5 text-primary" />
             ) : (
-              <Shield className="h-5 w-5 text-blue-600" />
+              <Shield className="h-5 w-5 text-foreground" />
             )}
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-2xl font-bold text-foreground">
               {viewMode === "my-content" ? "My Content Unlock Fees" : "Manage Unlock Fees"}
             </h2>
           </div>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             {viewMode === "my-content" 
               ? "Manage unlock fees for content you've created"
               : "Set and manage unlock prices for resources, topics, and subjects"
@@ -359,14 +359,14 @@ export default function ManageUnlockFeesClient({ userRole, userId, dbUserId }: M
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className={viewMode === "my-content" ? "border-blue-200" : ""}>
+        <Card className={viewMode === "my-content" ? "border-primary/60" : ""}>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">
               {viewMode === "my-content" ? "My Content Fees" : "Total Fees"}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${viewMode === "my-content" ? "text-blue-600" : ""}`}>
+            <div className={`text-2xl font-bold ${viewMode === "my-content" ? "text-foreground" : ""}`}>
               {fees.length}
             </div>
           </CardContent>
@@ -377,7 +377,7 @@ export default function ManageUnlockFeesClient({ userRole, userId, dbUserId }: M
             <CardTitle className="text-sm font-medium">Active</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-foreground">
               {fees.filter(f => f.isActive).length}
             </div>
           </CardContent>
@@ -388,7 +388,7 @@ export default function ManageUnlockFeesClient({ userRole, userId, dbUserId }: M
             <CardTitle className="text-sm font-medium">Inactive</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
+            <div className="text-2xl font-bold text-foreground">
               {fees.filter(f => !f.isActive).length}
             </div>
           </CardContent>
@@ -472,23 +472,23 @@ export default function ManageUnlockFeesClient({ userRole, userId, dbUserId }: M
                         className={cn(
                           "flex items-center justify-between p-4 rounded-lg border",
                           fee.isActive
-                            ? "bg-white border-gray-200"
-                            : "bg-gray-50 border-gray-200 opacity-75"
+                            ? "bg-card border-border"
+                            : "bg-muted border-border opacity-75"
                         )}
                       >
                         <div className="flex items-start gap-3">
                           <div className={cn(
                             "p-2 rounded-lg",
                             fee.isActive 
-                              ? (viewMode === "my-content" ? "bg-blue-100" : "bg-yellow-100") 
-                              : "bg-gray-100"
+                              ? "bg-primary"
+                              : "bg-muted"
                           )}>
                             {fee.type === "resource" ? (
-                              <FileText className={`h-5 w-5 ${viewMode === "my-content" ? "text-blue-600" : "text-yellow-600"}`} />
+                              <FileText className={`h-5 w-5 ${viewMode === "my-content" ? "text-foreground" : "text-foreground"}`} />
                             ) : fee.type === "topic" ? (
-                              <Folder className="h-5 w-5 text-amber-600" />
+                              <Folder className="h-5 w-5 text-foreground" />
                             ) : (
-                              <BookOpen className="h-5 w-5 text-green-600" />
+                              <BookOpen className="h-5 w-5 text-foreground" />
                             )}
                           </div>
                           <div>
@@ -503,13 +503,13 @@ export default function ManageUnlockFeesClient({ userRole, userId, dbUserId }: M
                               {viewMode === "all" && isSuperAdmin && (
                                 <Badge 
                                   variant="outline" 
-                                  className={`text-xs ${getContentOwner(fee) === dbUserId ? "bg-blue-50 text-blue-700 border-blue-200" : ""}`}
+                                  className={`text-xs ${getContentOwner(fee) === dbUserId ? "bg-primary/15 text-foreground border-primary/60" : ""}`}
                                 >
                                   {getContentOwner(fee) === dbUserId ? "Yours" : "Other"}
                                 </Badge>
                               )}
                               {fee.isActive ? (
-                                <Badge className="bg-green-100 text-green-800 text-xs">
+                                <Badge className="bg-primary text-primary-foreground text-xs">
                                   <Unlock className="h-3 w-3 mr-1" />
                                   Active
                                 </Badge>
@@ -586,7 +586,7 @@ export default function ManageUnlockFeesClient({ userRole, userId, dbUserId }: M
                 type="button"
                 variant={isActive ? "default" : "secondary"}
                 onClick={() => setIsActive(!isActive)}
-                className={isActive ? "bg-green-600 hover:bg-green-700" : ""}
+                className={isActive ? "bg-primary hover:bg-primary/90" : ""}
               >
                 {isActive ? "Active" : "Inactive"}
               </Button>

@@ -227,10 +227,10 @@ function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
 
         {/* Credit Balance Display - Only for regular admins */}
         {!isSuperAdmin && (
-          <Alert className="mb-6 bg-blue-50 border-blue-200">
-            <Coins className="h-4 w-4 text-blue-600" />
-            <AlertTitle className="text-blue-800">Your Credit Balance</AlertTitle>
-            <AlertDescription className="text-blue-700">
+          <Alert className="mb-6 bg-primary/15 border-primary/60">
+            <Coins className="h-4 w-4 text-foreground" />
+            <AlertTitle className="text-foreground">Your Credit Balance</AlertTitle>
+            <AlertDescription className="text-foreground">
               {isLoadingBalance ? (
                 <span className="flex items-center gap-2">
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -304,7 +304,7 @@ function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
           </div>
 
           {/* Expiration Settings */}
-          <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+          <div className="space-y-3 p-4 bg-muted rounded-lg border border-border">
             <Label className="flex items-center gap-2 text-base font-semibold">
               <RefreshCw className="h-4 w-4" />
               Expiration Settings
@@ -315,13 +315,13 @@ function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
               <Label className="text-sm text-muted-foreground">Choose expiration type:</Label>
               <div className="grid grid-cols-1 gap-2">
                 {/* Default 30 Days Option */}
-                <label className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-blue-400 transition-colors">
+                <label className="flex items-center gap-3 p-3 bg-card rounded-lg border border-border cursor-pointer hover:border-primary transition-colors">
                   <input
                     type="radio"
                     name="expirationType"
                     checked={expirationDays === 30}
                     onChange={() => setExpirationDays(30)}
-                    className="w-4 h-4 text-blue-600"
+                    className="w-4 h-4 text-foreground"
                   />
                   <div className="flex-1">
                     <span className="font-medium text-sm">Default (30 days)</span>
@@ -331,13 +331,13 @@ function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
                 </label>
 
                 {/* Custom Date Option */}
-                <label className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-blue-400 transition-colors">
+                <label className="flex items-center gap-3 p-3 bg-card rounded-lg border border-border cursor-pointer hover:border-primary transition-colors">
                   <input
                     type="radio"
                     name="expirationType"
                     checked={expirationDays !== 30 && expirationDays !== 0}
                     onChange={() => setExpirationDays(60)}
-                    className="w-4 h-4 text-blue-600"
+                    className="w-4 h-4 text-foreground"
                   />
                   <div className="flex-1">
                     <span className="font-medium text-sm">Custom Expiration</span>
@@ -348,19 +348,19 @@ function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
 
                 {/* Super Admin Only - Never Expire Option */}
                 {isSuperAdmin && (
-                  <label className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-purple-400 transition-colors">
+                  <label className="flex items-center gap-3 p-3 bg-card rounded-lg border border-border cursor-pointer hover:border-primary transition-colors">
                     <input
                       type="radio"
                       name="expirationType"
                       checked={expirationDays === 0}
                       onChange={() => setExpirationDays(0)}
-                      className="w-4 h-4 text-purple-600"
+                      className="w-4 h-4 text-foreground"
                     />
                     <div className="flex-1">
-                      <span className="font-medium text-sm text-purple-700">Never Expire</span>
+                      <span className="font-medium text-sm text-foreground">Never Expire</span>
                       <p className="text-xs text-muted-foreground">Credits never expire (Super Admin only)</p>
                     </div>
-                    <Badge className="bg-purple-100 text-purple-700 border-purple-300">Premium</Badge>
+                    <Badge className="bg-primary text-primary-foreground border-primary/70">Premium</Badge>
                   </label>
                 )}
               </div>
@@ -368,7 +368,7 @@ function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
 
             {/* Custom Days Input (shown when custom is selected) */}
             {expirationDays !== 30 && expirationDays !== 0 && (
-              <div className="pt-2 border-t border-slate-200">
+              <div className="pt-2 border-t border-border">
                 <Label htmlFor="customExpiration" className="text-sm mb-2 block">
                   Custom Expiration (Days from today)
                 </Label>
@@ -394,12 +394,12 @@ function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
             )}
 
             {/* Summary Display */}
-            <div className="pt-3 border-t border-slate-200">
+            <div className="pt-3 border-t border-border">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Expiration Date:</span>
                 <span className={cn(
                   "text-sm font-semibold",
-                  expirationDays === 0 ? "text-purple-600" : "text-blue-600"
+                  expirationDays === 0 ? "text-foreground" : "text-foreground"
                 )}>
                   {expirationDays === 0 
                     ? "Never expires" 
@@ -608,8 +608,8 @@ function UnlockContentTab() {
               <div className="w-4" />
             )}
             
-            {item.type === "level" && <FolderOpen className="h-4 w-4 text-blue-500" />}
-            {item.type === "subject" && <BookOpen className="h-4 w-4 text-green-500" />}
+            {item.type === "level" && <FolderOpen className="h-4 w-4 text-primary" />}
+            {item.type === "subject" && <BookOpen className="h-4 w-4 text-primary" />}
             {item.type === "topic" && <FileText className="h-4 w-4 text-yellow-500" />}
             {item.type === "resource" && <FileText className="h-4 w-4 text-gray-500" />}
             
@@ -686,8 +686,8 @@ function UnlockContentTab() {
             </Button>
           </div>
           {userData && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-              <p className="text-sm text-green-800">
+            <div className="p-3 bg-primary/15 border border-primary/60 rounded-md">
+              <p className="text-sm text-foreground">
                 <CheckCircle className="h-4 w-4 inline mr-2" />
                 User found: {userData.email}
               </p>
@@ -742,10 +742,10 @@ function UnlockContentTab() {
           )}
         </Button>
 
-        <Alert className="bg-yellow-50 border-yellow-200">
+        <Alert className="bg-yellow-950/20 border-yellow-800/40">
           <AlertTriangle className="h-4 w-4 text-yellow-600" />
-          <AlertTitle className="text-yellow-800">Note</AlertTitle>
-          <AlertDescription className="text-yellow-700 text-sm">
+          <AlertTitle className="text-yellow-400">Note</AlertTitle>
+          <AlertDescription className="text-yellow-400 text-sm">
             Unlocking content allows the user to access it immediately without paying the unlock fee. 
             This action cannot be undone.
           </AlertDescription>

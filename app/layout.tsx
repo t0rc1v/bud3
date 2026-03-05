@@ -39,7 +39,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en" suppressHydrationWarning>
+      <html lang="en" className="dark" suppressHydrationWarning>
         <body className={`${inter.variable} ${geistMono.variable} antialiased`}>
           <NextSSRPlugin
             routerConfig={extractRouterConfig(ourFileRouter)}

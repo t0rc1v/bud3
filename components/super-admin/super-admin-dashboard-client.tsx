@@ -530,7 +530,7 @@ export function SuperAdminDashboardClient({
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
             <Crown className="h-6 w-6 text-white" />
           </div>
           <div>
@@ -550,13 +550,13 @@ export function SuperAdminDashboardClient({
         <Card 
           className={cn(
             "cursor-pointer transition-all hover:shadow-md",
-            activeTab === "super" && "ring-2 ring-purple-500 ring-offset-2"
+            activeTab === "super" && "ring-2 ring-primary ring-offset-2"
           )}
           onClick={() => setActiveTab("super")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Shield className="h-4 w-4 text-purple-500" />
+              <Shield className="h-4 w-4 text-primary" />
               My Content
             </CardTitle>
           </CardHeader>
@@ -565,7 +565,7 @@ export function SuperAdminDashboardClient({
             <p className="text-xs text-muted-foreground mt-1">
               {superAdminStats.subjects} subjects, {superAdminStats.resources} resources
             </p>
-            <p className="text-xs text-purple-600 mt-1">
+            <p className="text-xs text-foreground mt-1">
               {activeTab === "super" ? "Currently viewing" : "Click to view"}
             </p>
           </CardContent>
@@ -575,13 +575,13 @@ export function SuperAdminDashboardClient({
         <Card 
           className={cn(
             "cursor-pointer transition-all hover:shadow-md",
-            activeTab === "admin" && "ring-2 ring-blue-500 ring-offset-2"
+            activeTab === "admin" && "ring-2 ring-primary ring-offset-2"
           )}
           onClick={() => setActiveTab("admin")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-blue-500" />
+              <Building2 className="h-4 w-4 text-primary" />
               My Admins
             </CardTitle>
           </CardHeader>
@@ -590,7 +590,7 @@ export function SuperAdminDashboardClient({
             <p className="text-xs text-muted-foreground mt-1">
               {adminStats.subjects} subjects, {adminStats.resources} resources
             </p>
-            <p className="text-xs text-blue-600 mt-1">
+            <p className="text-xs text-foreground mt-1">
               {activeTab === "admin" ? "Currently viewing" : "Click to view"}
             </p>
           </CardContent>
@@ -600,13 +600,13 @@ export function SuperAdminDashboardClient({
         <Card 
           className={cn(
             "cursor-pointer transition-all hover:shadow-md",
-            activeTab === "regular" && "ring-2 ring-green-500 ring-offset-2"
+            activeTab === "regular" && "ring-2 ring-primary ring-offset-2"
           )}
           onClick={() => setActiveTab("regular")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <User className="h-4 w-4 text-green-500" />
+              <User className="h-4 w-4 text-primary" />
               My Regulars
             </CardTitle>
           </CardHeader>
@@ -615,7 +615,7 @@ export function SuperAdminDashboardClient({
             <p className="text-xs text-muted-foreground mt-1">
               {regularStats.subjects} subjects, {regularStats.resources} resources
             </p>
-            <p className="text-xs text-green-600 mt-1">
+            <p className="text-xs text-foreground mt-1">
               {activeTab === "regular" ? "Currently viewing" : "Click to view"}
             </p>
           </CardContent>
@@ -627,7 +627,7 @@ export function SuperAdminDashboardClient({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
-              <Users className="h-4 w-4 text-blue-500" />
+              <Users className="h-4 w-4 text-primary" />
               <span className="inline">Total Users</span>
               <span className="sm:hidden">Users</span>
             </CardTitle>
@@ -642,7 +642,7 @@ export function SuperAdminDashboardClient({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
-              <GraduationCap className="h-4 w-4 text-green-500" />
+              <GraduationCap className="h-4 w-4 text-primary" />
               Levels
             </CardTitle>
           </CardHeader>
@@ -653,7 +653,7 @@ export function SuperAdminDashboardClient({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-amber-500" />
+              <BookOpen className="h-4 w-4 text-primary" />
               Subjects
             </CardTitle>
           </CardHeader>
@@ -664,7 +664,7 @@ export function SuperAdminDashboardClient({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2">
-              <FileText className="h-4 w-4 text-purple-500" />
+              <FileText className="h-4 w-4 text-primary" />
               Resources
             </CardTitle>
           </CardHeader>
@@ -672,16 +672,16 @@ export function SuperAdminDashboardClient({
             <div className="text-lg sm:text-xl lg:text-2xl font-bold">{initialStats.totalResources}</div>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+        <Card className="bg-primary/15 border-primary/60">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2 text-green-700">
-              <DollarSign className="h-4 w-4 text-green-600" />
+            <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2 text-foreground">
+              <DollarSign className="h-4 w-4 text-foreground" />
               Revenue
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-green-700">Ksh {revenueStats.totalRevenue.toLocaleString()}</div>
-            <p className="text-xs text-green-600">
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground">Ksh {revenueStats.totalRevenue.toLocaleString()}</div>
+            <p className="text-xs text-foreground">
               {revenueStats.completedPurchases} completed purchases
             </p>
           </CardContent>
@@ -693,19 +693,19 @@ export function SuperAdminDashboardClient({
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="super" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-3">
-            <Shield className="h-4 w-4 text-purple-500" />
+            <Shield className="h-4 w-4 text-primary" />
             <span className="text-xs sm:text-sm whitespace-nowrap">My Content</span>
-            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-800 text-xs inline">{superAdminStats.levels}</Badge>
+            <Badge variant="secondary" className="ml-1 bg-primary text-primary-foreground text-xs inline">{superAdminStats.levels}</Badge>
           </TabsTrigger>
           <TabsTrigger value="admin" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-3">
-            <Building2 className="h-4 w-4 text-blue-500" />
+            <Building2 className="h-4 w-4 text-primary" />
             <span className="text-xs sm:text-sm whitespace-nowrap">My Admins</span>
-            <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-800 text-xs inline">{adminStats.levels}</Badge>
+            <Badge variant="secondary" className="ml-1 bg-primary text-primary-foreground text-xs inline">{adminStats.levels}</Badge>
           </TabsTrigger>
           <TabsTrigger value="regular" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-3">
-            <User className="h-4 w-4 text-green-500" />
+            <User className="h-4 w-4 text-primary" />
             <span className="text-xs sm:text-sm whitespace-nowrap">My Regulars</span>
-            <Badge variant="secondary" className="ml-1 bg-green-100 text-green-800 text-xs inline">{regularStats.levels}</Badge>
+            <Badge variant="secondary" className="ml-1 bg-primary text-primary-foreground text-xs inline">{regularStats.levels}</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -836,11 +836,11 @@ export function SuperAdminDashboardClient({
 
         {/* My Content Tab */}
         <TabsContent value="super" className="space-y-4">
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-start gap-3">
-            <Shield className="h-5 w-5 text-purple-600 mt-0.5" />
+          <div className="bg-primary/15 border border-primary/60 rounded-lg p-4 flex items-start gap-3">
+            <Shield className="h-5 w-5 text-foreground mt-0.5" />
             <div>
-              <p className="font-medium text-purple-800">My Content</p>
-              <p className="text-sm text-purple-700">
+              <p className="font-medium text-foreground">My Content</p>
+              <p className="text-sm text-foreground">
                 Your own content is visible to users you manage. This forms the foundation of your institution's learning curriculum.
               </p>
             </div>
@@ -862,10 +862,10 @@ export function SuperAdminDashboardClient({
             </Card>
           ) : (
             filteredSuperAdminLevels.map((level: LevelWithFullHierarchy) => (
-              <Card key={level.id} className="overflow-hidden border-purple-200">
+              <Card key={level.id} className="overflow-hidden border-primary/60">
                 {/* Level Header */}
                 <div 
-                  className="flex items-center justify-between p-2 sm:p-4 bg-purple-50/50 cursor-pointer hover:bg-purple-50 gap-2"
+                  className="flex items-center justify-between p-2 sm:p-4 bg-primary/10 cursor-pointer hover:bg-primary/15 gap-2"
                   onClick={() => toggleLevel(level.id)}
                 >
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -882,7 +882,7 @@ export function SuperAdminDashboardClient({
                     </div>
                     <div className="min-w-0 flex-1">
                       <span className="font-semibold text-base sm:text-lg truncate block">{level.title}</span>
-                      <Badge variant="outline" className="mt-0.5 bg-purple-100 text-purple-800 border-purple-300 text-xs sm:ml-2 sm:mt-0">
+                      <Badge variant="outline" className="mt-0.5 bg-primary text-primary-foreground border-primary/70 text-xs sm:ml-2 sm:mt-0">
                         My Content
                       </Badge>
                     </div>
@@ -953,7 +953,7 @@ export function SuperAdminDashboardClient({
                         <div key={subject.id}>
                           {/* Subject Header */}
                           <div 
-                            className="flex items-center justify-between p-2 pl-4 sm:p-3 sm:pl-8 border-b cursor-pointer hover:bg-purple-50/30 gap-2"
+                            className="flex items-center justify-between p-2 pl-4 sm:p-3 sm:pl-8 border-b cursor-pointer hover:bg-primary/8 gap-2"
                             onClick={() => toggleSubject(subject.id)}
                           >
                             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -1031,7 +1031,7 @@ export function SuperAdminDashboardClient({
                                   <div key={topic.id} className="border-b last:border-b-0">
                                     {/* Topic Header */}
                                     <div 
-                                      className="flex items-center justify-between p-2 pl-6 sm:p-3 sm:pl-12 cursor-pointer hover:bg-purple-50/20 gap-2"
+                                      className="flex items-center justify-between p-2 pl-6 sm:p-3 sm:pl-12 cursor-pointer hover:bg-primary/6 gap-2"
                                       onClick={() => toggleTopic(topic.id)}
                                     >
                             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -1040,10 +1040,10 @@ export function SuperAdminDashboardClient({
                               ) : (
                                 <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                               )}
-                              <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500 flex-shrink-0" />
+                              <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
                               <span className="font-medium text-sm sm:text-base truncate">{topic.title}</span>
                               {topic.ownerId && (
-                                <Badge variant="outline" className="ml-1 bg-blue-50 text-blue-600 border-blue-200 text-xs flex-shrink-0">
+                                <Badge variant="outline" className="ml-1 bg-primary/15 text-foreground border-primary/60 text-xs flex-shrink-0">
                                   <User className="h-3 w-3 mr-1" />
                                   <span className="inline">{getOwnerName(topic.ownerId)}</span>
                                 </Badge>
@@ -1117,7 +1117,7 @@ export function SuperAdminDashboardClient({
                                             return (
                                             <div 
                                               key={resource.id}
-                                              className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-purple-50/10 rounded gap-2"
+                                              className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-primary/5 rounded gap-2"
                                             >
                                               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                                                 {isUnlocked ? (
@@ -1203,11 +1203,11 @@ export function SuperAdminDashboardClient({
 
         {/* My Admins Content Tab */}
         <TabsContent value="admin" className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-            <Building2 className="h-5 w-5 text-blue-600 mt-0.5" />
+          <div className="bg-primary/15 border border-primary/60 rounded-lg p-4 flex items-start gap-3">
+            <Building2 className="h-5 w-5 text-foreground mt-0.5" />
             <div>
-              <p className="font-medium text-blue-800">My Admins Content</p>
-              <p className="text-sm text-blue-700">
+              <p className="font-medium text-foreground">My Admins Content</p>
+              <p className="text-sm text-foreground">
                 Content created by admins you manage. You can view and manage content from all admins in your institution.
               </p>
             </div>
@@ -1225,10 +1225,10 @@ export function SuperAdminDashboardClient({
             </Card>
           ) : (
             filteredAdminLevels.map((level: LevelWithFullHierarchy) => (
-              <Card key={level.id} className="overflow-hidden border-blue-200">
+              <Card key={level.id} className="overflow-hidden border-primary/60">
                 {/* Level Header */}
                 <div 
-                  className="flex items-center justify-between p-2 sm:p-4 bg-blue-50/50 cursor-pointer hover:bg-blue-50 gap-2"
+                  className="flex items-center justify-between p-2 sm:p-4 bg-primary/10 cursor-pointer hover:bg-primary/15 gap-2"
                   onClick={() => toggleLevel(level.id)}
                 >
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -1246,7 +1246,7 @@ export function SuperAdminDashboardClient({
                     <div className="min-w-0 flex-1">
                       <span className="font-semibold text-base sm:text-lg truncate block">{level.title}</span>
                       {level.ownerId && (
-                        <Badge variant="outline" className="mt-0.5 bg-blue-50 text-blue-600 border-blue-200 text-xs">
+                        <Badge variant="outline" className="mt-0.5 bg-primary/15 text-foreground border-primary/60 text-xs">
                           <User className="h-3 w-3 mr-1" />
                           <span className="truncate max-w-[150px] inline">{getOwnerEmail(level.ownerId)}</span>
                         </Badge>
@@ -1292,7 +1292,7 @@ export function SuperAdminDashboardClient({
                         <div key={subject.id}>
                           {/* Subject Header */}
                           <div 
-                            className="flex items-center justify-between p-2 pl-4 sm:p-3 sm:pl-8 border-b cursor-pointer hover:bg-blue-50/30 gap-2"
+                            className="flex items-center justify-between p-2 pl-4 sm:p-3 sm:pl-8 border-b cursor-pointer hover:bg-primary/8 gap-2"
                             onClick={() => toggleSubject(subject.id)}
                           >
                             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -1343,7 +1343,7 @@ export function SuperAdminDashboardClient({
                                   <div key={topic.id} className="border-b last:border-b-0">
                                     {/* Topic Header */}
                                     <div 
-                                      className="flex items-center justify-between p-2 pl-6 sm:p-3 sm:pl-12 cursor-pointer hover:bg-blue-50/20 gap-2"
+                                      className="flex items-center justify-between p-2 pl-6 sm:p-3 sm:pl-12 cursor-pointer hover:bg-primary/6 gap-2"
                                       onClick={() => toggleTopic(topic.id)}
                                     >
                             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -1352,10 +1352,10 @@ export function SuperAdminDashboardClient({
                               ) : (
                                 <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                               )}
-                              <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
+                              <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
                               <span className="font-medium text-sm sm:text-base truncate">{topic.title}</span>
                               {topic.ownerId && (
-                                <Badge variant="outline" className="ml-1 bg-green-50 text-green-600 border-green-200 text-xs flex-shrink-0">
+                                <Badge variant="outline" className="ml-1 bg-primary/15 text-foreground border-primary/60 text-xs flex-shrink-0">
                                   <User className="h-3 w-3 mr-1" />
                                   <span className="inline">{getOwnerName(topic.ownerId)}</span>
                                 </Badge>
@@ -1402,7 +1402,7 @@ export function SuperAdminDashboardClient({
                                             return (
                                             <div 
                                               key={resource.id}
-                                              className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-blue-50/10 rounded gap-2"
+                                              className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-primary/5 rounded gap-2"
                                             >
                                               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                                                 {isUnlocked ? (
@@ -1479,11 +1479,11 @@ export function SuperAdminDashboardClient({
 
         {/* My Regulars Content Tab */}
         <TabsContent value="regular" className="space-y-4">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
-            <User className="h-5 w-5 text-green-600 mt-0.5" />
+          <div className="bg-primary/15 border border-primary/60 rounded-lg p-4 flex items-start gap-3">
+            <User className="h-5 w-5 text-foreground mt-0.5" />
             <div>
-              <p className="font-medium text-green-800">My Regulars Content</p>
-              <p className="text-sm text-green-700">
+              <p className="font-medium text-foreground">My Regulars Content</p>
+              <p className="text-sm text-foreground">
                 Personal content created by regular users you manage. You can view content from all regular users in your institution.
               </p>
             </div>
@@ -1501,10 +1501,10 @@ export function SuperAdminDashboardClient({
             </Card>
           ) : (
             filteredRegularLevels.map((level: LevelWithFullHierarchy) => (
-              <Card key={level.id} className="overflow-hidden border-green-200">
+              <Card key={level.id} className="overflow-hidden border-primary/60">
                 {/* Level Header */}
-                <div 
-                  className="flex items-center justify-between p-2 sm:p-4 bg-green-50/50 cursor-pointer hover:bg-green-50 gap-2"
+                <div
+                  className="flex items-center justify-between p-2 sm:p-4 bg-primary/10 cursor-pointer hover:bg-primary/15 gap-2"
                   onClick={() => toggleLevel(level.id)}
                 >
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -1522,7 +1522,7 @@ export function SuperAdminDashboardClient({
                     <div className="min-w-0 flex-1">
                       <span className="font-semibold text-base sm:text-lg truncate block">{level.title}</span>
                       {level.ownerId && (
-                        <Badge variant="outline" className="mt-0.5 bg-green-50 text-green-600 border-green-200 text-xs">
+                        <Badge variant="outline" className="mt-0.5 bg-primary/15 text-foreground border-primary/60 text-xs">
                           <User className="h-3 w-3 mr-1" />
                           <span className="truncate max-w-[150px] inline">{getOwnerEmail(level.ownerId)}</span>
                         </Badge>
@@ -1568,7 +1568,7 @@ export function SuperAdminDashboardClient({
                         <div key={subject.id}>
                           {/* Subject Header */}
                           <div 
-                            className="flex items-center justify-between p-2 pl-4 sm:p-3 sm:pl-8 border-b cursor-pointer hover:bg-green-50/30 gap-2"
+                            className="flex items-center justify-between p-2 pl-4 sm:p-3 sm:pl-8 border-b cursor-pointer hover:bg-primary/8 gap-2"
                             onClick={() => toggleSubject(subject.id)}
                           >
                             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -1619,7 +1619,7 @@ export function SuperAdminDashboardClient({
                                   <div key={topic.id} className="border-b last:border-b-0">
                                     {/* Topic Header */}
                                     <div 
-                                      className="flex items-center justify-between p-2 pl-6 sm:p-3 sm:pl-12 cursor-pointer hover:bg-green-50/20 gap-2"
+                                      className="flex items-center justify-between p-2 pl-6 sm:p-3 sm:pl-12 cursor-pointer hover:bg-primary/6 gap-2"
                                       onClick={() => toggleTopic(topic.id)}
                                     >
                                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -1628,7 +1628,7 @@ export function SuperAdminDashboardClient({
                                          ) : (
                                            <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                                          )}
-                                         <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-500 flex-shrink-0" />
+                                         <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
                                          <span className="font-medium text-sm sm:text-base truncate">{topic.title}</span>
                                <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
                                  {topic.resources?.length || 0}
@@ -1672,7 +1672,7 @@ export function SuperAdminDashboardClient({
                                             return (
                                             <div 
                                               key={resource.id}
-                                              className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-green-50/10 rounded gap-2"
+                                              className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-primary/5 rounded gap-2"
                                             >
                                               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                                                 {isUnlocked ? (

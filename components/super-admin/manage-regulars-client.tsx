@@ -332,7 +332,7 @@ export function ManageRegularsClient({ superAdminId, initialData }: ManageRegula
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Manage Regulars</h1>
-        <p className="text-gray-600 mt-1">
+        <p className="text-muted-foreground mt-1">
           Add and manage regular users for your institution
         </p>
       </div>
@@ -483,8 +483,8 @@ export function ManageRegularsClient({ superAdminId, initialData }: ManageRegula
         </CardHeader>
         <CardContent>
           {regularsData.regulars.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <div className="text-center py-8 text-muted-foreground">
+              <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <p>No regulars added yet</p>
               <p className="text-sm">Use the form above to add your first regular user</p>
             </div>
@@ -526,8 +526,8 @@ export function ManageRegularsClient({ superAdminId, initialData }: ManageRegula
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                              <Users className="h-4 w-4 text-blue-600" />
+                            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                              <Users className="h-4 w-4 text-primary-foreground" />
                             </div>
                             <span className="font-medium">
                               {regular.regular?.name || "Unknown User"}

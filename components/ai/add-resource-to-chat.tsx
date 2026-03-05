@@ -30,10 +30,10 @@ const TYPE_ICONS = {
 };
 
 const TYPE_COLORS = {
-  notes: "bg-blue-100 text-blue-800",
-  video: "bg-red-100 text-red-800",
-  audio: "bg-purple-100 text-purple-800",
-  image: "bg-green-100 text-green-800",
+  notes: "bg-primary/15 text-foreground",
+  video: "bg-red-500/15 text-foreground",
+  audio: "bg-primary/35 text-foreground",
+  image: "bg-primary/50 text-foreground",
 };
 
 export interface ChatResource {
@@ -190,7 +190,7 @@ export function AddResourceToChat({
         <div
           className={cn(
             "p-2 rounded-lg flex-shrink-0",
-            isLocked ? "bg-gray-200 text-gray-500" : TYPE_COLORS[resource.type]
+            isLocked ? "bg-muted text-muted-foreground" : TYPE_COLORS[resource.type]
           )}
         >
           <Icon className="h-4 w-4" />
@@ -210,7 +210,7 @@ export function AddResourceToChat({
           <div className="flex items-center gap-2 mt-2">
             <Badge
               variant="secondary"
-              className={cn("text-xs", isLocked ? "bg-gray-200 text-gray-600" : TYPE_COLORS[resource.type])}
+              className={cn("text-xs", isLocked ? "bg-muted text-muted-foreground" : TYPE_COLORS[resource.type])}
             >
               {resource.type}
             </Badge>
@@ -321,7 +321,7 @@ export function AddResourceToChat({
                 {superAdminResources.length > 0 && (
                   <div>
                     <div className="flex items-center gap-2 mb-3 pb-2 border-b">
-                      <Shield className="h-4 w-4 text-purple-600" />
+                      <Shield className="h-4 w-4 text-primary" />
                       <h3 className="font-semibold text-sm">From Super Admin</h3>
                       <Badge variant="secondary" className="ml-auto">
                         {superAdminResources.length}
@@ -337,7 +337,7 @@ export function AddResourceToChat({
                 {adminResources.length > 0 && (
                   <div>
                     <div className="flex items-center gap-2 mb-3 pb-2 border-b">
-                      <GraduationCap className="h-4 w-4 text-blue-600" />
+                      <GraduationCap className="h-4 w-4 text-foreground" />
                       <h3 className="font-semibold text-sm">From Your Admin</h3>
                       <Badge variant="secondary" className="ml-auto">
                         {adminResources.filter(r => r.isUnlocked).length} unlocked

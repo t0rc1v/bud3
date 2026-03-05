@@ -466,13 +466,13 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
         <Card 
           className={cn(
             "cursor-pointer transition-all hover:shadow-md",
-            activeTab === "my" && "ring-2 ring-blue-500 ring-offset-2"
+            activeTab === "my" && "ring-2 ring-primary ring-offset-2"
           )}
           onClick={() => setActiveTab("my")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <User className="h-4 w-4 text-blue-500" />
+              <User className="h-4 w-4 text-primary" />
               My Content
             </CardTitle>
           </CardHeader>
@@ -481,7 +481,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
             <p className="text-xs text-muted-foreground mt-1">
               {myStats.subjects} subjects, {myStats.resources} resources
             </p>
-            <p className="text-xs text-blue-600 mt-1">
+            <p className="text-xs text-foreground mt-1">
               {activeTab === "my" ? "Currently viewing" : "Click to view"}
             </p>
           </CardContent>
@@ -490,13 +490,13 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
         <Card 
           className={cn(
             "cursor-pointer transition-all hover:shadow-md",
-            activeTab === "institution" && "ring-2 ring-purple-500 ring-offset-2"
+            activeTab === "institution" && "ring-2 ring-primary ring-offset-2"
           )}
           onClick={() => setActiveTab("institution")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-purple-500" />
+              <Building2 className="h-4 w-4 text-primary" />
               Institution
             </CardTitle>
           </CardHeader>
@@ -505,7 +505,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
             <p className="text-xs text-muted-foreground mt-1">
               {superAdminSubjects.length} subjects, {superAdminResources.length} resources
             </p>
-            <p className="text-xs text-purple-600 mt-1">
+            <p className="text-xs text-foreground mt-1">
               {activeTab === "institution" ? "Currently viewing" : "Click to view"}
             </p>
           </CardContent>
@@ -515,13 +515,13 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
           <Card 
             className={cn(
               "cursor-pointer transition-all hover:shadow-md",
-              activeTab === "admin(s)" && "ring-2 ring-green-500 ring-offset-2"
+              activeTab === "admin(s)" && "ring-2 ring-primary ring-offset-2"
             )}
             onClick={() => setActiveTab("admin(s)")}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Users className="h-4 w-4 text-green-500" />
+                <Users className="h-4 w-4 text-primary" />
                 Admin(s)
               </CardTitle>
             </CardHeader>
@@ -530,7 +530,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
               <p className="text-xs text-muted-foreground mt-1">
                 {adminStats.subjects} subjects, {adminStats.resources} resources
               </p>
-              <p className="text-xs text-green-600 mt-1">
+              <p className="text-xs text-foreground mt-1">
                 {activeTab === "admin(s)" ? "Currently viewing" : "Click to view"}
               </p>
             </CardContent>
@@ -559,12 +559,12 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
           <TabsTrigger value="admin(s)" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2" disabled={superAdminAdminIds.length === 0}>
             <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span className="text-xs sm:text-sm whitespace-nowrap leading-none">Admin(s)</span>
-            {superAdminAdminIds.length > 0 && <Badge variant="secondary" className="ml-0.5 sm:ml-1 bg-green-100 text-green-800 text-xs hidden sm:inline h-5 min-w-0 px-1.5">{adminStats.levels}</Badge>}
+            {superAdminAdminIds.length > 0 && <Badge variant="secondary" className="ml-0.5 sm:ml-1 bg-primary text-primary-foreground text-xs hidden sm:inline h-5 min-w-0 px-1.5">{adminStats.levels}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="institution" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2">
             <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span className="text-xs sm:text-sm whitespace-nowrap leading-none">Institution</span>
-            <Badge variant="secondary" className="ml-0.5 sm:ml-1 bg-purple-100 text-purple-800 text-xs hidden sm:inline h-5 min-w-0 px-1.5">{superAdminLevels.length}</Badge>
+            <Badge variant="secondary" className="ml-0.5 sm:ml-1 bg-primary text-primary-foreground text-xs hidden sm:inline h-5 min-w-0 px-1.5">{superAdminLevels.length}</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -738,11 +738,11 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
           </div>
 
           {/* Read-only notice */}
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
-            <Users className="h-5 w-5 text-green-600 mt-0.5" />
+          <div className="bg-primary/15 border border-primary/60 rounded-lg p-4 flex items-start gap-3">
+            <Users className="h-5 w-5 text-foreground mt-0.5" />
             <div>
-              <p className="font-medium text-green-800">Admin(s) Content</p>
-              <p className="text-sm text-green-700">
+              <p className="font-medium text-foreground">Admin(s) Content</p>
+              <p className="text-sm text-foreground">
                 This content is shared by admins under your institution and is read-only. You can view and use these resources, but cannot modify or delete them.
               </p>
             </div>
@@ -814,11 +814,11 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
           </div>
 
           {/* Institution content notice */}
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-start gap-3">
-            <Building2 className="h-5 w-5 text-purple-600 mt-0.5" />
+          <div className="bg-primary/15 border border-primary/60 rounded-lg p-4 flex items-start gap-3">
+            <Building2 className="h-5 w-5 text-foreground mt-0.5" />
             <div>
-              <p className="font-medium text-purple-800">Institution Content</p>
-              <p className="text-sm text-purple-700">
+              <p className="font-medium text-foreground">Institution Content</p>
+              <p className="text-sm text-foreground">
                 This content is curated by your institution super-admin and is available to all users under the institution. These resources form the foundation of the learning curriculum and are read-only.
               </p>
             </div>
@@ -1073,7 +1073,7 @@ function ResourceItem({ resource, canDelete, currentUserId, onViewResource, onDe
               <Button 
                 variant="ghost" 
                 size="icon"
-                className="h-7 w-7 sm:h-9 sm:w-9 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                className="h-7 w-7 sm:h-9 sm:w-9 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-500/10"
               >
                 <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </Button>
@@ -1179,14 +1179,14 @@ function LevelCard({
   return (
     <Card className={cn(
       "overflow-hidden w-full",
-      isInstitutionContent && "border-green-200"
+      isInstitutionContent && "border-primary/60"
     )}>
       {/* Level Header */}
       <div 
         className={cn(
           "flex items-center justify-between p-2 sm:p-4 cursor-pointer hover:bg-muted/50 gap-2",
           
-          isInstitutionContent && "bg-green-50/50"
+          isInstitutionContent && "bg-primary/10"
         )}
         onClick={onToggle}
       >
@@ -1205,7 +1205,7 @@ function LevelCard({
           <div className="min-w-0 flex-1">
             <span className="font-semibold text-sm sm:text-base truncate block">{level.title}</span>
             {isInstitutionContent && (
-              <Badge variant="outline" className="mt-0.5 text-xs bg-green-100 text-green-800 border-green-300 sm:ml-2 sm:mt-0">
+              <Badge variant="outline" className="mt-0.5 text-xs bg-primary text-primary-foreground border-primary/70 sm:ml-2 sm:mt-0">
                 Institution
               </Badge>
             )}
@@ -1279,7 +1279,7 @@ function LevelCard({
                 <div 
                   className={cn(
                     "flex items-center justify-between p-2 pl-6 sm:p-3 sm:pl-12 border-b cursor-pointer hover:bg-muted/30 gap-2",
-                    isInstitutionContent && "hover:bg-green-50/30"
+                    isInstitutionContent && "hover:bg-primary/8"
                   )}
                   onClick={() => onToggleSubject(subject.id)}
                 >
@@ -1360,7 +1360,7 @@ function LevelCard({
                           <div 
                             className={cn(
                               "flex items-center justify-between p-2 pl-8 sm:p-3 sm:pl-16 cursor-pointer hover:bg-muted/20 gap-2",
-                              isInstitutionContent && "hover:bg-green-50/20"
+                              isInstitutionContent && "hover:bg-primary/6"
                             )}
                             onClick={() => onToggleTopic(topic.id)}
                           >
@@ -1370,7 +1370,7 @@ function LevelCard({
                               ) : (
                                 <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                               )}
-                              <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
+                              <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
                               <span className="font-medium text-sm sm:text-base truncate">{topic.title}</span>
                               <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
                                 {topic.resources?.length || 0}

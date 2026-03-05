@@ -62,10 +62,10 @@ const TYPE_ICONS = {
 };
 
 const TYPE_COLORS = {
-  notes: "bg-blue-100 text-blue-800 hover:bg-blue-200",
-  video: "bg-red-100 text-red-800 hover:bg-red-200",
-  audio: "bg-purple-100 text-purple-800 hover:bg-purple-200",
-  image: "bg-green-100 text-green-800 hover:bg-green-200",
+  notes: "bg-primary/15 text-foreground hover:bg-primary/25",
+  video: "bg-red-500/15 text-foreground hover:bg-red-500/25",
+  audio: "bg-primary/35 text-foreground hover:bg-primary/45",
+  image: "bg-primary/50 text-foreground hover:bg-primary/60",
 };
 
 // Helper function to generate contextual chat title from message and resources

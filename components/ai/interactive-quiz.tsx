@@ -268,7 +268,7 @@ export function InteractiveQuiz({ data }: InteractiveQuizProps) {
               </>
             ) : (
               <>
-                <AlertCircle className="h-6 w-6 text-orange-500" />
+                <AlertCircle className="h-6 w-6 text-primary" />
                 Quiz Completed
               </>
             )}
@@ -302,7 +302,7 @@ export function InteractiveQuiz({ data }: InteractiveQuizProps) {
 
           <div className={cn(
             "p-4 rounded-lg text-center",
-            score.hasPassed ? "bg-green-50 text-green-700" : "bg-orange-50 text-orange-700"
+            score.hasPassed ? "bg-green-50 text-green-700" : "bg-primary/15 text-foreground"
           )}>
             <p className="font-semibold">
               {score.hasPassed ? "You passed!" : "You didn't pass this time."}
@@ -456,7 +456,7 @@ export function InteractiveQuiz({ data }: InteractiveQuizProps) {
 
           {/* Hint display */}
           {showHint[currentQuestion.id] && currentQuestion.hint && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+            <div className="bg-primary/15 border border-primary/60 rounded-lg p-3 text-sm text-foreground">
               <strong>Hint:</strong> {currentQuestion.hint}
             </div>
           )}

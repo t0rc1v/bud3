@@ -130,7 +130,7 @@ function PricingModal() {
     <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle className="text-2xl font-bold text-center">
-          <span className="bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-orange-700 to-amber-500 bg-clip-text text-transparent">
             Pricing & Credits
           </span>
         </DialogTitle>
@@ -143,7 +143,7 @@ function PricingModal() {
             onClick={() => setActiveTab("credits")}
             className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-all ${
               activeTab === "credits"
-                ? "bg-background shadow-sm text-orange-600"
+                ? "bg-background shadow-sm text-primary"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -154,7 +154,7 @@ function PricingModal() {
             onClick={() => setActiveTab("unlock")}
             className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-all ${
               activeTab === "unlock"
-                ? "bg-background shadow-sm text-orange-600"
+                ? "bg-background shadow-sm text-primary"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -166,16 +166,16 @@ function PricingModal() {
         {activeTab === "credits" ? (
           <div className="space-y-8">
             {/* Credit Explanation */}
-            <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 rounded-xl p-6 border border-orange-200 dark:border-orange-800">
+            <div className="bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/15 dark:to-primary/8 rounded-xl p-6 border border-primary/40 dark:border-primary/50">
               <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shrink-0">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-700 to-amber-500 shrink-0">
                   <Coins className="h-6 w-6 text-white" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg mb-2">How Credits Work</h3>
                   <p className="text-muted-foreground text-sm">
                     Credits are the currency of BudLM. Use them to unlock premium content and 
-                    get AI responses. <span className="font-semibold text-orange-600">Ksh 100 = 50 credits</span> - use credits to unlock content at custom prices.
+                    get AI responses. <span className="font-semibold text-primary">Ksh 100 = 50 credits</span> - use credits to unlock content at custom prices.
                   </p>
                 </div>
               </div>
@@ -190,18 +190,18 @@ function PricingModal() {
                     key={pkg.name}
                     className={`relative rounded-xl border-2 p-4 transition-all ${
                       pkg.popular
-                        ? "border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
-                        : "border-border hover:border-orange-200"
+                        ? "border-primary/70 bg-primary/10 dark:bg-primary/15"
+                        : "border-border hover:border-primary/40"
                     }`}
                   >
                     {pkg.popular && (
-                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-xs font-medium px-3 py-1 rounded-full">
+                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-700 text-white text-xs font-medium px-3 py-1 rounded-full">
                         Most Popular
                       </span>
                     )}
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-semibold">{pkg.name}</span>
-                      <div className="flex items-center gap-1 text-orange-600">
+                      <div className="flex items-center gap-1 text-primary">
                         <Coins className="h-4 w-4" />
                         <span className="font-bold">{pkg.credits}</span>
                       </div>
@@ -218,7 +218,7 @@ function PricingModal() {
                     <Button
                       className={`w-full ${
                         pkg.popular
-                          ? "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                          ? "bg-gradient-to-r from-orange-700 to-amber-500 hover:from-orange-800 hover:to-amber-600"
                           : ""
                       }`}
                       variant={pkg.popular ? "default" : "outline"}
@@ -233,7 +233,7 @@ function PricingModal() {
             {/* Payment Method */}
             <div className="bg-muted rounded-xl p-6">
               <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                <Smartphone className="h-5 w-5 text-orange-600" />
+                <Smartphone className="h-5 w-5 text-primary" />
                 Pay with M-Pesa
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
@@ -301,8 +301,8 @@ function PricingModal() {
                   },
                 ].map((step, index) => (
                   <div key={index} className="flex items-start gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/20 shrink-0">
-                      <step.icon className="h-5 w-5 text-orange-600" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20 dark:bg-primary/15 shrink-0">
+                      <step.icon className="h-5 w-5 text-primary" />
                     </div>
                     <div>
                       <h4 className="font-medium">{step.title}</h4>
@@ -315,12 +315,12 @@ function PricingModal() {
 
             {/* Unlock Pricing */}
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-xl border-2 border-orange-200 dark:border-orange-800 p-6 bg-orange-50/30 dark:bg-orange-950/10">
+              <div className="rounded-xl border-2 border-primary/40 dark:border-primary/50 p-6 bg-primary/10 dark:bg-primary/8">
                 <div className="flex items-center gap-2 mb-3">
-                  <Coins className="h-5 w-5 text-orange-600" />
+                  <Coins className="h-5 w-5 text-primary" />
                   <h4 className="font-semibold">Pay with Credits</h4>
                 </div>
-                <div className="text-3xl font-bold text-orange-600 mb-1">Custom Pricing</div>
+                <div className="text-3xl font-bold text-primary mb-1">Custom Pricing</div>
                 <p className="text-sm text-muted-foreground mb-4">
                   Price varies per content (e.g., 30-100 credits)
                 </p>
@@ -369,7 +369,7 @@ function PricingModal() {
             {/* FAQ Section */}
             <div className="bg-muted rounded-xl p-6">
               <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                <HelpCircle className="h-5 w-5 text-orange-600" />
+                <HelpCircle className="h-5 w-5 text-primary" />
                 Frequently Asked Questions
               </h3>
               <div className="space-y-4 text-sm">
@@ -411,7 +411,7 @@ function PricingModal() {
             Questions? Contact our support team
           </div>
           <Link href="/sign-up">
-            <Button className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600">
+            <Button className="bg-gradient-to-r from-orange-700 to-amber-500 hover:from-orange-800 hover:to-amber-600">
               Get Started
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -434,35 +434,35 @@ export default function LandingPage() {
       >
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
-            {/* <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-500/20">
+            {/* <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-700 to-amber-500 shadow-lg shadow-orange-700/20">
               <Sun className="h-5 w-5 text-white" />
             </div> */}
-            <span className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
+            <span className="text-xl font-bold bg-gradient-to-r from-orange-800 to-amber-600 bg-clip-text text-transparent">
               BudLM
             </span>
           </div>
           <nav className="hidden md:flex items-center gap-6">
             <Link
               href="#features"
-              className="text-sm font-medium text-muted-foreground hover:text-orange-600 transition-colors"
+              className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
             >
               Features
             </Link>
             <Link
               href="#how-it-works"
-              className="text-sm font-medium text-muted-foreground hover:text-orange-600 transition-colors"
+              className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
             >
               How it Works
             </Link>
             <Link
               href="#pricing"
-              className="text-sm font-medium text-muted-foreground hover:text-orange-600 transition-colors"
+              className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
             >
               Pricing
             </Link>
             <Link
               href="#testimonials"
-              className="text-sm font-medium text-muted-foreground hover:text-orange-600 transition-colors"
+              className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
             >
               Testimonials
             </Link>
@@ -476,7 +476,7 @@ export default function LandingPage() {
             <Link href="/sign-up">
               <Button
                 size="sm"
-                className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                className="bg-gradient-to-r from-orange-700 to-amber-500 hover:from-orange-800 hover:to-amber-600"
               >
                 Get Started
               </Button>
@@ -489,7 +489,7 @@ export default function LandingPage() {
       <section className="relative overflow-hidden pt-16 pb-24 lg:pt-32 lg:pb-40">
         <div className="absolute inset-0 -z-10">
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px]" />
-          <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-orange-400 opacity-20 blur-[100px]" />
+          <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-orange-600 opacity-20 blur-[100px]" />
           <div className="absolute right-0 top-0 -z-10 h-[400px] w-[400px] rounded-full bg-amber-400 opacity-20 blur-[100px]" />
         </div>
 
@@ -504,7 +504,7 @@ export default function LandingPage() {
               variants={fadeInUp}
               className="inline-flex items-center gap-2 rounded-full border bg-background/80 px-4 py-1.5 text-sm font-medium mb-8"
             >
-              <Sparkles className="h-4 w-4 text-orange-600" />
+              <Sparkles className="h-4 w-4 text-primary" />
               <span>AI-Powered Education Platform</span>
               <ChevronRight className="h-4 w-4" />
             </motion.div>
@@ -514,7 +514,7 @@ export default function LandingPage() {
               className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl mb-6"
             >
               Learn Smarter with{" "}
-              <span className="bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-orange-700 to-amber-500 bg-clip-text text-transparent">
                 AI-Powered
               </span>{" "}
               Education
@@ -535,7 +535,7 @@ export default function LandingPage() {
               <Link href="/sign-up">
                 <Button
                   size="lg"
-                  className="h-12 px-8 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/25"
+                  className="h-12 px-8 bg-gradient-to-r from-orange-700 to-amber-500 hover:from-orange-800 hover:to-amber-600 text-white shadow-lg shadow-orange-700/25"
                 >
                   Start Learning Free
                   <ChevronRight className="ml-2 h-4 w-4" />
@@ -581,7 +581,7 @@ export default function LandingPage() {
           >
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">
               Everything You Need to{" "}
-              <span className="bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-orange-700 to-amber-500 bg-clip-text text-transparent">
                 Excel
               </span>
             </h2>
@@ -600,9 +600,9 @@ export default function LandingPage() {
             {features.map((feature, index) => (
               <motion.div key={index} variants={fadeInUp}>
                 <Card className="group relative overflow-hidden border bg-background transition-all hover:shadow-lg hover:-translate-y-1 h-full">
-                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-amber-500/5 opacity-0 transition-opacity group-hover:opacity-100" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-orange-700/5 to-amber-500/5 opacity-0 transition-opacity group-hover:opacity-100" />
                   <CardHeader>
-                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-500/20">
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-700 to-amber-500 shadow-lg shadow-orange-700/20">
                       <feature.icon className="h-6 w-6 text-white" />
                     </div>
                     <CardTitle className="text-xl">{feature.title}</CardTitle>
@@ -629,7 +629,7 @@ export default function LandingPage() {
           >
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">
               How It{" "}
-              <span className="bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-orange-700 to-amber-500 bg-clip-text text-transparent">
                 Works
               </span>
             </h2>
@@ -673,7 +673,7 @@ export default function LandingPage() {
                 variants={fadeInUp}
                 className="relative flex flex-col items-center text-center"
               >
-                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-xl shadow-orange-500/20">
+                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-700 to-amber-500 shadow-xl shadow-orange-700/20">
                   <item.icon className="h-10 w-10 text-white" />
                 </div>
                 <div className="mb-4 text-5xl font-bold text-muted-foreground/20">
@@ -699,7 +699,7 @@ export default function LandingPage() {
           >
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">
               Simple & Transparent{" "}
-              <span className="bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-orange-700 to-amber-500 bg-clip-text text-transparent">
                 Pricing
               </span>
             </h2>
@@ -717,9 +717,9 @@ export default function LandingPage() {
           >
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {/* Credit Card */}
-              <Card className="border-2 border-orange-200 dark:border-orange-800 bg-gradient-to-br from-orange-50/50 to-amber-50/50 dark:from-orange-950/20 dark:to-amber-950/20">
+              <Card className="border-2 border-primary/40 dark:border-primary/50 bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/15 dark:to-primary/8">
                 <CardHeader>
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500">
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-700 to-amber-500">
                     <Coins className="h-6 w-6 text-white" />
                   </div>
                   <CardTitle>Credit System</CardTitle>
@@ -730,15 +730,15 @@ export default function LandingPage() {
                   </p>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-orange-600" />
+                      <Check className="h-4 w-4 text-primary" />
                       <span>50 credits for Ksh 100</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-orange-600" />
+                      <Check className="h-4 w-4 text-primary" />
                       <span>Pay with M-Pesa</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-orange-600" />
+                      <Check className="h-4 w-4 text-primary" />
                       <span>Credits expire after 30 days</span>
                     </div>
                   </div>
@@ -779,7 +779,7 @@ export default function LandingPage() {
               </Card>
 
               {/* CTA Card */}
-              <Card className="border-2 border-transparent bg-gradient-to-br from-orange-500 to-amber-500 text-white">
+              <Card className="border-2 border-transparent bg-gradient-to-br from-orange-700 to-amber-500 text-white">
                 <CardHeader>
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white/20">
                     <CreditCard className="h-6 w-6 text-white" />
@@ -794,7 +794,7 @@ export default function LandingPage() {
                     <DialogTrigger asChild>
                       <Button
                         variant="secondary"
-                        className="w-full bg-white text-orange-600 hover:bg-white/90"
+                        className="w-full bg-white text-primary hover:bg-white/90"
                       >
                         View Full Pricing
                         <ArrowRight className="ml-2 h-4 w-4" />
@@ -821,7 +821,7 @@ export default function LandingPage() {
           >
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">
               Built for{" "}
-              <span className="bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-orange-700 to-amber-500 bg-clip-text text-transparent">
                 Everyone
               </span>
             </h2>
@@ -838,29 +838,29 @@ export default function LandingPage() {
             className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto"
           >
             <motion.div variants={fadeInUp}>
-              <Card className="border-2 border-transparent hover:border-orange-500/20 transition-all h-full">
+              <Card className="border-2 border-transparent hover:border-primary/20 transition-all h-full">
                 <CardHeader>
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-900/20">
-                    <BookOpen className="h-6 w-6 text-orange-600" />
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/20 dark:bg-primary/15">
+                    <BookOpen className="h-6 w-6 text-primary" />
                   </div>
                   <CardTitle>For Learners & Individuals</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-3 text-sm text-muted-foreground">
                     <li className="flex items-center gap-2">
-                      <Star className="h-4 w-4 text-orange-600" />
+                      <Star className="h-4 w-4 text-primary" />
                       Personalized learning paths
                     </li>
                     <li className="flex items-center gap-2">
-                      <Star className="h-4 w-4 text-orange-600" />
+                      <Star className="h-4 w-4 text-primary" />
                       24/7 AI tutoring support
                     </li>
                     <li className="flex items-center gap-2">
-                      <Star className="h-4 w-4 text-orange-600" />
+                      <Star className="h-4 w-4 text-primary" />
                       Easy content creation tools
                     </li>
                     <li className="flex items-center gap-2">
-                      <Star className="h-4 w-4 text-orange-600" />
+                      <Star className="h-4 w-4 text-primary" />
                       Progress tracking & analytics
                     </li>
                   </ul>
@@ -924,7 +924,7 @@ export default function LandingPage() {
           >
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">
               Loved by{" "}
-              <span className="bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-orange-700 to-amber-500 bg-clip-text text-transparent">
                 Thousands
               </span>
             </h2>
@@ -943,7 +943,7 @@ export default function LandingPage() {
             {testimonials.map((testimonial, index) => (
               <motion.div key={index} variants={fadeInUp}>
                 <Card className="relative overflow-hidden border bg-background h-full">
-                  <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-gradient-to-br from-orange-500/10 to-amber-500/10" />
+                  <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-gradient-to-br from-orange-700/10 to-amber-500/10" />
                   <CardContent className="pt-6">
                     <div className="mb-4 flex">
                       {[...Array(5)].map((_, i) => (
@@ -957,7 +957,7 @@ export default function LandingPage() {
                       &ldquo;{testimonial.quote}&rdquo;
                     </p>
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-amber-500 text-white font-semibold text-sm">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-orange-700 to-amber-500 text-white font-semibold text-sm">
                         {testimonial.author.charAt(0)}
                       </div>
                       <div>
@@ -983,7 +983,7 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 px-6 py-16 sm:px-12 sm:py-20 lg:px-16"
+            className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-700 via-amber-500 to-yellow-500 px-6 py-16 sm:px-12 sm:py-20 lg:px-16"
           >
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff0a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0a_1px,transparent_1px)] bg-[size:14px_24px]" />
             <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
@@ -1001,7 +1001,7 @@ export default function LandingPage() {
                   <Button
                     size="lg"
                     variant="secondary"
-                    className="h-12 px-8 bg-white text-orange-600 hover:bg-white/90 shadow-lg"
+                    className="h-12 px-8 bg-white text-primary hover:bg-white/90 shadow-lg"
                   >
                     Get Started Free
                     <ChevronRight className="ml-2 h-4 w-4" />
@@ -1011,7 +1011,7 @@ export default function LandingPage() {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="h-12 px-8 border-white text-orange-600 hover:bg-white/10"
+                    className="h-12 px-8 border-white text-white hover:bg-white/10"
                   >
                     Sign In
                   </Button>
@@ -1028,10 +1028,10 @@ export default function LandingPage() {
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                {/* <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-amber-500">
+                {/* <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-700 to-amber-500">
                   <Sun className="h-4 w-4 text-white" />
                 </div> */}
-                <span className="text-lg font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
+                <span className="text-lg font-bold bg-gradient-to-r from-orange-800 to-amber-600 bg-clip-text text-transparent">
                   BudLM
                 </span>
               </div>
@@ -1043,19 +1043,19 @@ export default function LandingPage() {
               <h4 className="font-semibold mb-4">Platform</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>
-                  <Link href="#features" className="hover:text-orange-600 transition-colors">
+                  <Link href="#features" className="hover:text-primary transition-colors">
                     Features
                   </Link>
                 </li>
                 <li>
-                  <Link href="#how-it-works" className="hover:text-orange-600 transition-colors">
+                  <Link href="#how-it-works" className="hover:text-primary transition-colors">
                     How it Works
                   </Link>
                 </li>
                 <li>
                   <Dialog>
                     <DialogTrigger asChild>
-                      <button className="hover:text-orange-600 transition-colors">
+                      <button className="hover:text-primary transition-colors">
                         Pricing
                       </button>
                     </DialogTrigger>
@@ -1068,17 +1068,17 @@ export default function LandingPage() {
               <h4 className="font-semibold mb-4">Resources</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>
-                  <Link href="#" className="hover:text-orange-600 transition-colors">
+                  <Link href="#" className="hover:text-primary transition-colors">
                     Documentation
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="hover:text-orange-600 transition-colors">
+                  <Link href="#" className="hover:text-primary transition-colors">
                     Help Center
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="hover:text-orange-600 transition-colors">
+                  <Link href="#" className="hover:text-primary transition-colors">
                     Blog
                   </Link>
                 </li>
@@ -1088,17 +1088,17 @@ export default function LandingPage() {
               <h4 className="font-semibold mb-4">Legal</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>
-                  <Link href="#" className="hover:text-orange-600 transition-colors">
+                  <Link href="#" className="hover:text-primary transition-colors">
                     Privacy Policy
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="hover:text-orange-600 transition-colors">
+                  <Link href="#" className="hover:text-primary transition-colors">
                     Terms of Service
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="hover:text-orange-600 transition-colors">
+                  <Link href="#" className="hover:text-primary transition-colors">
                     Cookie Policy
                   </Link>
                 </li>

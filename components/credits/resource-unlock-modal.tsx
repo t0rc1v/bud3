@@ -68,16 +68,16 @@ interface PaymentState {
 }
 
 const PaymentStatusConfig: Record<PaymentStatus, { icon: React.ElementType; color: string; bgColor: string }> = {
-  idle: { icon: CreditCard, color: "text-blue-600", bgColor: "bg-blue-50" },
-  initiating: { icon: Loader2, color: "text-blue-600", bgColor: "bg-blue-50" },
-  "stk-pushed": { icon: Phone, color: "text-yellow-600", bgColor: "bg-yellow-50" },
-  processing: { icon: Timer, color: "text-orange-600", bgColor: "bg-orange-50" },
-  success: { icon: CheckCircle, color: "text-green-600", bgColor: "bg-green-50" },
-  cancelled: { icon: Ban, color: "text-gray-600", bgColor: "bg-gray-50" },
-  timeout: { icon: Timer, color: "text-orange-600", bgColor: "bg-orange-50" },
-  "insufficient-funds": { icon: AlertTriangle, color: "text-red-600", bgColor: "bg-red-50" },
-  "wrong-pin": { icon: ShieldCheck, color: "text-red-600", bgColor: "bg-red-50" },
-  error: { icon: XCircle, color: "text-red-600", bgColor: "bg-red-50" },
+  idle: { icon: CreditCard, color: "text-primary", bgColor: "bg-primary/15" },
+  initiating: { icon: Loader2, color: "text-primary", bgColor: "bg-primary/15" },
+  "stk-pushed": { icon: Phone, color: "text-yellow-500", bgColor: "bg-yellow-500/10" },
+  processing: { icon: Timer, color: "text-primary", bgColor: "bg-primary/15" },
+  success: { icon: CheckCircle, color: "text-green-500", bgColor: "bg-green-500/10" },
+  cancelled: { icon: Ban, color: "text-muted-foreground", bgColor: "bg-muted" },
+  timeout: { icon: Timer, color: "text-primary", bgColor: "bg-primary/15" },
+  "insufficient-funds": { icon: AlertTriangle, color: "text-red-500", bgColor: "bg-red-500/10" },
+  "wrong-pin": { icon: ShieldCheck, color: "text-red-500", bgColor: "bg-red-500/10" },
+  error: { icon: XCircle, color: "text-red-500", bgColor: "bg-red-500/10" },
 };
 
 export function ResourceUnlockModal({
@@ -464,7 +464,7 @@ export function ResourceUnlockModal({
         {paymentState.status === "idle" ? (
           <div className="space-y-4 sm:space-y-6">
             {/* Resource Info */}
-            <Card className="border-dashed border-2 border-yellow-500/30 bg-yellow-50/30">
+            <Card className="border-dashed border-2 border-yellow-500/30 bg-yellow-500/5">
               <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
                 <div className="flex items-start gap-2 sm:gap-3">
                   <div className="p-2 sm:p-3 bg-yellow-100 rounded-lg flex-shrink-0">
@@ -510,7 +510,7 @@ export function ResourceUnlockModal({
 
                   <div className="flex items-center justify-between p-3 sm:p-4 bg-muted rounded-lg">
                     <div className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                      <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-foreground" />
                       <span className="font-medium text-sm sm:text-base">Equivalent Value</span>
                     </div>
                     <span className="text-sm sm:text-base text-muted-foreground">Ksh {unlockFeeKes}</span>
@@ -518,21 +518,21 @@ export function ResourceUnlockModal({
 
                   <Alert className={cn(
                     "py-2 sm:py-3",
-                    hasEnoughCredits ? "bg-blue-50 border-blue-200" : "bg-red-50 border-red-200"
+                    hasEnoughCredits ? "bg-primary/15 border-primary/60" : "bg-red-50 border-red-200"
                   )}>
                     <Info className={cn(
                       "h-4 w-4 flex-shrink-0",
-                      hasEnoughCredits ? "text-blue-600" : "text-red-600"
+                      hasEnoughCredits ? "text-foreground" : "text-red-600"
                     )} />
                     <AlertTitle className={cn(
                       "text-xs sm:text-sm",
-                      hasEnoughCredits ? "text-blue-800" : "text-red-800"
+                      hasEnoughCredits ? "text-foreground" : "text-red-800"
                     )}>
                       Your Credit Balance
                     </AlertTitle>
                     <AlertDescription className={cn(
                       "text-xs sm:text-sm",
-                      hasEnoughCredits ? "text-blue-700" : "text-red-700"
+                      hasEnoughCredits ? "text-foreground" : "text-red-700"
                     )}>
                       {isLoadingCredits ? (
                         "Loading..."
@@ -592,16 +592,16 @@ export function ResourceUnlockModal({
                 <div className="space-y-3 sm:space-y-4">
                   <div className="flex items-center justify-between p-3 sm:p-4 bg-muted rounded-lg">
                     <div className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                      <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-foreground" />
                       <span className="font-medium text-sm sm:text-base">Unlock Fee</span>
                     </div>
                     <span className="text-base sm:text-lg font-bold">Ksh {unlockFeeKes}</span>
                   </div>
 
-                  <Alert className="bg-blue-50 border-blue-200 py-2 sm:py-3">
-                    <Info className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                    <AlertTitle className="text-blue-800 text-xs sm:text-sm">What you get</AlertTitle>
-                    <AlertDescription className="text-blue-700 text-xs sm:text-sm">
+                  <Alert className="bg-primary/15 border-primary/60 py-2 sm:py-3">
+                    <Info className="h-4 w-4 text-foreground flex-shrink-0" />
+                    <AlertTitle className="text-foreground text-xs sm:text-sm">What you get</AlertTitle>
+                    <AlertDescription className="text-foreground text-xs sm:text-sm">
                       Permanent access to view this resource
                     </AlertDescription>
                   </Alert>
@@ -632,7 +632,7 @@ export function ResourceUnlockModal({
 
                   <Button
                     type="submit"
-                    className="w-full bg-green-600 hover:bg-green-700 h-11 sm:h-12 text-sm sm:text-base touch-manipulation"
+                    className="w-full bg-primary hover:bg-primary/90 h-11 sm:h-12 text-sm sm:text-base touch-manipulation"
                     disabled={!phoneNumber}
                   >
                     <CreditCard className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
@@ -684,10 +684,10 @@ export function ResourceUnlockModal({
                   )}
 
                   {paymentState.status === "stk-pushed" && (
-                    <Alert className="bg-yellow-50 border-yellow-200 py-2 sm:py-3">
+                    <Alert className="bg-yellow-950/20 border-yellow-800/40 py-2 sm:py-3">
                       <Info className="h-4 w-4 text-yellow-600 flex-shrink-0" />
-                      <AlertTitle className="text-yellow-800 text-xs sm:text-sm">What to expect</AlertTitle>
-                      <AlertDescription className="text-yellow-700 text-xs sm:text-sm">
+                      <AlertTitle className="text-yellow-400 text-xs sm:text-sm">What to expect</AlertTitle>
+                      <AlertDescription className="text-yellow-400 text-xs sm:text-sm">
                         1. Check your phone
                         <br />
                         2. Enter M-Pesa PIN

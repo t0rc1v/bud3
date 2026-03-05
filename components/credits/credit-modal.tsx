@@ -97,16 +97,16 @@ interface PaymentState {
 }
 
 const PaymentStatusConfig: Record<PaymentStatus, { icon: React.ElementType; color: string; bgColor: string }> = {
-  idle: { icon: CreditCard, color: "text-blue-600", bgColor: "bg-blue-50" },
-  initiating: { icon: Loader2, color: "text-blue-600", bgColor: "bg-blue-50" },
-  "stk-pushed": { icon: Phone, color: "text-yellow-600", bgColor: "bg-yellow-50" },
-  processing: { icon: Timer, color: "text-orange-600", bgColor: "bg-orange-50" },
-  success: { icon: CheckCircle, color: "text-green-600", bgColor: "bg-green-50" },
-  cancelled: { icon: Ban, color: "text-gray-600", bgColor: "bg-gray-50" },
-  timeout: { icon: Timer, color: "text-orange-600", bgColor: "bg-orange-50" },
-  "insufficient-funds": { icon: AlertTriangle, color: "text-red-600", bgColor: "bg-red-50" },
-  "wrong-pin": { icon: ShieldCheck, color: "text-red-600", bgColor: "bg-red-50" },
-  error: { icon: XCircle, color: "text-red-600", bgColor: "bg-red-50" },
+  idle: { icon: CreditCard, color: "text-primary", bgColor: "bg-primary/15" },
+  initiating: { icon: Loader2, color: "text-primary", bgColor: "bg-primary/15" },
+  "stk-pushed": { icon: Phone, color: "text-yellow-500", bgColor: "bg-yellow-500/10" },
+  processing: { icon: Timer, color: "text-primary", bgColor: "bg-primary/15" },
+  success: { icon: CheckCircle, color: "text-green-500", bgColor: "bg-green-500/10" },
+  cancelled: { icon: Ban, color: "text-muted-foreground", bgColor: "bg-muted" },
+  timeout: { icon: Timer, color: "text-primary", bgColor: "bg-primary/15" },
+  "insufficient-funds": { icon: AlertTriangle, color: "text-red-500", bgColor: "bg-red-500/10" },
+  "wrong-pin": { icon: ShieldCheck, color: "text-red-500", bgColor: "bg-red-500/10" },
+  error: { icon: XCircle, color: "text-red-500", bgColor: "bg-red-500/10" },
 };
 
 export function CreditModal({ trigger, className, isOpen: controlledIsOpen, onOpenChange }: CreditModalProps) {
@@ -488,10 +488,10 @@ export function CreditModal({ trigger, className, isOpen: controlledIsOpen, onOp
               )}
 
               {paymentState.status as string === "stk-pushed" && (
-                <Alert className="bg-yellow-50 border-yellow-200">
+                <Alert className="bg-yellow-950/20 border-yellow-800/40">
                   <Info className="h-4 w-4 text-yellow-600" />
-                  <AlertTitle className="text-yellow-800">What to expect</AlertTitle>
-                  <AlertDescription className="text-yellow-700 text-sm">
+                  <AlertTitle className="text-yellow-400">What to expect</AlertTitle>
+                  <AlertDescription className="text-yellow-400 text-sm">
                     1. Check your phone for an M-Pesa notification<br/>
                     2. Enter your M-Pesa PIN<br/>
                     3. Wait for confirmation (usually takes 10-30 seconds)
@@ -540,10 +540,10 @@ export function CreditModal({ trigger, className, isOpen: controlledIsOpen, onOp
         </Card>
 
         {paymentState.status as string === "timeout" && (
-          <Alert className="bg-blue-50 border-blue-200">
-            <Info className="h-4 w-4 text-blue-600" />
-            <AlertTitle className="text-blue-800">What should I do?</AlertTitle>
-            <AlertDescription className="text-blue-700 text-sm">
+          <Alert className="bg-primary/15 border-primary/60">
+            <Info className="h-4 w-4 text-foreground" />
+            <AlertTitle className="text-foreground">What should I do?</AlertTitle>
+            <AlertDescription className="text-foreground text-sm">
               1. Check your M-Pesa SMS messages for a confirmation<br/>
               2. Check your credit balance - credits may have been added already<br/>
               3. If payment was deducted but no credits received, contact support
@@ -617,10 +617,10 @@ export function CreditModal({ trigger, className, isOpen: controlledIsOpen, onOp
                     1 credit = 1 AI response
                   </p>
                   {balance.expiringSoon.credits > 0 && (
-                    <Alert className="mt-4 bg-orange-50 border-orange-200">
-                      <AlertTriangle className="h-4 w-4 text-orange-600" />
-                      <AlertTitle className="text-orange-800">Credits Expiring Soon</AlertTitle>
-                      <AlertDescription className="text-orange-700 text-sm">
+                    <Alert className="mt-4 bg-primary/15 border-primary/60">
+                      <AlertTriangle className="h-4 w-4 text-foreground" />
+                      <AlertTitle className="text-foreground">Credits Expiring Soon</AlertTitle>
+                      <AlertDescription className="text-foreground text-sm">
                         {balance.expiringSoon.credits} credits will expire within {balance.expiration?.warningDays || 7} days. Use them before they expire!
                       </AlertDescription>
                     </Alert>
@@ -734,7 +734,7 @@ export function CreditModal({ trigger, className, isOpen: controlledIsOpen, onOp
                                 {transaction.amount > 0 && transaction.expiresAt && (
                                   <p className={cn(
                                     "text-xs mt-1",
-                                    isExpired ? "text-red-500" : isExpiringSoon ? "text-orange-500" : "text-muted-foreground"
+                                    isExpired ? "text-red-500" : isExpiringSoon ? "text-primary" : "text-muted-foreground"
                                   )}>
                                     {isExpired ? (
                                       <>Expired on {new Date(transaction.expiresAt).toLocaleDateString()}</>
@@ -824,7 +824,7 @@ export const CreditBadge = React.forwardRef<
       ref={ref}
       className={cn(
         "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium cursor-pointer hover:bg-yellow-500/20 transition-colors",
-        "bg-yellow-500/10 text-yellow-700 border border-yellow-500/20",
+        "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20",
         className
       )}
       {...props}

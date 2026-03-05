@@ -59,10 +59,10 @@ const TYPE_ICONS: Record<ResourceType, typeof FileText> = {
 };
 
 const TYPE_COLORS: Record<ResourceType, string> = {
-  notes: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  video: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
-  audio: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
-  image: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+  notes: "bg-primary/15 text-foreground",
+  video: "bg-red-500/15 text-foreground",
+  audio: "bg-primary/35 text-foreground",
+  image: "bg-primary/50 text-foreground",
 };
 
 export function ResourceViewer({

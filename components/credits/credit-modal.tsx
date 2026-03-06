@@ -19,12 +19,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Coins, 
-  CreditCard, 
-  History, 
-  Loader2, 
-  CheckCircle, 
+import {
+  Coins,
+  CreditCard,
+  History,
+  Loader2,
+  CheckCircle,
   XCircle,
   Smartphone,
   ArrowRight,
@@ -37,7 +37,8 @@ import {
   RefreshCw,
   ShieldCheck,
   Phone,
-  Info
+  Info,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -120,6 +121,16 @@ export function CreditModal({ trigger, className, isOpen: controlledIsOpen, onOp
   };
   const [balance, setBalance] = useState<CreditBalance | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [purchases, setPurchases] = useState<Array<{
+    id: string;
+    amountKes: number;
+    creditsPurchased: number;
+    status: string;
+    mpesaReceiptNumber: string | null;
+    phoneNumber: string | null;
+    transactionDate: string | null;
+    createdAt: string;
+  }>>([]);
   const [paymentState, setPaymentState] = useState<PaymentState>({ 
     status: "idle", 
     title: "",
@@ -163,12 +174,17 @@ export function CreditModal({ trigger, className, isOpen: controlledIsOpen, onOp
   const fetchBalance = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/credits/balance");
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setBalance(data);
-        }
+      const [balanceRes, purchasesRes] = await Promise.all([
+        fetch("/api/credits/balance"),
+        fetch("/api/credits/purchases"),
+      ]);
+      if (balanceRes.ok) {
+        const data = await balanceRes.json();
+        if (data.success) setBalance(data);
+      }
+      if (purchasesRes.ok) {
+        const data = await purchasesRes.json();
+        if (data.success) setPurchases(data.purchases ?? []);
       }
     } catch (err) {
       console.error("Error fetching balance:", err);
@@ -586,18 +602,22 @@ export function CreditModal({ trigger, className, isOpen: controlledIsOpen, onOp
           </div>
         ) : balance ? (
           <Tabs defaultValue="balance" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="balance" className="gap-2">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="balance" className="gap-1 text-xs sm:text-sm">
                 <Coins className="h-4 w-4" />
-                Balance
+                <span className="hidden sm:inline">Balance</span>
               </TabsTrigger>
-              <TabsTrigger value="purchase" className="gap-2">
+              <TabsTrigger value="purchase" className="gap-1 text-xs sm:text-sm">
                 <CreditCard className="h-4 w-4" />
-                Buy Credits
+                <span className="hidden sm:inline">Buy</span>
               </TabsTrigger>
-              <TabsTrigger value="history" className="gap-2">
+              <TabsTrigger value="history" className="gap-1 text-xs sm:text-sm">
                 <History className="h-4 w-4" />
-                History
+                <span className="hidden sm:inline">History</span>
+              </TabsTrigger>
+              <TabsTrigger value="payments" className="gap-1 text-xs sm:text-sm">
+                <Receipt className="h-4 w-4" />
+                <span className="hidden sm:inline">Payments</span>
               </TabsTrigger>
             </TabsList>
 
@@ -694,6 +714,74 @@ export function CreditModal({ trigger, className, isOpen: controlledIsOpen, onOp
               {renderPaymentStatus()}
             </TabsContent>
 
+            <TabsContent value="payments">
+              <ScrollArea className="h-[400px]">
+                {purchases.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Receipt className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No M-Pesa payments yet</p>
+                    <p className="text-sm">Buy credits to see your payment history</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {purchases.map((purchase) => {
+                      const statusColors: Record<string, string> = {
+                        completed: "bg-green-500/10 text-green-600 border-green-200",
+                        failed: "bg-red-500/10 text-red-600 border-red-200",
+                        cancelled: "bg-gray-500/10 text-gray-500 border-gray-200",
+                        pending: "bg-yellow-500/10 text-yellow-600 border-yellow-200",
+                        processing: "bg-blue-500/10 text-blue-600 border-blue-200",
+                        refunded: "bg-purple-500/10 text-purple-600 border-purple-200",
+                      };
+                      const colorClass = statusColors[purchase.status] ?? statusColors.pending;
+                      return (
+                        <Card key={purchase.id}>
+                          <CardContent className="py-3 px-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="space-y-0.5 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-sm">
+                                    Ksh {purchase.amountKes.toLocaleString()}
+                                  </span>
+                                  <Badge
+                                    variant="outline"
+                                    className={cn("text-xs capitalize", colorClass)}
+                                  >
+                                    {purchase.status}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {purchase.creditsPurchased} credits
+                                  {purchase.phoneNumber && ` · ${purchase.phoneNumber}`}
+                                </p>
+                                {purchase.mpesaReceiptNumber && (
+                                  <p className="text-xs text-muted-foreground font-mono">
+                                    Receipt: {purchase.mpesaReceiptNumber}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(
+                                    purchase.transactionDate ?? purchase.createdAt
+                                  ).toLocaleDateString()}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(
+                                    purchase.transactionDate ?? purchase.createdAt
+                                  ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                </p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </ScrollArea>
+            </TabsContent>
+
             <TabsContent value="history">
               <ScrollArea className="h-[400px]">
                 {balance.history.length === 0 ? (
@@ -714,7 +802,7 @@ export function CreditModal({ trigger, className, isOpen: controlledIsOpen, onOp
                         <Card key={transaction.id} className={cn(
                           isExpired && "opacity-60"
                         )}>
-                          <CardContent className="flex items-center justify-between py-4">
+                          <CardContent className="flex items-start sm:items-center justify-between py-4 gap-2">
                             <div className="flex items-center gap-3">
                               <div className={cn(
                                 "p-2 rounded-full",

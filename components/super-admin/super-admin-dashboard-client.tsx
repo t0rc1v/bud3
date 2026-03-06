@@ -2,10 +2,10 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { cn } from "@/lib/utils";
 import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";
 import {
   Crown,
+  Download,
   Users,
   GraduationCap,
   BookOpen,
@@ -41,16 +41,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { DeleteConfirmDialog } from "@/components/shared/delete-confirm-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,6 +57,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ContentTabCard } from "@/components/shared/content-tab-card";
 import { CreateLevelForm } from "@/components/forms/create-level-form";
 import { CreateSubjectForm } from "@/components/forms/create-subject-form";
 import { CreateTopicForm } from "@/components/forms/create-topic-form";
@@ -529,97 +521,56 @@ export function SuperAdminDashboardClient({
     <div className="flex flex-col gap-6" suppressHydrationWarning>
       {/* Header */}
       <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <Crown className="h-6 w-6 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+              <Crown className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">
+                Super Admin Dashboard
+              </h2>
+              <p className="text-muted-foreground">
+                System-wide management and configuration
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">
-              Super Admin Dashboard
-            </h2>
-            <p className="text-muted-foreground">
-              System-wide management and configuration
-            </p>
-          </div>
+          <Button variant="outline" size="sm" onClick={() => window.open("/api/admin/content/export", "_blank")}>
+            <Download className="h-4 w-4 mr-2" />
+            Export Content
+          </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        {/* My Content Card */}
-        <Card 
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-md",
-            activeTab === "super" && "ring-2 ring-primary ring-offset-2"
-          )}
+        <ContentTabCard
+          icon={Shield}
+          label="My Content"
+          levelCount={superAdminStats.levels}
+          subjectCount={superAdminStats.subjects}
+          resourceCount={superAdminStats.resources}
+          isActive={activeTab === "super"}
           onClick={() => setActiveTab("super")}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Shield className="h-4 w-4 text-primary" />
-              My Content
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{superAdminStats.levels}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {superAdminStats.subjects} subjects, {superAdminStats.resources} resources
-            </p>
-            <p className="text-xs text-foreground mt-1">
-              {activeTab === "super" ? "Currently viewing" : "Click to view"}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* My Admins Content Card */}
-        <Card 
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-md",
-            activeTab === "admin" && "ring-2 ring-primary ring-offset-2"
-          )}
+        />
+        <ContentTabCard
+          icon={Building2}
+          label="My Admins"
+          levelCount={adminStats.levels}
+          subjectCount={adminStats.subjects}
+          resourceCount={adminStats.resources}
+          isActive={activeTab === "admin"}
           onClick={() => setActiveTab("admin")}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-primary" />
-              My Admins
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{adminStats.levels}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {adminStats.subjects} subjects, {adminStats.resources} resources
-            </p>
-            <p className="text-xs text-foreground mt-1">
-              {activeTab === "admin" ? "Currently viewing" : "Click to view"}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* My Regulars Content Card */}
-        <Card 
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-md",
-            activeTab === "regular" && "ring-2 ring-primary ring-offset-2"
-          )}
+        />
+        <ContentTabCard
+          icon={User}
+          label="My Regulars"
+          levelCount={regularStats.levels}
+          subjectCount={regularStats.subjects}
+          resourceCount={regularStats.resources}
+          isActive={activeTab === "regular"}
           onClick={() => setActiveTab("regular")}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <User className="h-4 w-4 text-primary" />
-              My Regulars
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{regularStats.levels}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {regularStats.subjects} subjects, {regularStats.resources} resources
-            </p>
-            <p className="text-xs text-foreground mt-1">
-              {activeTab === "regular" ? "Currently viewing" : "Click to view"}
-            </p>
-          </CardContent>
-        </Card>
+        />
       </div>
 
       {/* System Overview Stats */}
@@ -1749,29 +1700,16 @@ export function SuperAdminDashboardClient({
       </Tabs>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete the {itemToDelete?.type} &ldquo;{itemToDelete?.name}&rdquo;.
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setItemToDelete(null)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setIsDeleteDialogOpen(open);
+          if (!open) setItemToDelete(null);
+        }}
+        description={`This will permanently delete the ${itemToDelete?.type ?? ""} "${itemToDelete?.name ?? ""}". This action cannot be undone.`}
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+      />
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

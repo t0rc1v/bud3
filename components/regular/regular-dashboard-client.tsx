@@ -27,6 +27,8 @@ import {
   Lock,
   Unlock,
   CreditCard,
+  Loader2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,16 +39,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { DeleteConfirmDialog } from "@/components/shared/delete-confirm-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +61,7 @@ import { ResourceViewer } from "@/components/resources/resource-viewer";
 import { deleteLevelWithSession, deleteSubjectWithSession, deleteTopicWithSession, deleteResource, getResourceById, getRegularSuperAdminId, getSuperAdminAdminIds } from "@/lib/actions/admin";
 import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";
+import { recordResourceView } from "@/lib/actions/credits";
 import type {
   LevelWithFullHierarchy,
   LevelWithFullHierarchyAndUnlockStatus,
@@ -92,7 +86,44 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
   const router = useRouter();
   const [levels, setLevels] = useState<LevelWithFullHierarchy[]>(initialLevels);
   const [searchQuery, setSearchQuery] = useState("");
-  
+
+  // Server-side search state
+  interface SearchResult {
+    id: string;
+    title: string;
+    description: string | null;
+    type: string;
+    isLocked: boolean;
+    topicTitle: string | null;
+    subjectName: string | null;
+    levelTitle: string | null;
+  }
+  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState("");
+
+  useEffect(() => {
+    if (!globalSearch.trim()) {
+      setSearchResults(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await fetch(`/api/content/search?q=${encodeURIComponent(globalSearch.trim())}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data.results ?? data);
+        }
+      } catch {
+        // silently fail — local filter still works
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [globalSearch]);
+
   // Tab state
   const [activeTab, setActiveTab] = useState<"my" | "admin(s)" | "institution">("my");
   
@@ -413,7 +444,9 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
     };
     
     setSelectedResource(resourceWithRelations);
-  }, [myLevels, adminLevels, superAdminLevels]);
+    // Fire-and-forget: track that this learner viewed this resource
+    recordResourceView(userId, resource.id).catch(() => {});
+  }, [myLevels, adminLevels, superAdminLevels, userId]);
 
   const handleBackFromViewer = () => {
     setSelectedResource(null);
@@ -460,6 +493,75 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
           Manage your personal content and access resources from your institution
         </p>
       </div>
+
+      {/* Global Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search all content..."
+          value={globalSearch}
+          onChange={(e) => setGlobalSearch(e.target.value)}
+          className="pl-9 pr-9"
+        />
+        {globalSearch && (
+          <button
+            onClick={() => { setGlobalSearch(""); setSearchResults(null); }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Server Search Results */}
+      {(globalSearch.trim() || isSearching) && (
+        <div className="space-y-2">
+          {isSearching ? (
+            <div className="flex items-center gap-2 py-4 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Searching...</span>
+            </div>
+          ) : searchResults !== null ? (
+            searchResults.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground text-sm">
+                  No results found for &ldquo;{globalSearch}&rdquo;
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">{searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for &ldquo;{globalSearch}&rdquo;</p>
+                {searchResults.map((result) => (
+                  <Card
+                    key={result.id}
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => {
+                      if (!result.isLocked) {
+                        const allRes = [...myResources, ...adminResources, ...superAdminResources];
+                        const found = allRes.find((r) => r.id === result.id);
+                        if (found) handleViewResource(found);
+                      }
+                    }}
+                  >
+                    <CardContent className="py-3 px-4 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{result.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {[result.levelTitle, result.subjectName, result.topicTitle].filter(Boolean).join(" › ")}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Badge variant="outline" className="text-xs capitalize">{result.type}</Badge>
+                        {result.isLocked && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )
+          ) : null}
+        </div>
+      )}
 
       {/* Stats Cards - Clickable to switch tabs */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -865,29 +967,16 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
       </Tabs>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete the {itemToDelete?.type} &ldquo;{itemToDelete?.name}&rdquo;.
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setItemToDelete(null); setDeleteCallback(null); }}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setIsDeleteDialogOpen(open);
+          if (!open) { setItemToDelete(null); setDeleteCallback(null); }
+        }}
+        description={`This will permanently delete the ${itemToDelete?.type ?? ""} "${itemToDelete?.name ?? ""}". This action cannot be undone.`}
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+      />
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { cn } from "@/lib/utils";
 import {
   ChevronDown,
   ChevronRight,
@@ -40,16 +39,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { DeleteConfirmDialog } from "@/components/shared/delete-confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -59,6 +49,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ContentTabCard } from "@/components/shared/content-tab-card";
 import { CreateLevelForm } from "@/components/forms/create-level-form";
 import { CreateSubjectForm } from "@/components/forms/create-subject-form";
 import { CreateTopicForm } from "@/components/forms/create-topic-form";
@@ -69,11 +60,13 @@ import { EditTopicForm } from "@/components/forms/edit-topic-form";
 import { EditResourceForm } from "@/components/forms/edit-resource-form";
 import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   deleteLevelWithSession,
   deleteSubjectWithSession,
   deleteTopicWithSession,
   deleteResource,
+  bulkDeleteResources,
 } from "@/lib/actions/admin";
 import type {
   LevelWithFullHierarchy,
@@ -120,6 +113,13 @@ export function AdminDashboardClient({
   // Search and filter
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Per-topic resource pagination (topic id → how many to show)
+  const RESOURCE_PAGE_SIZE = 10;
+  const [topicResourceLimit, setTopicResourceLimit] = useState<Record<string, number>>({});
+  const getTopicResourceLimit = (topicId: string) => topicResourceLimit[topicId] ?? RESOURCE_PAGE_SIZE;
+  const showMoreResources = (topicId: string, total: number) =>
+    setTopicResourceLimit((prev) => ({ ...prev, [topicId]: Math.min((prev[topicId] ?? RESOURCE_PAGE_SIZE) + RESOURCE_PAGE_SIZE, total) }));
+
   // Resource viewer state
   const [selectedResource, setSelectedResource] = useState<ResourceWithRelations | null>(null);
   const [isLoadingResource, setIsLoadingResource] = useState(false);
@@ -144,6 +144,33 @@ export function AdminDashboardClient({
 
   // Use shared context for unlocked resources
   const { isResourceUnlocked, addUnlockedResource } = useUnlockedResources();
+
+  // Bulk selection state
+  const [selectedResourceIds, setSelectedResourceIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const toggleResourceSelection = (id: string) => {
+    setSelectedResourceIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedResourceIds.size === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const { deleted, errors } = await bulkDeleteResources(Array.from(selectedResourceIds));
+      setSelectedResourceIds(new Set());
+      router.refresh();
+      if (errors.length > 0) {
+        alert(`Deleted ${deleted} resource(s). ${errors.length} failed.`);
+      }
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   // Handle viewResource query param from file tree dropdown
   useEffect(() => {
@@ -454,52 +481,24 @@ export function AdminDashboardClient({
 
       {/* Stats Cards - Clickable to switch tabs */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card 
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-md",
-            activeTab === "my" && "ring-2 ring-primary ring-offset-2"
-          )}
+        <ContentTabCard
+          icon={User}
+          label="My Content"
+          levelCount={myStats.levels}
+          subjectCount={myStats.subjects}
+          resourceCount={myStats.resources}
+          isActive={activeTab === "my"}
           onClick={() => setActiveTab("my")}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <User className="h-4 w-4 text-primary" />
-              My Content
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{myStats.levels}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {myStats.subjects} subjects, {myStats.resources} resources
-            </p>
-            <p className="text-xs text-foreground mt-1">
-              {activeTab === "my" ? "Currently viewing" : "Click to view"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card 
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-md",
-            activeTab === "institution" && "ring-2 ring-primary ring-offset-2"
-          )}
+        />
+        <ContentTabCard
+          icon={Building2}
+          label="Institution"
+          levelCount={institutionStats.levels}
+          subjectCount={institutionStats.subjects}
+          resourceCount={institutionStats.resources}
+          isActive={activeTab === "institution"}
           onClick={() => setActiveTab("institution")}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-primary" />
-              Institution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{institutionStats.levels}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {institutionStats.subjects} subjects, {institutionStats.resources} resources
-            </p>
-            <p className="text-xs text-foreground mt-1">
-              {activeTab === "institution" ? "Currently viewing" : "Click to view"}
-            </p>
-          </CardContent>
-        </Card>
+        />
       </div>
 
       {/* Tabs for My Content and Institution */}
@@ -596,6 +595,25 @@ export function AdminDashboardClient({
               />
             </div>
           </div>
+          {/* Bulk action bar */}
+          {selectedResourceIds.size > 0 && (
+            <div className="flex items-center gap-3 px-3 py-2 bg-destructive/10 border border-destructive/20 rounded-md">
+              <span className="text-sm font-medium">{selectedResourceIds.size} resource(s) selected</span>
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={isBulkDeleting}
+                onClick={handleBulkDelete}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                {isBulkDeleting ? "Deleting..." : "Delete Selected"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelectedResourceIds(new Set())}>
+                Clear
+              </Button>
+            </div>
+          )}
+
           {/* My Content Tree */}
           {filteredMyLevels.length === 0 ? (
             <Card>
@@ -818,12 +836,19 @@ export function AdminDashboardClient({
                                             No resources yet.
                                           </div>
                                         ) : (
-                                          topic.resources.map((resource) => (
-                                          <div 
+                                          <>
+                                          {topic.resources.slice(0, getTopicResourceLimit(topic.id)).map((resource) => (
+                                          <div
                                             key={resource.id}
                                             className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-muted/20 rounded gap-2"
                                           >
                                             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                              <Checkbox
+                                                checked={selectedResourceIds.has(resource.id)}
+                                                onCheckedChange={() => toggleResourceSelection(resource.id)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="flex-shrink-0"
+                                              />
                                               {resource.isLocked ? (
                                                 <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
                                               ) : (
@@ -885,7 +910,16 @@ export function AdminDashboardClient({
                                               </DropdownMenu>
                                             </div>
                                           </div>
-                                        ))
+                                          ))}
+                                          {topic.resources.length > getTopicResourceLimit(topic.id) && (
+                                            <button
+                                              className="w-full text-xs text-muted-foreground hover:text-foreground py-1 text-center"
+                                              onClick={() => showMoreResources(topic.id, topic.resources!.length)}
+                                            >
+                                              Show {topic.resources.length - getTopicResourceLimit(topic.id)} more resource(s)
+                                            </button>
+                                          )}
+                                          </>
                                       )}
                                     </div>
                                   )}
@@ -1131,29 +1165,16 @@ export function AdminDashboardClient({
       </Tabs>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete the {itemToDelete?.type} &ldquo;{itemToDelete?.name}&rdquo;.
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setItemToDelete(null); setDeleteCallback(null); }}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setIsDeleteDialogOpen(open);
+          if (!open) { setItemToDelete(null); setDeleteCallback(null); }
+        }}
+        description={`This will permanently delete the ${itemToDelete?.type ?? ""} "${itemToDelete?.name ?? ""}". This action cannot be undone.`}
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+      />
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

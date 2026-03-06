@@ -7,6 +7,7 @@ import { checkUserPermission } from "@/lib/actions/admin-permissions";
 import { getUserByClerkId } from "@/lib/actions/auth";
 import { FinancePermissions } from "@/lib/permissions";
 import { DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 /**
  * GET /api/admin/unlock-fees
@@ -242,11 +243,23 @@ export async function PUT(req: Request) {
 export async function POST(req: Request) {
   try {
     const { userId: clerkId } = await auth();
-    
+
     if (!clerkId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // Rate limit: 60 unlock fee creations per minute per user
+    const rateLimit = checkRateLimit(`unlock-fee-create:${clerkId}`, 60, 60 * 1000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please slow down." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+        }
       );
     }
 

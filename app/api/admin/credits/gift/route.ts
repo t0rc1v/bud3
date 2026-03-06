@@ -4,6 +4,7 @@ import { giftCredits } from "@/lib/actions/credits";
 import { checkUserPermission } from "@/lib/actions/admin-permissions";
 import { getUserByClerkId } from "@/lib/actions/auth";
 import { FinancePermissions } from "@/lib/permissions";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
   try {
@@ -13,6 +14,18 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // Rate limit: 20 gift-credit requests per minute per user
+    const rateLimit = checkRateLimit(`gift-credits:${clerkId}`, 20, 60 * 1000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please slow down." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+        }
       );
     }
 

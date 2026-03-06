@@ -215,7 +215,8 @@ export async function GET(req: Request) {
     // Get admin IDs for regular users (supports multiple admins)
     const userAdminIds = userRole === "regular" ? await getRegularAdminIds(userDbId) : [];
 
-    const levels = await getLevelsFullHierarchy();
+    // Learners see only published resources; admins/super-admins see all
+    const levels = await getLevelsFullHierarchy({ publishedOnly: userRole === "regular" });
 
     // Filter levels based on ownership
     const filteredLevels = filterLevels(levels, userDbId, userRole, userAdminIds);

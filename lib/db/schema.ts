@@ -1,5 +1,5 @@
-import { pgTable, text, integer, boolean, timestamp, uuid, varchar, jsonb, pgEnum, uniqueIndex, index } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { pgTable, text, integer, boolean, timestamp, uuid, varchar, jsonb, pgEnum, uniqueIndex, index, check } from 'drizzle-orm/pg-core';
+import { relations, sql } from 'drizzle-orm';
 
 
 export const resourceTypeEnum = pgEnum('resource_type', ["notes", "video", "audio", "image"]);
@@ -86,6 +86,7 @@ export const topic = pgTable("topic", {
 });
 
 export const resourceVisibilityEnum = pgEnum('resource_visibility_enum', ["public", "admin_only", "admin_and_regulars", "regular_only"]);
+export const resourceStatusEnum = pgEnum('resource_status_enum', ["draft", "published"]);
 
 export const resource = pgTable("resource", {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -102,6 +103,8 @@ export const resource = pgTable("resource", {
   ownerRole: userRoleEnum('owner_role').notNull().default("regular"),
   visibility: resourceVisibilityEnum('visibility').notNull().default("regular_only"),
   metadata: jsonb('metadata'),
+  // Publish status — draft resources are hidden from learners
+  status: resourceStatusEnum('status').notNull().default("published"),
   // Lock and pricing fields
   isLocked: boolean('is_locked').default(false).notNull(),
   unlockFee: integer('unlock_fee').default(0).notNull(), // Fee in KES (0 means free)
@@ -215,6 +218,39 @@ export const userRoles = pgTable("user_roles", {
   createdAt,
 }, (table) => ({
   uniqueUserRole: uniqueIndex("uc_user_roles").on(table.userId, table.roleId),
+}));
+
+// Audit log — records significant mutations for super-admin review
+export const auditLog = pgTable("audit_log", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  // Nullable: system-generated events (cron, webhook) may not have a human actor
+  actorId: uuid('actor_id').references(() => user.id, { onDelete: 'set null' }),
+  action: varchar('action', { length: 100 }).notNull(), // e.g. "resource.created", "user.role_updated"
+  entityType: varchar('entity_type', { length: 50 }).notNull(), // e.g. "resource", "user", "level"
+  entityId: varchar('entity_id', { length: 255 }), // the affected row's ID (as string for flexibility)
+  metadata: jsonb('metadata'), // additional context (diff, old values, etc.)
+  createdAt,
+}, (table) => ({
+  actorIdx: index("audit_log_actor_idx").on(table.actorId),
+  entityIdx: index("audit_log_entity_idx").on(table.entityType, table.entityId),
+  createdAtIdx: index("audit_log_created_at_idx").on(table.createdAt),
+}));
+
+// Resource view log — tracks which resources learners have opened (5.1 learner progress)
+export const resourceView = pgTable("resource_view", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  resourceId: uuid('resource_id')
+    .notNull()
+    .references(() => resource.id, { onDelete: 'cascade' }),
+  viewedAt: timestamp('viewed_at', { withTimezone: true }).notNull().defaultNow(),
+  durationSeconds: integer('duration_seconds'), // null if not tracked
+}, (table) => ({
+  userResourceIdx: index("resource_view_user_resource_idx").on(table.userId, table.resourceId),
+  resourceIdx: index("resource_view_resource_idx").on(table.resourceId),
+  viewedAtIdx: index("resource_view_viewed_at_idx").on(table.viewedAt),
 }));
 
 // Relations
@@ -531,6 +567,11 @@ export const unlockFee = pgTable("unlock_fee", {
   uniqueTopicFee: uniqueIndex("uc_unlock_fee_topic").on(table.topicId),
   uniqueSubjectFee: uniqueIndex("uc_unlock_fee_subject").on(table.subjectId),
   isActiveIdx: index("unlock_fee_is_active_idx").on(table.isActive),
+  // Enforce exactly one of resourceId, topicId, subjectId is set
+  exactlyOneFk: check(
+    "chk_unlock_fee_exactly_one_fk",
+    sql`(resource_id IS NOT NULL)::int + (topic_id IS NOT NULL)::int + (subject_id IS NOT NULL)::int = 1`
+  ),
 }));
 
 // Track unlocked content per user
@@ -732,5 +773,23 @@ export const aiFlashcardRelations = relations(aiFlashcard, ({ one }) => ({
   chat: one(chat, {
     fields: [aiFlashcard.chatId],
     references: [chat.id],
+  }),
+}));
+
+export const auditLogRelations = relations(auditLog, ({ one }) => ({
+  actor: one(user, {
+    fields: [auditLog.actorId],
+    references: [user.id],
+  }),
+}));
+
+export const resourceViewRelations = relations(resourceView, ({ one }) => ({
+  user: one(user, {
+    fields: [resourceView.userId],
+    references: [user.id],
+  }),
+  resource: one(resource, {
+    fields: [resourceView.resourceId],
+    references: [resource.id],
   }),
 }));

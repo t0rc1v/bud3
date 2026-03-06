@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { UploadButton } from "@/lib/uploadthing";
-import { AlertCircle, CheckCircle2, AlertTriangle, Lock, Unlock, CreditCard } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Lock, Unlock, CreditCard, Globe, FileEdit } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Alert,
@@ -79,6 +79,7 @@ export function EditResourceForm({
     uploadthingKey: resource.uploadthingKey,
     isLocked: resource.isLocked ?? false,
     unlockFee: resource.unlockFee ?? 0,
+    status: (resource.status ?? "published") as "draft" | "published",
   });
 
   const filteredTopics = topics.filter(
@@ -439,7 +440,6 @@ export function EditResourceForm({
         <Button
           type="button"
           variant="outline"
-          className="flex-1"
           onClick={onCancel}
           disabled={isLoading}
         >
@@ -449,8 +449,20 @@ export function EditResourceForm({
           type="submit"
           className="flex-1"
           disabled={isLoading || !formData.url || !formData.topicId}
+          onClick={() => setFormData((prev) => ({ ...prev, status: "published" }))}
         >
-          {isLoading ? "Updating..." : "Update Resource"}
+          <Globe className="mr-2 h-4 w-4" />
+          {isLoading && formData.status === "published" ? "Publishing..." : "Publish"}
+        </Button>
+        <Button
+          type="submit"
+          variant="outline"
+          className="flex-1"
+          disabled={isLoading || !formData.url || !formData.topicId}
+          onClick={() => setFormData((prev) => ({ ...prev, status: "draft" }))}
+        >
+          <FileEdit className="mr-2 h-4 w-4" />
+          {isLoading && formData.status === "draft" ? "Saving..." : "Save as Draft"}
         </Button>
       </div>
     </form>

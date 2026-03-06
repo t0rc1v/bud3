@@ -119,6 +119,8 @@ export interface CreateResourceInput {
   ownerId: string;
   ownerRole: UserRole;
   visibility: ResourceVisibility;
+  // Publish status
+  status?: "draft" | "published";
   // Lock and pricing fields
   isLocked?: boolean;
   unlockFee?: number;

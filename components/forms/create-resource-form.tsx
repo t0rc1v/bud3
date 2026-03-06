@@ -18,7 +18,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { UploadButton } from "@/lib/uploadthing";
 import type { SubjectWithTopics, TopicWithResources, ResourceType } from "@/lib/types";
-import { CheckCircle2, ExternalLink, Lock, Unlock, CreditCard } from "lucide-react";
+import { CheckCircle2, ExternalLink, Lock, Unlock, CreditCard, Eye, FileEdit, Globe } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface CreateResourceFormProps {
@@ -60,6 +60,8 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
     uploadthingKey: "",
     isLocked: false,
     unlockFee: 0,
+    visibility: "admin_and_regulars" as "public" | "admin_only" | "admin_and_regulars" | "regular_only",
+    status: "published" as "draft" | "published",
   });
 
   // Sync subjectId when subjects prop changes
@@ -92,7 +94,8 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
         uploadthingKey: formData.uploadthingKey || "",
         ownerId: user.id,
         ownerRole: user.role,
-        visibility: "admin_and_regulars", // Default visibility for admin-created resources
+        visibility: formData.visibility,
+        status: formData.status,
       });
       router.refresh();
       setFormData({
@@ -106,6 +109,8 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
         uploadthingKey: "",
         isLocked: false,
         unlockFee: 0,
+        visibility: "admin_and_regulars",
+        status: "published",
       });
       setUploadedFile(null);
       setThumbnailFile(null);
@@ -360,6 +365,44 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
         </div>
       )}
 
+      {/* Visibility Settings */}
+      <div className="space-y-2">
+        <Label htmlFor="visibility" className="flex items-center gap-2">
+          <Eye className="h-4 w-4" />
+          Visibility
+        </Label>
+        <Select
+          value={formData.visibility}
+          onValueChange={(value) =>
+            setFormData({
+              ...formData,
+              visibility: value as typeof formData.visibility,
+            })
+          }
+        >
+          <SelectTrigger id="visibility">
+            <SelectValue placeholder="Select visibility" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="public">
+              Public — visible to everyone, including unauthenticated visitors
+            </SelectItem>
+            <SelectItem value="admin_and_regulars">
+              Admin & Learners — visible to admins and enrolled learners (default)
+            </SelectItem>
+            <SelectItem value="regular_only">
+              Learners only — visible only to enrolled learners, not admins
+            </SelectItem>
+            <SelectItem value="admin_only">
+              Admin only — visible only to admins, hidden from learners
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Controls who can see this resource in the content browser.
+        </p>
+      </div>
+
       {/* Lock/Unlock Settings */}
       <div className="space-y-4 border-t pt-4 mt-4">
         <div className="flex items-center justify-between">
@@ -402,13 +445,28 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
         )}
       </div>
 
-      <Button
-        type="submit"
-        className="w-full"
-        disabled={isLoading || subjects.length === 0 || !formData.url || !formData.topicId}
-      >
-        {isLoading ? "Creating..." : "Create Resource"}
-      </Button>
+      {/* Publish / Save as Draft */}
+      <div className="flex gap-2 pt-2">
+        <Button
+          type="submit"
+          className="flex-1"
+          disabled={isLoading || subjects.length === 0 || !formData.url || !formData.topicId}
+          onClick={() => setFormData(prev => ({ ...prev, status: "published" }))}
+        >
+          <Globe className="mr-2 h-4 w-4" />
+          {isLoading && formData.status === "published" ? "Publishing..." : "Publish"}
+        </Button>
+        <Button
+          type="submit"
+          variant="outline"
+          className="flex-1"
+          disabled={isLoading || subjects.length === 0 || !formData.url || !formData.topicId}
+          onClick={() => setFormData(prev => ({ ...prev, status: "draft" }))}
+        >
+          <FileEdit className="mr-2 h-4 w-4" />
+          {isLoading && formData.status === "draft" ? "Saving..." : "Save as Draft"}
+        </Button>
+      </div>
     </form>
   );
 }

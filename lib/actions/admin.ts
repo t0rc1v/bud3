@@ -4,8 +4,9 @@ import { db } from "@/lib/db";
 import { level, subject, topic, resource, adminRegulars, user, unlockedContent, unlockFee, superAdminAdmins, superAdminRegulars } from "@/lib/db/schema";
 import { getUserByClerkId } from "@/lib/actions/auth";
 import { hasUserUnlockedContent, getUnlockFeeByResource } from "@/lib/actions/credits";
-import { eq, and, desc, asc, inArray, or, isNull } from "drizzle-orm";
+import { eq, and, desc, asc, inArray, or, isNull, count, ilike } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { logAudit } from "@/lib/audit";
 import type {
   CreateLevelInput,
   UpdateLevelInput,
@@ -1052,12 +1053,12 @@ export async function getLevels(): Promise<LevelWithSubjects[]> {
   return levels as unknown as LevelWithSubjects[];
 }
 
-export async function getLevelsFullHierarchy(): Promise<LevelWithFullHierarchy[]> {
+export async function getLevelsFullHierarchy(options?: { publishedOnly?: boolean }): Promise<LevelWithFullHierarchy[]> {
   const levelsData = await db
     .select()
     .from(level)
     .orderBy(asc(level.order));
-  
+
   const levelIds = levelsData.map(l => l.id);
   const subjectsData = levelIds.length > 0
     ? await db
@@ -1066,7 +1067,7 @@ export async function getLevelsFullHierarchy(): Promise<LevelWithFullHierarchy[]
         .where(inArray(subject.levelId, levelIds))
         .orderBy(asc(subject.name))
     : [];
-  
+
   const subjectIds = subjectsData.map(s => s.id);
   const topicsData = subjectIds.length > 0
     ? await db
@@ -1075,13 +1076,17 @@ export async function getLevelsFullHierarchy(): Promise<LevelWithFullHierarchy[]
         .where(inArray(topic.subjectId, subjectIds))
         .orderBy(asc(topic.order))
     : [];
-  
+
   const topicIds = topicsData.map(t => t.id);
   const resourcesData = topicIds.length > 0
     ? await db
         .select()
         .from(resource)
-        .where(inArray(resource.topicId, topicIds))
+        .where(
+          options?.publishedOnly
+            ? and(inArray(resource.topicId, topicIds), eq(resource.status, "published"))
+            : inArray(resource.topicId, topicIds)
+        )
         .orderBy(desc(resource.createdAt))
     : [];
   
@@ -1357,6 +1362,7 @@ export async function createResource(input: CreateResourceInput): Promise<void> 
     ownerId: input.ownerId,
     ownerRole: input.ownerRole,
     visibility: input.visibility,
+    status: input.status ?? "published",
     isLocked: input.isLocked ?? false,
     unlockFee: input.unlockFee ?? 0,
     isActive: true,
@@ -1368,7 +1374,16 @@ export async function createResource(input: CreateResourceInput): Promise<void> 
     const { syncUnlockFeeForResource } = await import("@/lib/actions/credits");
     await syncUnlockFeeForResource(newResource.id);
   }
-  
+
+  if (newResource) {
+    await logAudit(input.ownerId, "resource.created", "resource", newResource.id, {
+      title: input.title,
+      type: input.type,
+      status: input.status ?? "published",
+      visibility: input.visibility,
+    });
+  }
+
   revalidatePath("/admin");
   revalidatePath("/regular");
 }
@@ -1450,8 +1465,50 @@ export async function updateResourceLockStatus(
 }
 
 export async function deleteResource(id: string): Promise<void> {
+  // Fetch the uploadthing key before deletion so we can clean up the file
+  const existing = await db
+    .select({ uploadthingKey: resource.uploadthingKey })
+    .from(resource)
+    .where(eq(resource.id, id))
+    .limit(1)
+    .then((rows) => rows[0] || null);
+
   await db.delete(resource).where(eq(resource.id, id));
+
+  // Delete the file from UploadThing storage (best-effort — don't fail the delete if this errors)
+  if (existing?.uploadthingKey) {
+    try {
+      const { UTApi } = await import("uploadthing/server");
+      const utapi = new UTApi();
+      await utapi.deleteFiles(existing.uploadthingKey);
+    } catch (err) {
+      console.error("Failed to delete UploadThing file:", err);
+    }
+  }
+
+  // Audit log (actor unknown at server action level — caller can pass it if needed)
+  await logAudit(null, "resource.deleted", "resource", id);
+
   revalidatePath("/admin");
+}
+
+export async function bulkDeleteResources(ids: string[]): Promise<{ deleted: number; errors: string[] }> {
+  if (ids.length === 0) return { deleted: 0, errors: [] };
+
+  let deleted = 0;
+  const errors: string[] = [];
+
+  for (const id of ids) {
+    try {
+      await deleteResource(id);
+      deleted++;
+    } catch (err) {
+      errors.push(id);
+      console.error(`Failed to delete resource ${id}:`, err);
+    }
+  }
+
+  return { deleted, errors };
 }
 
 // ==========================================
@@ -1677,6 +1734,59 @@ export async function bulkRemoveMyLearners(
 // ==========================================
 // SUPER ADMIN SYSTEM MANAGEMENT
 // ==========================================
+
+export interface PaginatedLearners {
+  learners: MyLearnerWithDetails[];
+  totalCount: number;
+  totalPages: number;
+  currentPage: number;
+}
+
+export async function getMyLearnersPaginated(
+  adminId: string,
+  page: number = 1,
+  pageSize: number = 10,
+  search?: string
+): Promise<PaginatedLearners> {
+  const offset = (page - 1) * pageSize;
+
+  const baseConditions = [eq(adminRegulars.adminId, adminId)];
+  if (search) {
+    baseConditions.push(ilike(adminRegulars.regularEmail, `%${search}%`));
+  }
+  const whereClause = and(...baseConditions);
+
+  const [totalResult, regularsData] = await Promise.all([
+    db.select({ count: count() }).from(adminRegulars).where(whereClause),
+    db
+      .select()
+      .from(adminRegulars)
+      .where(whereClause)
+      .orderBy(desc(adminRegulars.createdAt))
+      .limit(pageSize)
+      .offset(offset),
+  ]);
+
+  const totalCount = totalResult[0]?.count ?? 0;
+
+  const regularIds = regularsData.map((r) => r.regularId);
+  const usersData =
+    regularIds.length > 0
+      ? await db.select().from(user).where(inArray(user.id, regularIds))
+      : [];
+
+  const learners = regularsData.map((r) => ({
+    ...r,
+    regular: usersData.find((u) => u.id === r.regularId) || null,
+  })) as MyLearnerWithDetails[];
+
+  return {
+    learners,
+    totalCount,
+    totalPages: Math.ceil(totalCount / pageSize),
+    currentPage: page,
+  };
+}
 
 export async function getAllUsers(): Promise<User[]> {
   const users = await db

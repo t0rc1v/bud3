@@ -24,7 +24,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const levels = await getLevelsFullHierarchy();
+    const levels = await getLevelsFullHierarchy({ publishedOnly: true });
 
     // Collect all resource IDs from the full hierarchy
     const resourceIds = levels.flatMap(l =>

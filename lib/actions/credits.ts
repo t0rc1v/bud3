@@ -1,16 +1,17 @@
 "use server";
 
 import { db, pool } from "@/lib/db";
-import { 
-  userCredit, 
-  creditTransaction, 
-  creditPurchase, 
-  unlockFee, 
+import {
+  userCredit,
+  creditTransaction,
+  creditPurchase,
+  unlockFee,
   unlockedContent,
   user,
   resource,
   topic,
   subject,
+  resourceView,
 } from "@/lib/db/schema";
 import { eq, and, desc, asc, sql, gt, or, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
@@ -1425,4 +1426,54 @@ export async function syncUnlockFeeForResource(resourceId: string) {
     feeAmount: unlockFeeRecord.feeAmount,
     creditsRequired: unlockFeeRecord.creditsRequired,
   };
+}
+
+// ============== LEARNER PROGRESS (5.1) ==============
+
+/**
+ * Record that a user opened a resource.
+ * Called client-side via a server action when the resource viewer mounts.
+ * Duplicate views within the same session are fine — the log is append-only.
+ */
+export async function recordResourceView(
+  userId: string,
+  resourceId: string,
+  durationSeconds?: number
+): Promise<void> {
+  try {
+    await db.insert(resourceView).values({
+      userId,
+      resourceId,
+      durationSeconds: durationSeconds ?? null,
+    });
+  } catch {
+    // Non-critical — don't propagate errors to the caller
+  }
+}
+
+/**
+ * Get the set of resource IDs that a learner has viewed (most recent first).
+ */
+export async function getUserResourceViews(userId: string, limit = 50) {
+  return db
+    .select({
+      resourceId: resourceView.resourceId,
+      viewedAt: resourceView.viewedAt,
+      durationSeconds: resourceView.durationSeconds,
+    })
+    .from(resourceView)
+    .where(eq(resourceView.userId, userId))
+    .orderBy(resourceView.viewedAt)
+    .limit(limit);
+}
+
+/**
+ * Count distinct resources viewed by a learner.
+ */
+export async function countDistinctResourceViews(userId: string): Promise<number> {
+  const result = await db
+    .selectDistinct({ resourceId: resourceView.resourceId })
+    .from(resourceView)
+    .where(eq(resourceView.userId, userId));
+  return result.length;
 }

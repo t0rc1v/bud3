@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { auth } from "@clerk/nextjs/server";
 import type { User, UserRole, UserVerificationStatus } from "@/lib/types";
 
 export async function getUserByClerkId(clerkId: string): Promise<User | null> {
@@ -119,6 +120,19 @@ export async function hasUserCompletedOnboarding(clerkId: string): Promise<boole
 
 export async function deleteUser(clerkId: string): Promise<void> {
   await db.delete(user).where(eq(user.clerkId, clerkId));
+}
+
+export async function getMyDashboardUrl(): Promise<string | null> {
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return null;
+  const dbUser = await getUserByClerkId(clerkId);
+  if (!dbUser) return null;
+  switch (dbUser.role) {
+    case "super_admin": return "/super-admin";
+    case "admin": return "/admin";
+    case "regular": return "/regular";
+    default: return "/onboarding";
+  }
 }
 
 export async function checkSuperAdminExists(): Promise<boolean> {

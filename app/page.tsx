@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
+import { getMyDashboardUrl } from "@/lib/actions/auth";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -423,6 +425,15 @@ function PricingModal() {
 }
 
 export default function LandingPage() {
+  const { isSignedIn } = useUser();
+  const [dashboardUrl, setDashboardUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isSignedIn) {
+      getMyDashboardUrl().then(setDashboardUrl);
+    }
+  }, [isSignedIn]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -532,15 +543,27 @@ export default function LandingPage() {
               variants={fadeInUp}
               className="flex flex-col sm:flex-row items-center justify-center gap-4"
             >
-              <Link href="/sign-up">
-                <Button
-                  size="lg"
-                  className="h-12 px-8 bg-gradient-to-r from-orange-700 to-amber-500 hover:from-orange-800 hover:to-amber-600 text-white shadow-lg shadow-orange-700/25"
-                >
-                  Start Learning Free
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
+              {dashboardUrl ? (
+                <Link href={dashboardUrl}>
+                  <Button
+                    size="lg"
+                    className="h-12 px-8 bg-gradient-to-r from-orange-700 to-amber-500 hover:from-orange-800 hover:to-amber-600 text-white shadow-lg shadow-orange-700/25"
+                  >
+                    Go to Dashboard
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/sign-up">
+                  <Button
+                    size="lg"
+                    className="h-12 px-8 bg-gradient-to-r from-orange-700 to-amber-500 hover:from-orange-800 hover:to-amber-600 text-white shadow-lg shadow-orange-700/25"
+                  >
+                    Start Learning Free
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
               <Link href="#how-it-works">
                 <Button variant="outline" size="lg" className="h-12 px-8">
                   <PlayCircle className="mr-2 h-4 w-4" />

@@ -47,6 +47,7 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
   const pathname = usePathname();
   const pageTitle = getPageTitle(pathname, {
     "/admin": "Dashboard",
+    "/admin/regulars": "Manage Learners",
     "/admin/rewards": "Rewards & Unlocks",
     "/admin/manage-unlock-fees": "Manage Unlock Fees",
   });
@@ -130,6 +131,18 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
                     >
                       <LayoutDashboard className="h-4 w-4" />
                       Dashboard
+                    </Link>
+                    <Link
+                      href="/admin/regulars"
+                      className={cn(
+                        "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                        pathname === "/admin/regulars"
+                          ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                          : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                      )}
+                    >
+                      <Users className="h-4 w-4" />
+                      Manage Learners
                     </Link>
                     <Link
                       href="/admin/rewards"
@@ -267,6 +280,18 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
               >
                 <LayoutDashboard className="h-4 w-4" />
                 Dashboard
+              </Link>
+              <Link
+                href="/admin/regulars"
+                className={cn(
+                  "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                  pathname === "/admin/regulars"
+                    ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                )}
+              >
+                <Users className="h-4 w-4" />
+                Manage Learners
               </Link>
               <Link
                 href="/admin/rewards"

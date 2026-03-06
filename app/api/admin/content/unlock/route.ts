@@ -6,6 +6,7 @@ import { unlockContentForUser } from "@/lib/actions/credits";
 import { db } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { user } from "@/lib/db/schema";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
   try {
@@ -15,6 +16,18 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // Rate limit: 20 admin content unlocks per minute per user
+    const rateLimit = checkRateLimit(`admin-unlock:${clerkId}`, 20, 60_000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please slow down." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+        }
       );
     }
 

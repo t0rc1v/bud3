@@ -149,6 +149,65 @@ export async function sendCreditGiftEmail(params: {
 }
 
 /**
+ * Send credit expiration warning (credits expiring within N days)
+ */
+export async function sendCreditExpirationWarningEmail(params: {
+  recipientEmail: string;
+  creditsAmount: number;
+  daysUntilExpiry: number;
+  expiresAt: Date;
+}) {
+  const { recipientEmail, creditsAmount, daysUntilExpiry, expiresAt } = params;
+
+  const subject = `Your ${creditsAmount} AI credits expire in ${daysUntilExpiry} day${daysUntilExpiry === 1 ? "" : "s"}`;
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #d97706;">Credits Expiring Soon</h2>
+
+      <div style="background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); color: white; padding: 24px; border-radius: 12px; text-align: center; margin: 20px 0;">
+        <p style="font-size: 48px; margin: 0; font-weight: bold;">${creditsAmount}</p>
+        <p style="font-size: 16px; margin: 8px 0 0 0;">AI Credits</p>
+        <p style="font-size: 14px; margin: 8px 0 0 0; opacity: 0.9;">
+          Expire on ${expiresAt.toLocaleDateString("en", { dateStyle: "long" })}
+        </p>
+      </div>
+
+      <p>
+        You have <strong>${creditsAmount} AI credits</strong> that will expire in
+        <strong>${daysUntilExpiry} day${daysUntilExpiry === 1 ? "" : "s"}</strong>.
+        Use them before they are gone!
+      </p>
+
+      <p>You can use credits to:</p>
+      <ul>
+        <li>Access AI-powered tutoring and learning assistance</li>
+        <li>Generate quizzes and flashcards</li>
+        <li>Get help with assignments and study materials</li>
+      </ul>
+
+      <a href="${process.env.NEXT_PUBLIC_APP_URL}/regular/chat"
+         style="display: inline-block; background-color: #d97706; color: white; padding: 12px 24px;
+                text-decoration: none; border-radius: 6px; margin-top: 16px;">
+        Use Your Credits Now
+      </a>
+
+      <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;" />
+      <p style="color: #6b7280; font-size: 14px;">
+        Credits expire ${daysUntilExpiry === 1 ? "tomorrow" : `in ${daysUntilExpiry} days`} on
+        ${expiresAt.toLocaleDateString("en", { dateStyle: "long" })}.
+      </p>
+    </div>
+  `;
+
+  return sendEmail({
+    to: recipientEmail,
+    subject,
+    html,
+  });
+}
+
+/**
  * Send resource unlock notification
  */
 export async function sendResourceUnlockEmail(params: {

@@ -52,7 +52,18 @@ export async function POST(req: Request) {
   const { id } = evt.data
   const eventType = evt.type
 
-  console.log(`Clerk webhook received: type=${eventType} id=${id}`)
+  const logEvent = (action: string, meta: Record<string, unknown> = {}) => {
+    console.info(JSON.stringify({
+      source: "clerk-webhook",
+      event: eventType,
+      entityId: id,
+      action,
+      ts: new Date().toISOString(),
+      ...meta,
+    }))
+  }
+
+  logEvent("received")
 
   // Handle user creation
   if (eventType === 'user.created') {
@@ -81,9 +92,9 @@ export async function POST(req: Request) {
 
     try {
       const { user, isNew } = await getOrCreateUser(id, primaryEmail, role)
-      console.log(`User ${isNew ? 'created' : 'already exists'} with role ${user.role}:`, user.id)
+      logEvent(isNew ? "user_created" : "user_already_exists", { dbUserId: user.id, role: user.role })
     } catch (error) {
-      console.error('Error creating user:', error)
+      console.error(JSON.stringify({ source: "clerk-webhook", event: eventType, entityId: id, action: "user_create_error", error: String(error), ts: new Date().toISOString() }))
       return new Response('Error creating user', { status: 500 })
     }
   }
@@ -106,13 +117,13 @@ export async function POST(req: Request) {
         if (existingUser) {
           // Update user role
           const updatedUser = await updateUserRole(id, metadataRole)
-          console.log(`User ${id} role updated to ${updatedUser.role} via metadata`)
+          logEvent("user_role_updated", { newRole: updatedUser.role })
         } else {
           // User doesn't exist in DB yet, they will be created when webhook receives user.created
-          console.log(`User ${id} not found in database, role update will apply on next sync`)
+          logEvent("user_role_update_skipped", { reason: "user_not_in_db" })
         }
       } catch (error) {
-        console.error('Error updating user role from metadata:', error)
+        console.error(JSON.stringify({ source: "clerk-webhook", event: eventType, entityId: id, action: "role_update_error", error: String(error), ts: new Date().toISOString() }))
         // Don't return error response here - we don't want to break the webhook
       }
     }
@@ -128,9 +139,9 @@ export async function POST(req: Request) {
 
     try {
       await deleteUser(id)
-      console.log('User deleted:', id)
+      logEvent("user_deleted")
     } catch (error) {
-      console.error('Error deleting user:', error)
+      console.error(JSON.stringify({ source: "clerk-webhook", event: eventType, entityId: id, action: "user_delete_error", error: String(error), ts: new Date().toISOString() }))
       return new Response('Error deleting user', { status: 500 })
     }
   }

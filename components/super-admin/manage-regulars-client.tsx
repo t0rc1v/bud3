@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Users, Plus, Trash2, Loader2, X, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, Plus, Trash2, Loader2, X, Search, ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ImpersonateModal } from "@/components/super-admin/impersonate-modal";
 
 const PAGE_SIZE = 10;
 
@@ -65,6 +66,7 @@ export function ManageRegularsClient({ superAdminId, initialData }: ManageRegula
   const [regularToDelete, setRegularToDelete] = useState<SuperAdminRegular | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [impersonateTarget, setImpersonateTarget] = useState<{ id: string; email: string } | null>(null);
 
   // Bulk selection state
   const [selectedRegulars, setSelectedRegulars] = useState<Set<string>>(new Set());
@@ -508,7 +510,7 @@ export function ManageRegularsClient({ superAdminId, initialData }: ManageRegula
                       <TableHead>Email</TableHead>
                       <TableHead>Level</TableHead>
                       <TableHead>Joined</TableHead>
-                      <TableHead className="w-12"></TableHead>
+                      <TableHead className="w-24"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -546,14 +548,24 @@ export function ManageRegularsClient({ superAdminId, initialData }: ManageRegula
                           )}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => openDeleteDialog(regular)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="View content as this user"
+                              onClick={() => setImpersonateTarget({ id: regular.regularId, email: regular.regularEmail })}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => openDeleteDialog(regular)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -714,6 +726,15 @@ export function ManageRegularsClient({ superAdminId, initialData }: ManageRegula
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {impersonateTarget && (
+        <ImpersonateModal
+          userId={impersonateTarget.id}
+          userEmail={impersonateTarget.email}
+          open={!!impersonateTarget}
+          onClose={() => setImpersonateTarget(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,0 +1,79 @@
+import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/lib/db";
+import { resource, topic, subject, level } from "@/lib/db/schema";
+import { sql, eq, and } from "drizzle-orm";
+import { getUserByClerkId } from "@/lib/actions/auth";
+
+/**
+ * Full-text search over resources using Postgres to_tsvector.
+ * Query param: ?q=<search term>&limit=20
+ * Only returns published resources visible to the requesting user's role.
+ */
+export async function GET(req: Request) {
+  try {
+    const { userId: clerkId } = await auth();
+    if (!clerkId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const dbUser = await getUserByClerkId(clerkId);
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const q = searchParams.get("q")?.trim() ?? "";
+    const limitParam = parseInt(searchParams.get("limit") ?? "20", 10);
+    const limit = Math.min(Math.max(limitParam, 1), 50);
+
+    if (!q) {
+      return NextResponse.json({ results: [] });
+    }
+
+    // Sanitize query: replace non-alphanumeric with space, trim
+    const sanitized = q.replace(/[^\w\s]/g, " ").trim();
+    if (!sanitized) return NextResponse.json({ results: [] });
+
+    // Build tsquery from words (all words must appear)
+    const tsquery = sanitized.split(/\s+/).filter(Boolean).join(" & ");
+
+    const isAdmin = dbUser.role === "admin" || dbUser.role === "super_admin";
+
+    const results = await db
+      .select({
+        id: resource.id,
+        title: resource.title,
+        description: resource.description,
+        type: resource.type,
+        isLocked: resource.isLocked,
+        topicTitle: topic.title,
+        subjectName: subject.name,
+        levelTitle: level.title,
+        rank: sql<number>`ts_rank(
+          to_tsvector('english', coalesce(${resource.title}, '') || ' ' || coalesce(${resource.description}, '')),
+          to_tsquery('english', ${tsquery})
+        )`,
+      })
+      .from(resource)
+      .leftJoin(topic, eq(resource.topicId, topic.id))
+      .leftJoin(subject, eq(topic.subjectId, subject.id))
+      .leftJoin(level, eq(subject.levelId, level.id))
+      .where(
+        isAdmin
+          ? sql`to_tsvector('english', coalesce(${resource.title}, '') || ' ' || coalesce(${resource.description}, '')) @@ to_tsquery('english', ${tsquery})`
+          : and(
+              sql`to_tsvector('english', coalesce(${resource.title}, '') || ' ' || coalesce(${resource.description}, '')) @@ to_tsquery('english', ${tsquery})`,
+              eq(resource.status, "published"),
+              sql`${resource.visibility} IN ('public', 'admin_and_regulars', 'regular_only')`
+            )
+      )
+      .orderBy(sql`rank DESC`)
+      .limit(limit);
+
+    return NextResponse.json({ results });
+  } catch (error) {
+    console.error("Content search error:", error);
+    return NextResponse.json({ error: "Search failed" }, { status: 500 });
+  }
+}

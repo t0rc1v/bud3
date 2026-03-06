@@ -5,7 +5,7 @@ import { SidebarContentTree } from "@/components/content/sidebar-content-tree";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { PanelLeft, PanelRight, MessageSquare, Shield, Gift, Coins, Users, LayoutDashboard } from "lucide-react";
+import { PanelLeft, PanelRight, MessageSquare, Shield, Gift, Coins, Users, LayoutDashboard, ChevronDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -38,6 +38,7 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(!isMobile);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(!isMobile);
   const [resourceToAddToChat, setResourceToAddToChat] = useState<ChatResource | null>(null);
+  const [toolsOpen, setToolsOpen] = useState(true);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => setIsClient(true), 0);
@@ -115,60 +116,68 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
               {userRole === "admin" && (
                 <div className="border-t p-4">
                   <Separator className="mb-3" />
-                  <div className="mb-2 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    <Shield className="h-3.5 w-3.5" />
-                    Admin Tools
-                  </div>
-                  <nav className="space-y-1">
-                    <Link
-                      href="/admin"
-                      className={cn(
-                        "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                        pathname === "/admin"
-                          ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                          : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                      )}
-                    >
-                      <LayoutDashboard className="h-4 w-4" />
-                      Dashboard
-                    </Link>
-                    <Link
-                      href="/admin/regulars"
-                      className={cn(
-                        "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                        pathname === "/admin/regulars"
-                          ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                          : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                      )}
-                    >
-                      <Users className="h-4 w-4" />
-                      Manage Learners
-                    </Link>
-                    <Link
-                      href="/admin/rewards"
-                      className={cn(
-                        "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                        pathname === "/admin/rewards"
-                          ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                          : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                      )}
-                    >
-                      <Gift className="h-4 w-4" />
-                      Rewards & Unlocks
-                    </Link>
-                    <Link
-                      href="/admin/manage-unlock-fees"
-                      className={cn(
-                        "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                        pathname === "/admin/manage-unlock-fees"
-                          ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                          : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                      )}
-                    >
-                      <Coins className="h-4 w-4" />
-                      Manage Unlock Fees
-                    </Link>
-                  </nav>
+                  <button
+                    onClick={() => setToolsOpen(!toolsOpen)}
+                    className="mb-2 flex w-full items-center justify-between px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Shield className="h-3.5 w-3.5" />
+                      Admin Tools
+                    </span>
+                    <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", toolsOpen && "rotate-180")} />
+                  </button>
+                  {toolsOpen && (
+                    <nav className="space-y-1">
+                      <Link
+                        href="/admin"
+                        className={cn(
+                          "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                          pathname === "/admin"
+                            ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                            : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                        )}
+                      >
+                        <LayoutDashboard className="h-4 w-4" />
+                        Dashboard
+                      </Link>
+                      <Link
+                        href="/admin/regulars"
+                        className={cn(
+                          "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                          pathname === "/admin/regulars"
+                            ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                            : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                        )}
+                      >
+                        <Users className="h-4 w-4" />
+                        Manage Learners
+                      </Link>
+                      <Link
+                        href="/admin/rewards"
+                        className={cn(
+                          "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                          pathname === "/admin/rewards"
+                            ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                            : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                        )}
+                      >
+                        <Gift className="h-4 w-4" />
+                        Rewards & Unlocks
+                      </Link>
+                      <Link
+                        href="/admin/manage-unlock-fees"
+                        className={cn(
+                          "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                          pathname === "/admin/manage-unlock-fees"
+                            ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                            : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                        )}
+                      >
+                        <Coins className="h-4 w-4" />
+                        Manage Unlock Fees
+                      </Link>
+                    </nav>
+                  )}
                 </div>
               )}
             </div>
@@ -263,61 +272,69 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
           <div className="border-t p-4">
             <div className={cn("mb-3 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
               <Separator className="mb-3" />
-              <div className="flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <Shield className="h-3.5 w-3.5" />
-                Admin Tools
-              </div>
+              <button
+                onClick={() => setToolsOpen(!toolsOpen)}
+                className="mb-2 flex w-full items-center justify-between px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <Shield className="h-3.5 w-3.5" />
+                  Admin Tools
+                </span>
+                <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", toolsOpen && "rotate-180")} />
+              </button>
             </div>
-            <nav className={cn("space-y-1 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
-              <Link
-                href="/admin"
-                className={cn(
-                  "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                  pathname === "/admin"
-                    ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                )}
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                Dashboard
-              </Link>
-              <Link
-                href="/admin/regulars"
-                className={cn(
-                  "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                  pathname === "/admin/regulars"
-                    ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                )}
-              >
-                <Users className="h-4 w-4" />
-                Manage Learners
-              </Link>
-              <Link
-                href="/admin/rewards"
-                className={cn(
-                  "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                  pathname === "/admin/rewards"
-                    ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                )}
-              >
-                <Gift className="h-4 w-4" />
-                Rewards & Unlocks
-              </Link>
-              <Link
-                href="/admin/manage-unlock-fees"
-                className={cn(
-                  "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                  pathname === "/admin/manage-unlock-fees"
-                    ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                )}
-              >
-                <Coins className="h-4 w-4" />
-                Manage Unlock Fees
-              </Link>
-            </nav>
+            {toolsOpen && (
+              <nav className={cn("space-y-1 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
+                <Link
+                  href="/admin"
+                  className={cn(
+                    "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                    pathname === "/admin"
+                      ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                      : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                  )}
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                  Dashboard
+                </Link>
+                <Link
+                  href="/admin/regulars"
+                  className={cn(
+                    "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                    pathname === "/admin/regulars"
+                      ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                      : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                  )}
+                >
+                  <Users className="h-4 w-4" />
+                  Manage Learners
+                </Link>
+                <Link
+                  href="/admin/rewards"
+                  className={cn(
+                    "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                    pathname === "/admin/rewards"
+                      ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                      : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                  )}
+                >
+                  <Gift className="h-4 w-4" />
+                  Rewards & Unlocks
+                </Link>
+                <Link
+                  href="/admin/manage-unlock-fees"
+                  className={cn(
+                    "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                    pathname === "/admin/manage-unlock-fees"
+                      ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                      : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                  )}
+                >
+                  <Coins className="h-4 w-4" />
+                  Manage Unlock Fees
+                </Link>
+              </nav>
+            )}
           </div>
         )}
       </div>

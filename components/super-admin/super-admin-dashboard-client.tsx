@@ -222,15 +222,15 @@ export function SuperAdminDashboardClient({
     };
   }, [initialUsers]);
   
-  // My Admins Content: content owned by admins under this super-admin
-  const adminLevels = useMemo(() => 
-    levels.filter((g) => g.ownerRole === "admin" && myAdminIds.includes(g.ownerId || "")),
+  // My Admins Content: owned by current admins under this super-admin (any ownerRole)
+  const adminLevels = useMemo(() =>
+    levels.filter((g) => myAdminIds.includes(g.ownerId || "")),
     [levels, myAdminIds]
   );
 
-  // My Regulars Content: content owned by regulars under this super-admin
-  const regularLevels = useMemo(() => 
-    levels.filter((g) => g.ownerRole === "regular" && myRegularIds.includes(g.ownerId || "")),
+  // My Regulars Content: owned by current regulars under this super-admin (any ownerRole)
+  const regularLevels = useMemo(() =>
+    levels.filter((g) => myRegularIds.includes(g.ownerId || "")),
     [levels, myRegularIds]
   );
 

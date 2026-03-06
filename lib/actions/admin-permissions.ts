@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { user, role, rolePermission, userPermission, userRoles, superAdminAdmins } from "@/lib/db/schema";
+import { user, role, rolePermission, userPermission, userRoles, superAdminAdmins, superAdminRegulars } from "@/lib/db/schema";
 import { eq, and, inArray, desc, asc, or, isNull, gt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { Permission } from "@/lib/permissions";
@@ -728,6 +728,11 @@ export async function promoteUserToAdminByEmail(
       superAdminId: promotedByUserId,
       adminId: targetUser.id,
     });
+
+    // Remove from superAdminRegulars (user is no longer a regular)
+    await db
+      .delete(superAdminRegulars)
+      .where(eq(superAdminRegulars.regularId, targetUser.id));
 
     revalidatePath("/super-admin/manage-admins");
     return { 

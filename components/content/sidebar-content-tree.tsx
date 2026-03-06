@@ -71,6 +71,8 @@ import {
   getResourceById,
   getRegularSuperAdminId,
   getSuperAdminAdminIds,
+  getSuperAdminRegularIds,
+  getAdminSuperAdminId,
 } from "@/lib/actions/admin";
 import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import type {
@@ -123,18 +125,37 @@ export function SidebarContentTree({
   
   // State for super-admin's admin IDs (for regular users)
   const [superAdminAdminIds, setSuperAdminAdminIds] = useState<string[]>([]);
-  
+  const [superAdminRegularIds, setSuperAdminRegularIds] = useState<string[]>([]);
+  const [superAdminOwnerId, setSuperAdminOwnerId] = useState<string | null>(null);
+
   // Fetch super-admin's admins for regular users
   useEffect(() => {
     if (userRole === "regular") {
       const fetchSuperAdminAdmins = async () => {
         const superAdminId = await getRegularSuperAdminId(userId);
         if (superAdminId) {
+          setSuperAdminOwnerId(superAdminId);
           const adminIds = await getSuperAdminAdminIds(superAdminId);
           setSuperAdminAdminIds(adminIds);
         }
       };
       fetchSuperAdminAdmins();
+    } else if (userRole === "super_admin") {
+      const fetch = async () => {
+        const [adminIds, regularIds] = await Promise.all([
+          getSuperAdminAdminIds(userId),
+          getSuperAdminRegularIds(userId),
+        ]);
+        setSuperAdminAdminIds(adminIds);
+        setSuperAdminRegularIds(regularIds);
+      };
+      fetch();
+    } else if (userRole === "admin") {
+      const fetch = async () => {
+        const superAdminId = await getAdminSuperAdminId(userId);
+        if (superAdminId) setSuperAdminOwnerId(superAdminId);
+      };
+      fetch();
     }
   }, [userRole, userId]);
 
@@ -194,25 +215,30 @@ export function SidebarContentTree({
   );
 
   // Admin(s) Content: content owned by admins under the user's super-admin
-  const adminLevels = useMemo(() => 
-    levels.filter((g) => g.ownerRole === "admin" && superAdminAdminIds.includes(g.ownerId || "")),
+  const adminLevels = useMemo(() =>
+    levels.filter((g) => superAdminAdminIds.includes(g.ownerId || "")),
     [levels, superAdminAdminIds]
   );
 
   // Institution Content: content owned by the user's super-admin
-  const institutionLevels = useMemo(() => 
-    levels.filter((g) => g.ownerRole === "super_admin"),
-    [levels]
+  const institutionLevels = useMemo(() => {
+    if (userRole === "super_admin") {
+      return levels.filter((g) => g.ownerId === userId);
+    }
+    if (superAdminOwnerId) {
+      return levels.filter((g) => g.ownerId === superAdminOwnerId);
+    }
+    return [];
+  }, [levels, userRole, userId, superAdminOwnerId]);
+
+  const adminAllLevels = useMemo(() =>
+    levels.filter((g) => superAdminAdminIds.includes(g.ownerId || "")),
+    [levels, superAdminAdminIds]
   );
 
-  const adminAllLevels = useMemo(() => 
-    levels.filter((g) => g.ownerRole === "admin"),
-    [levels]
-  );
-
-  const regularAllLevels = useMemo(() => 
-    levels.filter((g) => g.ownerRole === "regular"),
-    [levels]
+  const regularAllLevels = useMemo(() =>
+    levels.filter((g) => superAdminRegularIds.includes(g.ownerId || "")),
+    [levels, superAdminRegularIds]
   );
 
   // Get current tab levels

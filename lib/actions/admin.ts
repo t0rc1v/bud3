@@ -62,6 +62,19 @@ export async function getRegularSuperAdminId(regularId: string): Promise<string 
 }
 
 /**
+ * Get the super-admin ID for an admin user
+ */
+export async function getAdminSuperAdminId(adminId: string): Promise<string | null> {
+  const result = await db
+    .select()
+    .from(superAdminAdmins)
+    .where(eq(superAdminAdmins.adminId, adminId))
+    .limit(1)
+    .then(res => res[0] || null);
+  return result?.superAdminId || null;
+}
+
+/**
  * Get all admin IDs for a super-admin (new hierarchy)
  */
 export async function getSuperAdminAdminIds(superAdminId: string): Promise<string[]> {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useChat } from "@ai-sdk/react";
+import { useChat, lastAssistantMessageIsCompleteWithApprovalResponses } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +28,8 @@ import {
   Coins,
   AlertCircle,
   Square,
+  RotateCcw,
+  Brain,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -194,7 +196,9 @@ export function AIChat({
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [router, pathname, searchParams]);
 
-  const { messages, sendMessage, status, stop, setMessages, error, addToolApprovalResponse } = useChat({
+  const { messages, sendMessage, status, stop, regenerate, setMessages, error, addToolApprovalResponse } = useChat({
+    experimental_throttle: 50,
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     transport: new DefaultChatTransport({
       api: "/api/chat",
       body: () => ({
@@ -771,6 +775,19 @@ export function AIChat({
                 >
                   <div>
                   {message.parts.map((part, i) => {
+                    if (part.type === "reasoning") {
+                      return (
+                        <details key={i} className="my-1 group">
+                          <summary className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors list-none">
+                            <Brain className="h-3.5 w-3.5 shrink-0" />
+                            <span>Show reasoning</span>
+                          </summary>
+                          <div className="mt-1.5 pl-5 text-xs text-muted-foreground border-l-2 border-muted whitespace-pre-wrap">
+                            {part.reasoning}
+                          </div>
+                        </details>
+                      );
+                    }
                     if (part.type === "text") {
                       return (
                         <MarkdownRenderer
@@ -1100,10 +1117,37 @@ export function AIChat({
                     }
                     return null;
                   })}
+                  {message.role === "assistant" && (message.metadata as { totalTokens?: number; createdAt?: number } | undefined)?.totalTokens && (
+                    <div className="flex items-center gap-1.5 mt-1.5 pt-1.5 border-t border-muted-foreground/10">
+                      <span className="text-[10px] text-muted-foreground">
+                        {(message.metadata as { totalTokens: number }).totalTokens} tokens
+                      </span>
+                      {(message.metadata as { createdAt?: number } | undefined)?.createdAt && (
+                        <span className="text-[10px] text-muted-foreground">
+                          · {new Date((message.metadata as { createdAt: number }).createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   </div>
                 </div>
               </div>
             )))}
+            {/* Regenerate button — shown after last assistant message when idle */}
+            {messages.at(-1)?.role === "assistant" && status === "ready" && (
+              <div className="flex justify-start pl-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-xs text-muted-foreground h-7 px-2 hover:text-foreground"
+                  onClick={regenerate}
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  Regenerate
+                </Button>
+              </div>
+            )}
+
             {/* Depleted Credits Error */}
             {creditError && (
               <div className="flex justify-center">
@@ -1141,19 +1185,16 @@ export function AIChat({
               </div>
             )}
 
-            {(status === "submitted" || status === "streaming") && (
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                {status === "submitted" ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Thinking...</span>
-                  </>
-                ) : (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Typing...</span>
-                  </>
-                )}
+            {status === "submitted" && (
+              <div className="flex items-center gap-1.5 px-1">
+                <span className="h-2 w-2 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:0ms]" />
+                <span className="h-2 w-2 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:150ms]" />
+                <span className="h-2 w-2 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:300ms]" />
+              </div>
+            )}
+            {status === "streaming" && (
+              <div className="flex items-center gap-2 text-muted-foreground text-sm px-1">
+                <Loader2 className="h-4 w-4 animate-spin" />
               </div>
             )}
           </div>

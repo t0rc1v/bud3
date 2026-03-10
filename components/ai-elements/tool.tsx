@@ -14,7 +14,6 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  Clock,
   Play,
   Ban,
   MessageSquare,
@@ -57,9 +56,9 @@ const statusConfig: Record<
   { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ReactNode }
 > = {
   "input-streaming": {
-    label: "Pending",
+    label: "Preparing",
     variant: "outline",
-    icon: <Clock className="h-3 w-3" />,
+    icon: <Loader2 className="h-3 w-3 animate-spin" />,
   },
   "input-available": {
     label: "Running",
@@ -156,6 +155,7 @@ function ToolHeader({
     <CollapsibleTrigger
       className={cn(
         "flex items-center justify-between w-full p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors cursor-pointer min-w-0",
+        state === "input-streaming" && "animate-pulse",
         className
       )}
       {...props}

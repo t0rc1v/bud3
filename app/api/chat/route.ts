@@ -1328,5 +1328,20 @@ create_quiz: tool({
     },
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse({
+    sendReasoning: true,
+    messageMetadata: ({ part }) => {
+      if (part.type === 'start') {
+        return { createdAt: Date.now() };
+      }
+      if (part.type === 'finish') {
+        return {
+          totalTokens: part.totalUsage.totalTokens,
+          inputTokens: part.totalUsage.promptTokens,
+          outputTokens: part.totalUsage.completionTokens,
+          finishReason: part.finishReason,
+        };
+      }
+    },
+  });
 }

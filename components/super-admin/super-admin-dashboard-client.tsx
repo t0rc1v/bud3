@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";
 import {
   Crown,
@@ -272,7 +273,10 @@ export function SuperAdminDashboardClient({
   }, [regularLevels]);
 
   // Get all subjects and topics for forms
-  const allSubjects = useMemo(() => levels.flatMap((g) => g.subjects || []), [levels]);
+  const allSubjects = useMemo(
+    () => levels.flatMap((g) => (g.subjects || []).map((s) => ({ ...s, levelTitle: g.title }))),
+    [levels]
+  );
   const allTopics = useMemo(() => allSubjects.flatMap((s) => s.topics || []), [allSubjects]);
 
   // Filter content owned by current super-admin for Add buttons
@@ -283,7 +287,7 @@ export function SuperAdminDashboardClient({
 
   // Subjects that can have topics added to them - must be in an owned level
   const ownedSubjects = useMemo(() =>
-    ownedLevels.flatMap((g) => g.subjects || []),
+    ownedLevels.flatMap((g) => (g.subjects || []).map((s) => ({ ...s, levelTitle: g.title }))),
     [ownedLevels]
   );
 
@@ -406,8 +410,7 @@ export function SuperAdminDashboardClient({
       setDeleteCallback(null);
       router.refresh();
     } catch (error) {
-      console.error("Failed to delete item:", error);
-      alert("Failed to delete item. Please try again.");
+      toast.error("Failed to delete. Please try again.");
     } finally {
       setIsDeleting(false);
     }
@@ -932,7 +935,7 @@ export function SuperAdminDashboardClient({
                                     <DialogHeader>
                                       <DialogTitle>Add Topic to {subject.name}</DialogTitle>
                                     </DialogHeader>
-                                    <CreateTopicForm subjects={[subject]} onSuccess={handleCreateSuccess} />
+                                    <CreateTopicForm subjects={[{ ...subject, levelTitle: level.title }]} onSuccess={handleCreateSuccess} />
                                   </DialogContent>
                                 </Dialog>
                               ) : (
@@ -1016,7 +1019,7 @@ export function SuperAdminDashboardClient({
                                               <DialogHeader>
                                                 <DialogTitle>Add Resource to {topic.title}</DialogTitle>
                                               </DialogHeader>
-                                              <CreateResourceForm subjects={[subject]} topics={[topic]} onSuccess={handleCreateSuccess} />
+                                              <CreateResourceForm subjects={[{ ...subject, levelTitle: level.title }]} topics={[topic]} onSuccess={handleCreateSuccess} />
                                             </DialogContent>
                                           </Dialog>
                                         ) : (

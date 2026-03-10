@@ -72,6 +72,7 @@ import type {
   LevelWithFullHierarchy,
   LevelWithFullHierarchyAndUnlockStatus,
   SubjectWithTopics,
+  SubjectWithTopicsAndLevelTitle,
   TopicWithResources,
   Resource,
   ResourceWithUnlockStatus,
@@ -80,6 +81,7 @@ import type {
   Subject,
   Topic,
 } from "@/lib/types";
+import { toast } from "sonner";
 
 interface UnifiedAdminPageClientProps {
   initialLevels: LevelWithFullHierarchy[] | LevelWithFullHierarchyAndUnlockStatus[];
@@ -165,7 +167,9 @@ export function AdminDashboardClient({
       setSelectedResourceIds(new Set());
       router.refresh();
       if (errors.length > 0) {
-        alert(`Deleted ${deleted} resource(s). ${errors.length} failed.`);
+        toast.error(`Deleted ${deleted} resource(s). ${errors.length} failed.`);
+      } else {
+        toast.success(`Deleted ${deleted} resource(s).`);
       }
     } finally {
       setIsBulkDeleting(false);
@@ -184,7 +188,7 @@ export function AdminDashboardClient({
             setSelectedResource(resource);
           }
         } catch (error) {
-          console.error("Failed to load resource:", error);
+          toast.error("Failed to load resource. Please try again.");
         } finally {
           setIsLoadingResource(false);
         }
@@ -232,7 +236,12 @@ export function AdminDashboardClient({
   }, [institutionLevels]);
 
   // Get all subjects and topics for forms (only from my content)
-  const allSubjects = useMemo(() => myLevels.flatMap((g) => g.subjects), [myLevels]);
+  const allSubjects = useMemo(
+    () => myLevels.flatMap((level) =>
+      level.subjects.map((s) => ({ ...s, levelTitle: level.title }))
+    ),
+    [myLevels]
+  );
   const allTopics = useMemo(() => allSubjects.flatMap((s) => s.topics), [allSubjects]);
 
   // Get all subjects and topics for the current tab's expand/collapse functionality
@@ -363,8 +372,7 @@ export function AdminDashboardClient({
       setDeleteCallback(null);
       router.refresh();
     } catch (error) {
-      console.error("Failed to delete item:", error);
-      alert("Failed to delete item. Please try again.");
+      toast.error("Failed to delete. Please try again.");
     } finally {
       setIsDeleting(false);
     }
@@ -421,7 +429,7 @@ export function AdminDashboardClient({
         setItemToEdit({ id: resource.id, type: "resource", data: fullResource });
       }
     } catch (error) {
-      console.error("Failed to load resource for editing:", error);
+      toast.error("Failed to load resource for editing. Please try again.");
     } finally {
       setIsLoadingEditResource(false);
     }
@@ -737,7 +745,7 @@ export function AdminDashboardClient({
                                 <DialogHeader>
                                   <DialogTitle>Add Topic to {subject.name}</DialogTitle>
                                 </DialogHeader>
-                                <CreateTopicForm subjects={[subject]} onSuccess={() => {}} />
+                                <CreateTopicForm subjects={[{ ...subject, levelTitle: level.title }]} onSuccess={() => {}} />
                               </DialogContent>
                             </Dialog>
                             <DropdownMenu>
@@ -802,7 +810,7 @@ export function AdminDashboardClient({
                                           <DialogHeader>
                                             <DialogTitle>Add Resource to {topic.title}</DialogTitle>
                                           </DialogHeader>
-                                          <CreateResourceForm subjects={[subject]} topics={[topic]} onSuccess={() => {}} />
+                                          <CreateResourceForm subjects={[{ ...subject, levelTitle: level.title }]} topics={[topic]} onSuccess={() => {}} />
                                         </DialogContent>
                                       </Dialog>
                                       <DropdownMenu>
@@ -1235,7 +1243,7 @@ export function AdminDashboardClient({
             ) : (
               <EditResourceForm 
                 resource={itemToEdit.data as ResourceWithRelations}
-                subjects={allSubjects.map(s => ({ id: s.id, name: s.name, level: { id: s.levelId, title: "Level" } }))}
+                subjects={allSubjects.map(s => ({ id: s.id, name: s.name, level: { id: s.levelId, title: s.levelTitle } }))}
                 topics={allTopics.map(t => ({ id: t.id, title: t.title, subjectId: t.subjectId }))}
                 onSuccess={handleEditSuccess}
                 onCancel={() => setIsEditDialogOpen(false)}

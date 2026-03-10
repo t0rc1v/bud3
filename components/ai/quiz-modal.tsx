@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -364,7 +365,7 @@ export function QuizModal({ data }: QuizModalProps) {
       pdf.save(`${filename}.pdf`);
     } catch (error) {
       console.error("Failed to export PDF:", error);
-      alert("Failed to export PDF. Please try again.");
+      toast.error("Failed to export PDF. Please try again.");
     } finally {
       setIsExporting(false);
     }
@@ -629,7 +630,7 @@ export function QuizModalTrigger({ data, autoOpen = false }: QuizModalProps & { 
       pdf.save(`${filename}.pdf`);
     } catch (error) {
       console.error("Failed to export PDF:", error);
-      alert("Failed to export PDF. Please try again.");
+      toast.error("Failed to export PDF. Please try again.");
     } finally {
       setIsExporting(false);
     }

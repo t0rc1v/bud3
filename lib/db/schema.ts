@@ -54,7 +54,9 @@ export const level = pgTable("level", {
   isActive: boolean('is_active').default(true).notNull(),
   createdAt,
   updatedAt,
-});
+}, (table) => ({
+  uniqueLevelOwnerTitle: uniqueIndex("uc_level_owner_title").on(table.ownerId, table.title),
+}));
 
 export const subject = pgTable("subject", {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -69,7 +71,9 @@ export const subject = pgTable("subject", {
   isActive: boolean('is_active').default(true).notNull(),
   createdAt,
   updatedAt,
-});
+}, (table) => ({
+  uniqueSubjectName: uniqueIndex("uc_subject_level_name").on(table.levelId, table.name),
+}));
 
 export const topic = pgTable("topic", {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -83,7 +87,9 @@ export const topic = pgTable("topic", {
   isActive: boolean('is_active').default(true).notNull(),
   createdAt,
   updatedAt,
-});
+}, (table) => ({
+  uniqueTopicTitle: uniqueIndex("uc_topic_subject_title").on(table.subjectId, table.title),
+}));
 
 export const resourceVisibilityEnum = pgEnum('resource_visibility_enum', ["public", "admin_only", "admin_and_regulars", "regular_only"]);
 export const resourceStatusEnum = pgEnum('resource_status_enum', ["draft", "published"]);

@@ -8,6 +8,7 @@ import { getUserByClerkId } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -60,7 +61,10 @@ export function CreateSubjectForm({ levels, onSuccess }: CreateSubjectFormProps)
         icon: "📚",
         color: "#10b981",
       });
+      toast.success("Subject created successfully");
       onSuccess?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create subject");
     } finally {
       setIsLoading(false);
     }

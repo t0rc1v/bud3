@@ -13,11 +13,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { updateTopicWithSession } from "@/lib/actions/admin";
-import type { Topic, SubjectWithTopics } from "@/lib/types";
+import type { Topic, SubjectWithTopicsAndLevelTitle } from "@/lib/types";
 
 interface EditTopicFormProps {
   topic: Topic;
-  subjects: SubjectWithTopics[];
+  subjects: SubjectWithTopicsAndLevelTitle[];
   onSuccess?: () => void;
 }
 
@@ -59,7 +59,7 @@ export function EditTopicForm({ topic, subjects, onSuccess }: EditTopicFormProps
           <SelectContent>
             {subjects.map((subject) => (
               <SelectItem key={subject.id} value={subject.id}>
-                {subject.name}
+                {subject.name} ({subject.levelTitle})
               </SelectItem>
             ))}
           </SelectContent>

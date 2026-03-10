@@ -294,7 +294,7 @@ function AdminsTab({
     if (result.success) {
       onDataChange();
     } else {
-      alert(result.error);
+      toast.error(result.error);
     }
   };
 
@@ -303,7 +303,7 @@ function AdminsTab({
     if (result.success) {
       onDataChange();
     } else {
-      alert(result.error);
+      toast.error(result.error);
     }
   };
 
@@ -708,8 +708,7 @@ function ManageAdminPermissions({
 
       onSuccess();
     } catch (error) {
-      console.error("Error saving permissions:", error);
-      alert("Failed to save permissions");
+      toast.error("Failed to save permissions");
     } finally {
       setIsSaving(false);
     }
@@ -914,7 +913,7 @@ function RolesTab({
       setSelectedPermissions([]);
       onDataChange();
     } else {
-      alert(result.error);
+      toast.error(result.error);
     }
   };
 
@@ -936,7 +935,7 @@ function RolesTab({
       setSelectedPermissions([]);
       onDataChange();
     } else {
-      alert(result.error);
+      toast.error(result.error);
     }
   };
 
@@ -945,7 +944,7 @@ function RolesTab({
     if (result.success) {
       onDataChange();
     } else {
-      alert(result.error);
+      toast.error(result.error);
     }
   };
 

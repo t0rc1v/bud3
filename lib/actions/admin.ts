@@ -446,23 +446,42 @@ export async function getLevelByIdWithAccessCheck(
 }
 
 export async function createLevel(input: CreateLevelInput): Promise<Level> {
-  const [newLevel] = await db
-    .insert(level)
-    .values({
-      levelNumber: input.levelNumber,
-      title: input.title,
-      order: input.order,
-      color: input.color,
-      ownerId: input.ownerId,
-      ownerRole: input.ownerRole,
-      visibility: input.visibility,
-      isActive: true,
-    })
-    .returning();
+  const existingTitle = await db
+    .select({ id: level.id })
+    .from(level)
+    .where(and(eq(level.ownerId, input.ownerId), ilike(level.title, input.title)))
+    .limit(1)
+    .then(res => res[0] || null);
+  if (existingTitle) {
+    throw new Error("A level with this title already exists");
+  }
+
+  let newLevel: Level;
+  try {
+    [newLevel] = await db
+      .insert(level)
+      .values({
+        levelNumber: input.levelNumber,
+        title: input.title,
+        order: input.order,
+        color: input.color,
+        ownerId: input.ownerId,
+        ownerRole: input.ownerRole,
+        visibility: input.visibility,
+        isActive: true,
+      })
+      .returning();
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "";
+    if (msg.includes("23505") || msg.toLowerCase().includes("unique")) {
+      throw new Error("A level with this number already exists");
+    }
+    throw e;
+  }
 
   revalidatePath("/admin");
   revalidatePath("/regular");
-  return newLevel;
+  return newLevel!;
 }
 
 export async function updateLevel(
@@ -649,6 +668,16 @@ export async function getSubjectsForUser(
 }
 
 export async function createSubject(input: CreateSubjectInput): Promise<Subject> {
+  const existingName = await db
+    .select({ id: subject.id })
+    .from(subject)
+    .where(and(eq(subject.levelId, input.levelId), ilike(subject.name, input.name)))
+    .limit(1)
+    .then(res => res[0] || null);
+  if (existingName) {
+    throw new Error("A subject with this name already exists in this level");
+  }
+
   const [newSubject] = await db
     .insert(subject)
     .values({
@@ -821,6 +850,16 @@ export async function getTopicsForUser(
 }
 
 export async function createTopic(input: CreateTopicInput): Promise<Topic> {
+  const existingTitle = await db
+    .select({ id: topic.id })
+    .from(topic)
+    .where(and(eq(topic.subjectId, input.subjectId), ilike(topic.title, input.title)))
+    .limit(1)
+    .then(res => res[0] || null);
+  if (existingTitle) {
+    throw new Error("A topic with this title already exists in this subject");
+  }
+
   const [newTopic] = await db
     .insert(topic)
     .values({

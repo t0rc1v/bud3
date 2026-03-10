@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { updateResource } from "@/lib/actions/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,9 +109,10 @@ export function EditResourceForm({
         thumbnailUrl: formData.thumbnailUrl || undefined,
       });
       router.refresh();
+      toast.success("Resource updated");
       onSuccess();
     } catch (error) {
-      console.error("Failed to update resource:", error);
+      toast.error("Failed to update resource. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -312,8 +314,7 @@ export function EditResourceForm({
               endpoint={ENDPOINTS[formData.type] as "notesUploader" | "videoUploader" | "audioUploader" | "imageUploader"}
               onClientUploadComplete={handleFileUpload}
               onUploadError={(error: Error) => {
-                console.error("Upload error:", error);
-                alert(`Upload failed: ${error.message}`);
+                toast.error(`Upload failed: ${error.message}`);
               }}
               appearance={{
                 button:
@@ -381,8 +382,7 @@ export function EditResourceForm({
               endpoint="imageUploader"
               onClientUploadComplete={handleThumbnailUpload}
               onUploadError={(error: Error) => {
-                console.error("Thumbnail upload error:", error);
-                alert(`Thumbnail upload failed: ${error.message}`);
+                toast.error(`Thumbnail upload failed: ${error.message}`);
               }}
               appearance={{
                 button:

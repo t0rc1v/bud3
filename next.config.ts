@@ -37,7 +37,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       // Clerk profile images; UploadThing file storage (utfs.io / *.ufs.sh); blob/data for previews
-      "img-src 'self' blob: data: https://*.clerk.accounts.dev https://clerk.budlm.com https://utfs.io https://*.ufs.sh",
+      "img-src 'self' blob: data: https://*.clerk.accounts.dev https://clerk.budlm.com https://img.clerk.com https://utfs.io https://*.ufs.sh",
       // Clerk auth; UploadThing upload endpoints; Vercel analytics
       "connect-src 'self' https://va.vercel-scripts.com https://*.clerk.accounts.dev https://clerk.budlm.com https://uploadthing.com https://*.uploadthing.com https://utfs.io https://*.ufs.sh https://*.ingest.uploadthing.com",
       "frame-src 'self' https://*.clerk.accounts.dev https://clerk.budlm.com",
@@ -55,6 +55,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "clerk.budlm.com" },
       { protocol: "https", hostname: "utfs.io" },
       { protocol: "https", hostname: "**.ufs.sh" },
+      { protocol: "https", hostname: "img.clerk.com" },
     ],
   },
   async headers() {

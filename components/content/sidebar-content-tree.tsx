@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   ChevronDown,
@@ -361,8 +362,7 @@ export function SidebarContentTree({
       setDeleteCallback(null);
       router.refresh();
     } catch (error) {
-      console.error("Failed to delete item:", error);
-      alert("Failed to delete item. Please try again.");
+      toast.error("Failed to delete. Please try again.");
     } finally {
       setIsDeleting(false);
     }
@@ -415,7 +415,7 @@ export function SidebarContentTree({
         setItemToEdit({ id: resource.id, type: "resource", data: fullResource });
       }
     } catch (error) {
-      console.error("Failed to load resource for editing:", error);
+      toast.error("Failed to load resource for editing");
     } finally {
       setIsLoadingEditResource(false);
     }
@@ -441,7 +441,10 @@ export function SidebarContentTree({
   };
 
   // Get all subjects and topics for forms
-  const allSubjects = useMemo(() => currentTabLevels.flatMap((g) => g.subjects), [currentTabLevels]);
+  const allSubjects = useMemo(
+    () => currentTabLevels.flatMap((g) => g.subjects.map((s) => ({ ...s, levelTitle: g.title }))),
+    [currentTabLevels]
+  );
   const allTopics = useMemo(() => allSubjects.flatMap((s) => s.topics), [allSubjects]);
 
   // Get tab icon
@@ -950,6 +953,7 @@ function LevelNode({
             <SubjectNode
               key={subject.id}
               subject={subject}
+              levelTitle={level.title}
               isExpanded={expandedSubjects.has(subject.id)}
               expandedTopics={expandedTopics}
               onToggle={() => onToggleSubject(subject.id)}
@@ -976,6 +980,7 @@ function LevelNode({
 // Subject Node Component
 interface SubjectNodeProps {
   subject: SubjectWithTopics;
+  levelTitle: string;
   isExpanded: boolean;
   expandedTopics: Set<string>;
   onToggle: () => void;
@@ -995,6 +1000,7 @@ interface SubjectNodeProps {
 
 function SubjectNode({
   subject,
+  levelTitle,
   isExpanded,
   expandedTopics,
   onToggle,
@@ -1075,7 +1081,7 @@ function SubjectNode({
                   <DialogTitle>Add Topic to {subject.name}</DialogTitle>
                 </DialogHeader>
                 <CreateTopicForm
-                  subjects={[subject]}
+                  subjects={[{ ...subject, levelTitle }]}
                   onSuccess={() => { setIsAddTopicOpen(false); window.location.reload(); }}
                 />
               </DialogContent>

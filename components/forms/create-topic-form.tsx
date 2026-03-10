@@ -15,10 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { SubjectWithTopics } from "@/lib/types";
+import type { SubjectWithTopicsAndLevelTitle } from "@/lib/types";
+import { toast } from "sonner";
 
 interface CreateTopicFormProps {
-  subjects: SubjectWithTopics[];
+  subjects: SubjectWithTopicsAndLevelTitle[];
   onSuccess?: () => void;
 }
 
@@ -58,7 +59,10 @@ export function CreateTopicForm({ subjects, onSuccess }: CreateTopicFormProps) {
         title: "",
         order: 0,
       });
+      toast.success("Topic created successfully");
       onSuccess?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create topic");
     } finally {
       setIsLoading(false);
     }
@@ -78,7 +82,7 @@ export function CreateTopicForm({ subjects, onSuccess }: CreateTopicFormProps) {
           <SelectContent>
             {subjects.map((subject) => (
               <SelectItem key={subject.id} value={subject.id}>
-                {subject.name}
+                {subject.name} ({subject.levelTitle})
               </SelectItem>
             ))}
           </SelectContent>

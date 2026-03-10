@@ -25,6 +25,10 @@ export interface SubjectWithTopicsAndLevel extends Subject {
   level: Level | null;
 }
 
+export interface SubjectWithTopicsAndLevelTitle extends SubjectWithTopics {
+  levelTitle: string;
+}
+
 export interface LevelWithSubjects extends Level {
   subjects: SubjectWithTopics[];
 }

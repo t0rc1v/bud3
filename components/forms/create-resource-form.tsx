@@ -17,12 +17,13 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { UploadButton } from "@/lib/uploadthing";
-import type { SubjectWithTopics, TopicWithResources, ResourceType } from "@/lib/types";
+import type { SubjectWithTopicsAndLevelTitle, TopicWithResources, ResourceType } from "@/lib/types";
+import { toast } from "sonner";
 import { CheckCircle2, ExternalLink, Lock, Unlock, CreditCard, Eye, FileEdit, Globe } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface CreateResourceFormProps {
-  subjects: SubjectWithTopics[];
+  subjects: SubjectWithTopicsAndLevelTitle[];
   topics: TopicWithResources[];
   onSuccess?: () => void;
 }
@@ -114,7 +115,10 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
       });
       setUploadedFile(null);
       setThumbnailFile(null);
+      toast.success("Resource created successfully");
       onSuccess?.();
+    } catch (error) {
+      toast.error("Failed to create resource. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -210,7 +214,7 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
           <SelectContent>
             {subjects.map((subject) => (
               <SelectItem key={subject.id} value={subject.id}>
-                {subject.name}
+                {subject.name} ({subject.levelTitle})
               </SelectItem>
             ))}
           </SelectContent>
@@ -269,8 +273,7 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
               endpoint={ENDPOINTS[formData.type]}
               onClientUploadComplete={handleFileUpload}
               onUploadError={(error: Error) => {
-                console.error("Upload error:", error);
-                alert(`Upload failed: ${error.message}`);
+                toast.error(`Upload failed: ${error.message}`);
               }}
               appearance={{
                 button:
@@ -352,8 +355,7 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
               endpoint="imageUploader"
               onClientUploadComplete={handleThumbnailUpload}
               onUploadError={(error: Error) => {
-                console.error("Thumbnail upload error:", error);
-                alert(`Thumbnail upload failed: ${error.message}`);
+                toast.error(`Thumbnail upload failed: ${error.message}`);
               }}
               appearance={{
                 button:

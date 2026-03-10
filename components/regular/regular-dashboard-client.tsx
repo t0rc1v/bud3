@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { useUser } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import {
@@ -192,7 +193,10 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
   );
 
   // Derived subjects, topics, resources for each category
-  const mySubjects = useMemo(() => myLevels.flatMap((g) => g.subjects), [myLevels]);
+  const mySubjects = useMemo(
+    () => myLevels.flatMap((g) => g.subjects.map((s) => ({ ...s, levelTitle: g.title }))),
+    [myLevels]
+  );
   const myTopics = useMemo(() => mySubjects.flatMap((s) => s.topics), [mySubjects]);
   const myResources = useMemo(() => myTopics.flatMap((t) => t.resources || []), [myTopics]);
 
@@ -353,8 +357,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
       setDeleteCallback(null);
       router.refresh();
     } catch (error) {
-      console.error("Failed to delete item:", error);
-      alert("Failed to delete item. Please try again.");
+      toast.error("Failed to delete. Please try again.");
     } finally {
       setIsDeleting(false);
     }
@@ -1404,7 +1407,7 @@ function LevelCard({
                             <DialogTitle>Add Topic to {subject.name}</DialogTitle>
                           </DialogHeader>
                           <CreateTopicForm
-                            subjects={[subject]}
+                            subjects={[{ ...subject, levelTitle: level.title }]}
                             onSuccess={() => {
                               setAddTopicForSubject(null);
                               onAddTopicSuccess?.();
@@ -1485,7 +1488,7 @@ function LevelCard({
                                       <DialogTitle>Add Resource to {topic.title}</DialogTitle>
                                     </DialogHeader>
                                     <CreateResourceForm
-                                      subjects={[subject]}
+                                      subjects={[{ ...subject, levelTitle: level.title }]}
                                       topics={[topic]}
                                       onSuccess={() => {
                                         setAddResourceForTopic(null);

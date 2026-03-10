@@ -1,6 +1,7 @@
 "use client";
 
-import { useChat, lastAssistantMessageIsCompleteWithApprovalResponses } from "@ai-sdk/react";
+import { useChat } from "@ai-sdk/react";
+import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { DefaultChatTransport } from "ai";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +41,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { createChat, deleteChat, getUserChats, getChatMessages, updateChatTitle, type Chat } from "@/lib/actions/ai";
 import { AddResourceToChat, type ChatResource as Resource } from "./add-resource-to-chat";
+import { ModelSelector } from "./model-selector";
 import type { UserRole } from "@/lib/types";
 import { AssignmentModalTrigger } from "./assignment-modal";
 import { QuizModalTrigger } from "./quiz-modal";
@@ -157,6 +159,7 @@ export function AIChat({
   const [mounted, setMounted] = useState(false);
   const [creditError, setCreditError] = useState<{ message: string; remainingCredits?: number } | null>(null);
   const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   
   // Detect mobile device - use state + useEffect to avoid hydration mismatch
   useEffect(() => {
@@ -203,6 +206,7 @@ export function AIChat({
       api: "/api/chat",
       body: () => ({
         chatId,
+        ...(selectedModelId ? { modelId: selectedModelId } : {}),
       }),
     }),
     id: chatId || "default",
@@ -609,6 +613,10 @@ export function AIChat({
           <span className="font-semibold">AI Assistant</span>
         </div>
         <div className="flex items-center gap-1">
+          <ModelSelector
+            selectedModelId={selectedModelId}
+            onModelChange={setSelectedModelId}
+          />
           <AddResourceToChat
             attachedResources={attachedResources}
             userId={userId}

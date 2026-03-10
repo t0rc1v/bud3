@@ -1,7 +1,7 @@
 import { streamText, UIMessage, convertToModelMessages, tool, stepCountIs, smoothStream } from 'ai';
 import { z } from 'zod';
 import { auth } from '@clerk/nextjs/server';
-import { getModel } from '@/lib/ai/providers';
+import { getModel, getModelById, getAvailableModels } from '@/lib/ai/providers';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { getUserByClerkId } from '@/lib/actions/auth';
 import {
@@ -42,9 +42,9 @@ export async function POST(req: Request) {
   }
 
   // Parallelize user lookup and body parse — both are independent of each other
-  const [user, { messages, chatId }] = await Promise.all([
+  const [user, { messages, chatId, modelId }] = await Promise.all([
     getUserByClerkId(clerkId),
-    req.json() as Promise<{ messages: UIMessage[]; chatId?: string }>,
+    req.json() as Promise<{ messages: UIMessage[]; chatId?: string; modelId?: string }>,
   ]);
 
   if (!user) {
@@ -271,8 +271,22 @@ When responding:
     }
   }
 
+  let activeModel;
+  if (modelId) {
+    const allowed = getAvailableModels();
+    if (!allowed.some(m => m.id === modelId)) {
+      return new Response(
+        JSON.stringify({ error: 'Requested model is not available' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    activeModel = getModelById(modelId);
+  } else {
+    activeModel = getModel();
+  }
+
   const result = streamText({
-    model: getModel(),
+    model: activeModel,
     system: systemPrompt,
     messages: await convertToModelMessages(processedMessages),
     abortSignal: req.signal,

@@ -5,7 +5,11 @@
       "Bash(ls:*)",
       "Bash(pnpm tsc:*)",
       "Bash(grep:*)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "WebFetch(domain:sdk.vercel.ai)",
+      "WebFetch(domain:ai-sdk.dev)",
+      "WebSearch",
+      "Bash(node:*)"
     ]
   }
 }

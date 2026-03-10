@@ -193,7 +193,7 @@ export function AIChat({
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [router, pathname, searchParams]);
 
-  const { messages, sendMessage, status, stop, setMessages, error } = useChat({
+  const { messages, sendMessage, status, stop, setMessages, error, addToolApprovalResponse } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
       body: () => ({
@@ -1027,6 +1027,51 @@ export function AIChat({
                         );
                       }
                       
+                      // Server Actions — show approval UI for mutations
+                      if (toolType === "tool-server_actions" && state === "approval-requested") {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const actionInput = input as any;
+                        const action: string = actionInput?.action ?? "";
+                        const params = actionInput?.params ?? {};
+                        const toolCallId: string = toolPart.toolCallId;
+
+                        const summary =
+                          action === "add_regular"
+                            ? `Add learner: ${params.email ?? "unknown"}`
+                            : action === "create_resource"
+                            ? `Create resource: "${params.title ?? "untitled"}" (${params.type ?? ""}) in topic ${params.topicId ?? ""}`
+                            : action;
+
+                        const handleApprove = () => {
+                          addToolApprovalResponse({ id: toolCallId, approved: true });
+                        };
+
+                        const handleDeny = () => {
+                          addToolApprovalResponse({
+                            id: toolCallId,
+                            approved: false,
+                            reason: "Action cancelled by user.",
+                          });
+                        };
+
+                        return (
+                          <Tool key={i} defaultOpen className="mt-2 min-w-0">
+                            <ToolHeader toolType={toolType} state={state} title="Confirm Action" />
+                            <ToolContent>
+                              <p className="text-sm text-muted-foreground">{summary}</p>
+                              <div className="flex gap-2 mt-2">
+                                <Button size="sm" onClick={handleApprove}>
+                                  Approve
+                                </Button>
+                                <Button size="sm" variant="destructive" onClick={handleDeny}>
+                                  Deny
+                                </Button>
+                              </div>
+                            </ToolContent>
+                          </Tool>
+                        );
+                      }
+
                       // All other tools
                       return (
                         <Tool key={i} defaultOpen={false} className="mt-2 min-w-0">

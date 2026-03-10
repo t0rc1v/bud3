@@ -2,6 +2,7 @@ import { streamText, UIMessage, convertToModelMessages, tool, stepCountIs } from
 import { z } from 'zod';
 import { auth } from '@clerk/nextjs/server';
 import { getModel } from '@/lib/ai/providers';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { getUserByClerkId } from '@/lib/actions/auth';
 import {
   searchWeb,
@@ -29,6 +30,15 @@ export async function POST(req: Request) {
   
   if (!clerkId) {
     return new Response('Unauthorized', { status: 401 });
+  }
+
+  // Rate limit: 20 requests per minute per user
+  const rl = checkRateLimit(`chat:${clerkId}`, 20, 60_000);
+  if (!rl.allowed) {
+    return new Response(
+      JSON.stringify({ error: 'Too many requests. Please slow down.' }),
+      { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    );
   }
 
   // Get the database user ID from the clerk ID
@@ -189,23 +199,6 @@ When responding:
 - Use the right tool for the job - don't use web_search when fetch_memory would work
 - Be aware of the current date when providing time-sensitive information`;
 
-  // Add date context section
-  systemPrompt += `\n\nCurrent Date Context:
-- Today's date: ${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-- Current time: ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
-  
-  // Calculate academic year (assuming school year starts in August/September)
-  const month = now.getMonth();
-  const year = now.getFullYear();
-  const academicYear = month >= 7 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
-  systemPrompt += `\n- Current academic year (approximate): ${academicYear}`;
-  
-  // Day of week context
-  const daysUntilWeekend = 6 - now.getDay();
-  if (daysUntilWeekend >= 0 && daysUntilWeekend <= 2) {
-    systemPrompt += `\n- Weekend is in ${daysUntilWeekend} day${daysUntilWeekend !== 1 ? 's' : ''}`;
-  }
-
   // Add memory context if available
   if (memoryItems && memoryItems.length > 0) {
     systemPrompt += `\n\nYou have access to the following saved memory (use fetch_memory tool to retrieve specific details):\n`;
@@ -283,7 +276,17 @@ When responding:
     model: getModel(),
     system: systemPrompt,
     messages: await convertToModelMessages(processedMessages),
-    stopWhen: stepCountIs(5),
+    abortSignal: req.signal,
+    maxOutputTokens: 8192,
+    stopWhen: stepCountIs(15),
+    // Anthropic ephemeral cache on the system prompt — reduces latency + token cost;
+    // silently ignored by other providers.
+    providerOptions: {
+      anthropic: { cacheControl: { type: 'ephemeral' } },
+    },
+    onError: (error) => {
+      console.error('[Chat Stream Error]', error);
+    },
     tools: {
       web_search: tool({
         description: 'Search the web for current information on any topic. Returns web pages, articles, and documents relevant to the query.',
@@ -474,6 +477,11 @@ When responding:
           action: z.enum(['get_levels', 'add_regular', 'get_my_regulars', 'create_resource', 'get_resources', 'get_subjects', 'get_topics']),
           params: z.any().optional(),
         }),
+        // Mutation actions require explicit user confirmation before executing.
+        needsApproval: (input) => {
+          const mutations = ['add_regular', 'create_resource'];
+          return mutations.includes(input.action);
+        },
         execute: async ({ action, params = {} }) => {
           try {
             switch (action) {

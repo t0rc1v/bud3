@@ -187,7 +187,7 @@ export function AIChat({
   const sentResourceIdsRef = useRef<Set<string>>(new Set());
   // Track if chat was created via "New Chat" button and needs title update after first message
   const needsTitleUpdateRef = useRef<boolean>(false);
-  
+
   // Helper function to update URL with chatId
   const updateUrlWithChatId = useCallback((newChatId: string | undefined) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -426,40 +426,31 @@ export function AIChat({
       filename: resource.title,
     }));
 
-    // If no chat exists, store the message and create one
+    // If no chat exists, create one optimistically and send the message
     if (!chatId) {
-      // Store message to send after chat is created
-      pendingMessageRef.current = {
-        text: userMessage,
-        files: fileParts,
-      };
-      
-      // Mark resources as sent
-      unsentResources.forEach((resource) => {
-        sentResourceIdsRef.current.add(resource.id);
+      const newChatId = crypto.randomUUID();
+      const chatTitle = generateChatTitle(input, unsentResources);
+
+      // Store pending message for the useEffect to send after re-render
+      pendingMessageRef.current = { text: userMessage, files: fileParts };
+      unsentResources.forEach(r => sentResourceIdsRef.current.add(r.id));
+
+      // Optimistically update state + URL immediately (no server round-trip)
+      newlyCreatedChatRef.current = newChatId;
+      needsTitleUpdateRef.current = false;
+      setChatId(newChatId);
+      updateUrlWithChatId(newChatId);
+      setChats(prev => [
+        { id: newChatId, userId, title: chatTitle, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+        ...prev,
+      ]);
+
+      // Create chat in DB in the background — API route is resilient to brief delay
+      createChat({ id: newChatId, userId, title: chatTitle }).catch(err => {
+        console.error("Failed to create chat:", err);
       });
-      
-      try {
-        const chatTitle = generateChatTitle(input, unsentResources);
-        const newChat = await createChat({
-          userId,
-          title: chatTitle,
-        });
-        // Mark this chat as newly created to prevent the load effect from overwriting messages
-        newlyCreatedChatRef.current = newChat.id;
-        setChatId(newChat.id);
-        updateUrlWithChatId(newChat.id); // Update URL with new chat ID
-        setChats((prev) => [newChat, ...prev]);
-        // Chat created with contextual title, no need for title update
-        needsTitleUpdateRef.current = false;
-        // Message will be sent by the effect after chatId state updates
-      } catch (error) {
-        console.error("Failed to create chat:", error);
-        pendingMessageRef.current = null;
-        newlyCreatedChatRef.current = null;
-        needsTitleUpdateRef.current = false;
-        return;
-      }
+
+      // Message is sent by the useEffect once chatId state propagates
     } else {
       // Chat exists, send message immediately
       sendMessage({ 

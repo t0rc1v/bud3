@@ -39,19 +39,17 @@ export interface AIMemoryItem {
 
 
 export async function createChat({
+  id,
   userId,
   title,
 }: {
+  id?: string;
   userId: string;
   title: string;
 }): Promise<Chat> {
   const result = await db
     .insert(chat)
-    .values({
-      userId,
-      title,
-      isActive: true,
-    })
+    .values({ ...(id ? { id } : {}), userId, title, isActive: true })
     .returning();
 
   return result[0];

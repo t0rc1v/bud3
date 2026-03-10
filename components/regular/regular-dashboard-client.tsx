@@ -28,6 +28,9 @@ import {
   Lock,
   Unlock,
   CreditCard,
+  ArrowRight,
+  CheckCircle,
+  Bookmark,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,6 +64,7 @@ import { deleteLevelWithSession, deleteSubjectWithSession, deleteTopicWithSessio
 import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";
 import { recordResourceView } from "@/lib/actions/credits";
+import { BookmarksTab } from "@/components/regular/bookmarks-tab";
 import type {
   LevelWithFullHierarchy,
   LevelWithFullHierarchyAndUnlockStatus,
@@ -88,7 +92,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
 
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<"my" | "admin(s)" | "institution">("my");
+  const [activeTab, setActiveTab] = useState<"my" | "admin(s)" | "institution" | "bookmarks">("my");
   
   // State for super-admin's admin IDs
   const [superAdminAdminIds, setSuperAdminAdminIds] = useState<string[]>([]);
@@ -134,6 +138,23 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
 
   // Viewing resource
   const [selectedResource, setSelectedResource] = useState<ResourceWithRelations | null>(null);
+
+  // Learner progress summary + resume
+  const [progressSummary, setProgressSummary] = useState<{ completed: number; started: number } | null>(null);
+  const [lastAccessedResource, setLastAccessedResource] = useState<{
+    resource: { id: string; title: string; type: string };
+    topicTitle: string;
+    subjectName: string;
+    levelTitle: string;
+    status: string;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/learner/progress/summary").then((r) => r.ok ? r.json() : null).then((d) => {
+      if (d?.summary) setProgressSummary(d.summary);
+      if (d?.lastAccessed !== undefined) setLastAccessedResource(d.lastAccessed);
+    }).catch(() => {});
+  }, []);
 
   // Separate content by owner role and owner ID using useMemo
   // My Content: only content owned by the current user
@@ -409,8 +430,13 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
     };
     
     setSelectedResource(resourceWithRelations);
-    // Fire-and-forget: track that this learner viewed this resource
+    // Fire-and-forget: track view + mark as started
     recordResourceView(userId, resource.id).catch(() => {});
+    fetch("/api/learner/progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resourceId: resource.id, status: "started" }),
+    }).catch(() => {});
   }, [myLevels, adminLevels, superAdminLevels, userId]);
 
   const handleBackFromViewer = () => {
@@ -442,6 +468,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
           onBack={handleBackFromViewer}
           subjects={[]}
           topics={[]}
+          showLearnerActions
         />
       </div>
     );
@@ -459,6 +486,45 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
         </p>
       </div>
 
+
+      {/* Resume card + progress summary */}
+      {(lastAccessedResource || progressSummary) && (
+        <div className="flex flex-col sm:flex-row gap-3">
+          {lastAccessedResource && (
+            <Card
+              className="flex-1 cursor-pointer hover:shadow-md transition-all border-primary/30"
+              onClick={() => {
+                // Find and open the resource
+                const allRes = [...myResources, ...adminResources, ...superAdminResources];
+                const r = allRes.find((x) => x.id === lastAccessedResource.resource.id);
+                if (r) handleViewResource(r);
+              }}
+            >
+              <CardContent className="py-3 px-4 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground">Resume where you left off</p>
+                  <p className="text-sm font-semibold truncate">{lastAccessedResource.resource.title}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {lastAccessedResource.levelTitle} › {lastAccessedResource.subjectName} › {lastAccessedResource.topicTitle}
+                  </p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-primary flex-shrink-0" />
+              </CardContent>
+            </Card>
+          )}
+          {progressSummary && (progressSummary.completed > 0 || progressSummary.started > 0) && (
+            <Card className="flex-shrink-0">
+              <CardContent className="py-3 px-4 flex items-center gap-3">
+                <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold">{progressSummary.completed} completed</p>
+                  <p className="text-xs text-muted-foreground">{progressSummary.started} in progress</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Stats Cards - Clickable to switch tabs */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -548,8 +614,8 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
         )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "my" | "admin(s)" | "institution")} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 h-10 sm:h-11">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "my" | "admin(s)" | "institution" | "bookmarks")} className="w-full">
+        <TabsList className="grid w-full grid-cols-4 h-10 sm:h-11">
           <TabsTrigger value="my" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2">
             <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span className="text-xs sm:text-sm whitespace-nowrap leading-none">My Content</span>
@@ -564,6 +630,10 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
             <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span className="text-xs sm:text-sm whitespace-nowrap leading-none">Institution</span>
             <Badge variant="secondary" className="ml-0.5 sm:ml-1 bg-primary text-primary-foreground text-xs hidden sm:inline h-5 min-w-0 px-1.5">{superAdminLevels.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="bookmarks" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2">
+            <Bookmark className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+            <span className="text-xs sm:text-sm whitespace-nowrap leading-none">Bookmarks</span>
           </TabsTrigger>
         </TabsList>
 
@@ -860,6 +930,14 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="bookmarks" className="mt-6">
+          <BookmarksTab onOpenResource={(resourceId) => {
+            const allRes = [...myResources, ...adminResources, ...superAdminResources];
+            const r = allRes.find((x) => x.id === resourceId);
+            if (r) handleViewResource(r);
+          }} />
         </TabsContent>
       </Tabs>
 

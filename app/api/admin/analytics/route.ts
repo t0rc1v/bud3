@@ -15,6 +15,7 @@ import {
 } from "@/lib/db/schema";
 import { eq, desc, gte, sql, and, count } from "drizzle-orm";
 import { getUserByClerkId } from "@/lib/actions/auth";
+import { getTopRatedResources } from "@/lib/actions/learner";
 
 export async function GET() {
   try {
@@ -44,6 +45,7 @@ export async function GET() {
       topUnlockedResources,
       creditSpendingByDay,
       recentAuditLogs,
+      topRatedResources,
     ] = await Promise.all([
       // User counts by role
       db
@@ -139,6 +141,9 @@ export async function GET() {
         .leftJoin(user, eq(auditLog.actorId, user.id))
         .orderBy(desc(auditLog.createdAt))
         .limit(50),
+
+      // Top rated resources
+      getTopRatedResources(10),
     ]);
 
     const userCountMap = Object.fromEntries(
@@ -185,6 +190,17 @@ export async function GET() {
         entityId: r.entityId,
         actorEmail: r.actorEmail ?? null,
         createdAt: r.createdAt,
+      })),
+      topRatedResources: topRatedResources.map((r) => ({
+        resourceId: r.resourceId,
+        resourceTitle: r.resourceTitle,
+        resourceType: r.resourceType,
+        topicTitle: r.topicTitle,
+        subjectName: r.subjectName,
+        levelTitle: r.levelTitle,
+        upCount: Number(r.upCount),
+        downCount: Number(r.downCount),
+        totalRatings: r.totalRatings,
       })),
     });
   } catch (error) {

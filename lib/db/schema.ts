@@ -799,3 +799,83 @@ export const resourceViewRelations = relations(resourceView, ({ one }) => ({
     references: [resource.id],
   }),
 }));
+
+// ============ LEARNER EXPERIENCE TABLES ============
+
+export const progressStatusEnum = pgEnum('progress_status', ['not_started', 'started', 'completed']);
+
+// Per-resource completion state per learner
+export const resourceProgress = pgTable("resource_progress", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  resourceId: uuid('resource_id').notNull().references(() => resource.id, { onDelete: 'cascade' }),
+  status: progressStatusEnum('status').notNull().default('not_started'),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  lastAccessedAt: timestamp('last_accessed_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt,
+  updatedAt,
+}, (table) => ({
+  uniqueUserResource: uniqueIndex("uc_resource_progress").on(table.userId, table.resourceId),
+  userStatusIdx: index("rp_user_status_idx").on(table.userId, table.status),
+  resourceStatusIdx: index("rp_resource_status_idx").on(table.resourceId, table.status),
+}));
+
+// Saved/bookmarked resources per learner
+export const resourceBookmark = pgTable("resource_bookmark", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  resourceId: uuid('resource_id').notNull().references(() => resource.id, { onDelete: 'cascade' }),
+  createdAt,
+}, (table) => ({
+  uniqueUserResourceBookmark: uniqueIndex("uc_resource_bookmark").on(table.userId, table.resourceId),
+  userIdx: index("rb_user_idx").on(table.userId),
+}));
+
+// Private per-resource notes (one per user per resource)
+export const resourceNote = pgTable("resource_note", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  resourceId: uuid('resource_id').notNull().references(() => resource.id, { onDelete: 'cascade' }),
+  content: text('content').notNull(),
+  createdAt,
+  updatedAt,
+}, (table) => ({
+  userResourceIdx: index("rn_user_resource_idx").on(table.userId, table.resourceId),
+}));
+
+export const ratingValueEnum = pgEnum('rating_value', ['up', 'down']);
+
+// Thumbs up/down rating per learner per resource
+export const resourceRating = pgTable("resource_rating", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  resourceId: uuid('resource_id').notNull().references(() => resource.id, { onDelete: 'cascade' }),
+  rating: ratingValueEnum('rating').notNull(),
+  createdAt,
+  updatedAt,
+}, (table) => ({
+  uniqueUserResourceRating: uniqueIndex("uc_resource_rating").on(table.userId, table.resourceId),
+  resourceIdx: index("rr_resource_idx").on(table.resourceId),
+}));
+
+// Relations
+export const resourceProgressRelations = relations(resourceProgress, ({ one }) => ({
+  user: one(user, { fields: [resourceProgress.userId], references: [user.id] }),
+  resource: one(resource, { fields: [resourceProgress.resourceId], references: [resource.id] }),
+}));
+
+export const resourceBookmarkRelations = relations(resourceBookmark, ({ one }) => ({
+  user: one(user, { fields: [resourceBookmark.userId], references: [user.id] }),
+  resource: one(resource, { fields: [resourceBookmark.resourceId], references: [resource.id] }),
+}));
+
+export const resourceNoteRelations = relations(resourceNote, ({ one }) => ({
+  user: one(user, { fields: [resourceNote.userId], references: [user.id] }),
+  resource: one(resource, { fields: [resourceNote.resourceId], references: [resource.id] }),
+}));
+
+export const resourceRatingRelations = relations(resourceRating, ({ one }) => ({
+  user: one(user, { fields: [resourceRating.userId], references: [user.id] }),
+  resource: one(resource, { fields: [resourceRating.resourceId], references: [resource.id] }),
+}));

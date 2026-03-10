@@ -20,6 +20,8 @@ import {
   RefreshCw,
   Activity,
   Download,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -52,6 +54,17 @@ interface AnalyticsData {
     topicTitle: string | null;
     subjectName: string | null;
     levelTitle: string | null;
+  }[];
+  topRatedResources: {
+    resourceId: string;
+    resourceTitle: string;
+    resourceType: string | null;
+    topicTitle: string | null;
+    subjectName: string | null;
+    levelTitle: string | null;
+    upCount: number;
+    downCount: number;
+    totalRatings: number;
   }[];
   recentAuditLogs: {
     id: string;
@@ -330,6 +343,46 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+      {/* Content Ratings */}
+      {data.topRatedResources && data.topRatedResources.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <ThumbsUp className="h-4 w-4" />
+              Content Ratings
+            </CardTitle>
+            <CardDescription>Learner feedback on top-rated resources</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {data.topRatedResources.map((r) => {
+                const total = r.upCount + r.downCount;
+                const pct = total > 0 ? Math.round((r.upCount / total) * 100) : 0;
+                return (
+                  <div key={r.resourceId} className="flex items-center gap-3 py-1.5 px-2 rounded hover:bg-muted/40">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{r.resourceTitle}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {r.levelTitle} › {r.subjectName} › {r.topicTitle}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0 text-xs">
+                      <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                        <ThumbsUp className="h-3 w-3" />{r.upCount}
+                      </span>
+                      <span className="flex items-center gap-1 text-red-500">
+                        <ThumbsDown className="h-3 w-3" />{r.downCount}
+                      </span>
+                      <Badge variant="secondary" className="text-xs">{pct}%</Badge>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Recent Audit Activity */}
       <Card>
         <CardHeader>

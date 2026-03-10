@@ -273,7 +273,7 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
               endpoint={ENDPOINTS[formData.type]}
               onClientUploadComplete={handleFileUpload}
               onUploadError={(error: Error) => {
-                toast.error(`Upload failed: ${error.message}`);
+                toast.error("Upload failed. Please try again.");
               }}
               appearance={{
                 button:
@@ -355,7 +355,7 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
               endpoint="imageUploader"
               onClientUploadComplete={handleThumbnailUpload}
               onUploadError={(error: Error) => {
-                toast.error(`Thumbnail upload failed: ${error.message}`);
+                toast.error("Thumbnail upload failed. Please try again.");
               }}
               appearance={{
                 button:

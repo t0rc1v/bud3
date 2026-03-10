@@ -28,8 +28,6 @@ import {
   Lock,
   Unlock,
   CreditCard,
-  Loader2,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,42 +86,6 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
   const [levels, setLevels] = useState<LevelWithFullHierarchy[]>(initialLevels);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Server-side search state
-  interface SearchResult {
-    id: string;
-    title: string;
-    description: string | null;
-    type: string;
-    isLocked: boolean;
-    topicTitle: string | null;
-    subjectName: string | null;
-    levelTitle: string | null;
-  }
-  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
-  const [globalSearch, setGlobalSearch] = useState("");
-
-  useEffect(() => {
-    if (!globalSearch.trim()) {
-      setSearchResults(null);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      setIsSearching(true);
-      try {
-        const res = await fetch(`/api/content/search?q=${encodeURIComponent(globalSearch.trim())}`);
-        if (res.ok) {
-          const data = await res.json();
-          setSearchResults(data.results ?? data);
-        }
-      } catch {
-        // silently fail — local filter still works
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [globalSearch]);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<"my" | "admin(s)" | "institution">("my");
@@ -497,74 +459,6 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
         </p>
       </div>
 
-      {/* Global Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search all content..."
-          value={globalSearch}
-          onChange={(e) => setGlobalSearch(e.target.value)}
-          className="pl-9 pr-9"
-        />
-        {globalSearch && (
-          <button
-            onClick={() => { setGlobalSearch(""); setSearchResults(null); }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
-      {/* Server Search Results */}
-      {(globalSearch.trim() || isSearching) && (
-        <div className="space-y-2">
-          {isSearching ? (
-            <div className="flex items-center gap-2 py-4 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm">Searching...</span>
-            </div>
-          ) : searchResults !== null ? (
-            searchResults.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center text-muted-foreground text-sm">
-                  No results found for &ldquo;{globalSearch}&rdquo;
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">{searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for &ldquo;{globalSearch}&rdquo;</p>
-                {searchResults.map((result) => (
-                  <Card
-                    key={result.id}
-                    className="cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => {
-                      if (!result.isLocked) {
-                        const allRes = [...myResources, ...adminResources, ...superAdminResources];
-                        const found = allRes.find((r) => r.id === result.id);
-                        if (found) handleViewResource(found);
-                      }
-                    }}
-                  >
-                    <CardContent className="py-3 px-4 flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{result.title}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {[result.levelTitle, result.subjectName, result.topicTitle].filter(Boolean).join(" › ")}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Badge variant="outline" className="text-xs capitalize">{result.type}</Badge>
-                        {result.isLocked && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )
-          ) : null}
-        </div>
-      )}
 
       {/* Stats Cards - Clickable to switch tabs */}
       <div className="grid gap-4 md:grid-cols-3">

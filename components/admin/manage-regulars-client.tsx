@@ -125,7 +125,8 @@ export function AdminManageRegularsClient({
       setNewRegularEmail("");
       loadLearners();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to add learner");
+      console.error("Failed to add learner:", error);
+      toast.error("Failed to add learner. Please try again.");
     } finally {
       setIsAddingSingle(false);
     }

@@ -64,7 +64,8 @@ export function CreateSubjectForm({ levels, onSuccess }: CreateSubjectFormProps)
       toast.success("Subject created successfully");
       onSuccess?.();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create subject");
+      console.error("Failed to create subject:", error);
+      toast.error("Failed to create subject. Please try again.");
     } finally {
       setIsLoading(false);
     }

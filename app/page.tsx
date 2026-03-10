@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useUser } from "@clerk/nextjs";
+import { useUser, UserButton } from "@clerk/nextjs";
 import { getMyDashboardUrl } from "@/lib/actions/auth";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -479,19 +479,25 @@ export default function LandingPage() {
             </Link>
           </nav>
           <div className="flex items-center gap-3">
-            <Link href="/sign-in">
-              <Button variant="ghost" size="sm">
-                Sign In
-              </Button>
-            </Link>
-            <Link href="/sign-up">
-              <Button
-                size="sm"
-                className="bg-gradient-to-r from-orange-700 to-amber-500 hover:from-orange-800 hover:to-amber-600"
-              >
-                Get Started
-              </Button>
-            </Link>
+            {isSignedIn ? (
+              <UserButton afterSignOutUrl="/" />
+            ) : (
+              <>
+                <Link href="/sign-in">
+                  <Button variant="ghost" size="sm">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/sign-up">
+                  <Button
+                    size="sm"
+                    className="bg-gradient-to-r from-orange-700 to-amber-500 hover:from-orange-800 hover:to-amber-600"
+                  >
+                    Get Started
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </motion.header>

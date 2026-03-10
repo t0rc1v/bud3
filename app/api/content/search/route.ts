@@ -31,14 +31,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ results: [] });
     }
 
-    // Sanitize query: replace non-alphanumeric with space, trim
+    // Sanitize query: replace non-alphanumeric (except spaces) with space, trim
     const sanitized = q.replace(/[^\w\s]/g, " ").trim();
     if (!sanitized) return NextResponse.json({ results: [] });
 
-    // Build tsquery from words (all words must appear)
-    const tsquery = sanitized.split(/\s+/).filter(Boolean).join(" & ");
-
     const isAdmin = dbUser.role === "admin" || dbUser.role === "super_admin";
+
+    // websearch_to_tsquery handles stop words and edge cases gracefully
+    const tsvectorExpr = sql`to_tsvector('english', coalesce(${resource.title}, '') || ' ' || coalesce(${resource.description}, ''))`;
+    const tsqueryExpr = sql`websearch_to_tsquery('english', ${sanitized})`;
 
     const results = await db
       .select({
@@ -50,10 +51,7 @@ export async function GET(req: Request) {
         topicTitle: topic.title,
         subjectName: subject.name,
         levelTitle: level.title,
-        rank: sql<number>`ts_rank(
-          to_tsvector('english', coalesce(${resource.title}, '') || ' ' || coalesce(${resource.description}, '')),
-          to_tsquery('english', ${tsquery})
-        )`,
+        rank: sql<number>`ts_rank(${tsvectorExpr}, ${tsqueryExpr})`,
       })
       .from(resource)
       .leftJoin(topic, eq(resource.topicId, topic.id))
@@ -61,10 +59,14 @@ export async function GET(req: Request) {
       .leftJoin(level, eq(subject.levelId, level.id))
       .where(
         isAdmin
-          ? sql`to_tsvector('english', coalesce(${resource.title}, '') || ' ' || coalesce(${resource.description}, '')) @@ to_tsquery('english', ${tsquery})`
+          ? and(
+              sql`${tsvectorExpr} @@ ${tsqueryExpr}`,
+              eq(resource.isActive, true)
+            )
           : and(
-              sql`to_tsvector('english', coalesce(${resource.title}, '') || ' ' || coalesce(${resource.description}, '')) @@ to_tsquery('english', ${tsquery})`,
+              sql`${tsvectorExpr} @@ ${tsqueryExpr}`,
               eq(resource.status, "published"),
+              eq(resource.isActive, true),
               sql`${resource.visibility} IN ('public', 'admin_and_regulars', 'regular_only')`
             )
       )

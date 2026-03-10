@@ -62,7 +62,8 @@ export function CreateTopicForm({ subjects, onSuccess }: CreateTopicFormProps) {
       toast.success("Topic created successfully");
       onSuccess?.();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create topic");
+      console.error("Failed to create topic:", error);
+      toast.error("Failed to create topic. Please try again.");
     } finally {
       setIsLoading(false);
     }

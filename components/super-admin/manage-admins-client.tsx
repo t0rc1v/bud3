@@ -294,7 +294,7 @@ function AdminsTab({
     if (result.success) {
       onDataChange();
     } else {
-      toast.error(result.error);
+      toast.error(result.error || "Failed to delete admin");
     }
   };
 
@@ -303,7 +303,7 @@ function AdminsTab({
     if (result.success) {
       onDataChange();
     } else {
-      toast.error(result.error);
+      toast.error(result.error || "Failed to update admin role");
     }
   };
 
@@ -913,7 +913,7 @@ function RolesTab({
       setSelectedPermissions([]);
       onDataChange();
     } else {
-      toast.error(result.error);
+      toast.error(result.error || "Failed to create role");
     }
   };
 
@@ -935,7 +935,7 @@ function RolesTab({
       setSelectedPermissions([]);
       onDataChange();
     } else {
-      toast.error(result.error);
+      toast.error(result.error || "Failed to update role");
     }
   };
 
@@ -944,7 +944,7 @@ function RolesTab({
     if (result.success) {
       onDataChange();
     } else {
-      toast.error(result.error);
+      toast.error(result.error || "Failed to delete role");
     }
   };
 

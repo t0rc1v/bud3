@@ -314,7 +314,7 @@ export function EditResourceForm({
               endpoint={ENDPOINTS[formData.type] as "notesUploader" | "videoUploader" | "audioUploader" | "imageUploader"}
               onClientUploadComplete={handleFileUpload}
               onUploadError={(error: Error) => {
-                toast.error(`Upload failed: ${error.message}`);
+                toast.error("Upload failed. Please try again.");
               }}
               appearance={{
                 button:
@@ -382,7 +382,7 @@ export function EditResourceForm({
               endpoint="imageUploader"
               onClientUploadComplete={handleThumbnailUpload}
               onUploadError={(error: Error) => {
-                toast.error(`Thumbnail upload failed: ${error.message}`);
+                toast.error("Thumbnail upload failed. Please try again.");
               }}
               appearance={{
                 button:

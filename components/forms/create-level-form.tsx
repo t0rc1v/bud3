@@ -56,7 +56,8 @@ export function CreateLevelForm({ onSuccess }: CreateLevelFormProps) {
       toast.success("Level created successfully");
       onSuccess?.();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create level");
+      console.error("Failed to create level:", error);
+      toast.error("Failed to create level. Please try again.");
     } finally {
       setIsLoading(false);
     }

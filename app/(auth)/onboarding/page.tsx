@@ -95,28 +95,28 @@ export default function OnboardingPage() {
 
   if (!isLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-foreground"></div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-lg">Please sign in first</p>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-lg text-foreground">Please sign in first</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-card text-card-foreground rounded-2xl shadow-lg border p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold mb-2">
             Welcome!
           </h1>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             Choose how you want to use the platform
           </p>
         </div>
@@ -127,19 +127,19 @@ export default function OnboardingPage() {
             onClick={() => handleRoleSelect("super_admin")}
             className={`w-full p-6 rounded-xl border-2 transition-all duration-200 text-left ${
               selectedRole === "super_admin"
-                ? "border-blue-500 bg-blue-50"
-                : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                ? "border-blue-500 bg-blue-500/10"
+                : "border-border hover:border-blue-400 hover:bg-muted/50"
             }`}
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 text-lg">Institution / Organization</h3>
-                <p className="text-sm text-gray-600">Create content and manage admins and regular users</p>
+                <h3 className="font-semibold text-lg">Institution / Organization</h3>
+                <p className="text-sm text-muted-foreground">Create content and manage admins and regular users</p>
               </div>
             </div>
           </button>
@@ -149,19 +149,19 @@ export default function OnboardingPage() {
             onClick={() => handleRoleSelect("regular")}
             className={`w-full p-6 rounded-xl border-2 transition-all duration-200 text-left ${
               selectedRole === "regular"
-                ? "border-green-500 bg-green-50"
-                : "border-gray-200 hover:border-green-300 hover:bg-gray-50"
+                ? "border-green-500 bg-green-500/10"
+                : "border-border hover:border-green-400 hover:bg-muted/50"
             }`}
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 text-lg">Individual User</h3>
-                <p className="text-sm text-gray-600">Access resources and use AI learning tools</p>
+                <h3 className="font-semibold text-lg">Individual User</h3>
+                <p className="text-sm text-muted-foreground">Access resources and use AI learning tools</p>
               </div>
             </div>
           </button>
@@ -170,15 +170,15 @@ export default function OnboardingPage() {
         {/* Institution Details Form - Only show for super_admin role */}
         {selectedRole === "super_admin" && (
           <div className="mb-8 space-y-4">
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h4 className="font-semibold text-blue-900 mb-3">Institution Details</h4>
-              <p className="text-sm text-blue-700 mb-4">
+            <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/30">
+              <h4 className="font-semibold text-blue-500 mb-3">Institution Details</h4>
+              <p className="text-sm text-muted-foreground mb-4">
                 Fill in your institution details to get started as a Super Admin.
               </p>
-              
+
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium mb-1">
                     Institution Name *
                   </label>
                   <input
@@ -186,19 +186,19 @@ export default function OnboardingPage() {
                     value={institutionName}
                     onChange={(e) => setInstitutionName(e.target.value)}
                     placeholder="e.g., ABC High School"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium mb-1">
                     Institution Type
                   </label>
                   <select
                     value={institutionType}
                     onChange={(e) => setInstitutionType(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select type...</option>
                     <option value="school">School (K-12)</option>
@@ -216,15 +216,15 @@ export default function OnboardingPage() {
         {/* Regular User Details Form - Only show for regular role */}
         {selectedRole === "regular" && (
           <div className="mb-8 space-y-4">
-            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-              <h4 className="font-semibold text-green-900 mb-3">Your Details</h4>
-              <p className="text-sm text-green-700 mb-4">
+            <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/30">
+              <h4 className="font-semibold text-green-500 mb-3">Your Details</h4>
+              <p className="text-sm text-muted-foreground mb-4">
                 Please provide your name and education level to personalize your experience.
               </p>
-              
+
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium mb-1">
                     What name would you like to go by? *
                   </label>
                   <input
@@ -232,19 +232,19 @@ export default function OnboardingPage() {
                     value={userName}
                     onChange={(e) => setUserName(e.target.value)}
                     placeholder="e.g., John Doe"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-green-500"
                     required
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium mb-1">
                     What is your education level? *
                   </label>
                   <select
                     value={userLevel}
                     onChange={(e) => setUserLevel(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-green-500"
                     required
                   >
                     <option value="">Select your education level...</option>
@@ -254,7 +254,7 @@ export default function OnboardingPage() {
                       </option>
                     ))}
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Select the education level that best describes your current learning stage
                   </p>
                 </div>
@@ -264,8 +264,8 @@ export default function OnboardingPage() {
         )}
 
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600">{error}</p>
+          <div className="mb-4 p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
+            <p className="text-sm text-destructive">{error}</p>
           </div>
         )}
 
@@ -274,13 +274,13 @@ export default function OnboardingPage() {
           disabled={!selectedRole || isLoading}
           className={`w-full py-4 rounded-xl font-semibold text-white transition-all duration-200 ${
             selectedRole && !isLoading
-              ? "bg-gray-900 hover:bg-gray-800"
-              : "bg-gray-300 cursor-not-allowed"
+              ? "bg-primary hover:bg-primary/90"
+              : "bg-muted text-muted-foreground cursor-not-allowed"
           }`}
         >
           {isLoading ? (
             <span className="flex items-center justify-center gap-2">
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
               Setting up...
             </span>
           ) : "Continue"}

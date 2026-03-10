@@ -24,7 +24,7 @@ export default function GlobalError({
           An unexpected error occurred. Please try again.
         </p>
         <div className="flex gap-3 justify-center">
-          <Button onClick={reset}>Try again</Button>
+          <Button onClick={() => window.location.reload()}>Try again</Button>
           <Button variant="outline" onClick={() => (window.location.href = "/")}>
             Go home
           </Button>

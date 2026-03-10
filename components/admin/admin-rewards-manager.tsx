@@ -113,14 +113,19 @@ function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [adminBalance, setAdminBalance] = useState<number | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(true);
-  const MINIMUM_BALANCE = 100;
-  const isSuperAdmin = userRole === "super_admin";
+  const [mounted, setMounted] = useState(false);
   const [result, setResult] = useState<{
     success: boolean;
     message: string;
     userId?: string;
     email?: string;
   } | null>(null);
+  const MINIMUM_BALANCE = 100;
+  const isSuperAdmin = userRole === "super_admin";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Fetch admin's credit balance on mount
   useEffect(() => {
@@ -384,7 +389,7 @@ function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
                     className="w-32"
                   />
                   <span className="text-sm text-muted-foreground">
-                    = Expires on {new Date(Date.now() + expirationDays * 24 * 60 * 60 * 1000).toLocaleDateString()}
+                    = Expires on {mounted ? new Date(Date.now() + expirationDays * 24 * 60 * 60 * 1000).toLocaleDateString() : "..."}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
@@ -403,7 +408,7 @@ function GiftCreditsTab({ userRole }: GiftCreditsTabProps) {
                 )}>
                   {expirationDays === 0 
                     ? "Never expires" 
-                    : new Date(Date.now() + expirationDays * 24 * 60 * 60 * 1000).toLocaleDateString()}
+                    : mounted ? new Date(Date.now() + expirationDays * 24 * 60 * 60 * 1000).toLocaleDateString() : "..."}
                 </span>
               </div>
             </div>

@@ -771,7 +771,7 @@ export function AIChat({
                             <span>Show reasoning</span>
                           </summary>
                           <div className="mt-1.5 pl-5 text-xs text-muted-foreground border-l-2 border-muted whitespace-pre-wrap">
-                            {part.reasoning}
+                            {part.text}
                           </div>
                         </details>
                       );
@@ -1128,7 +1128,7 @@ export function AIChat({
                   variant="ghost"
                   size="sm"
                   className="gap-1.5 text-xs text-muted-foreground h-7 px-2 hover:text-foreground"
-                  onClick={regenerate}
+                  onClick={() => regenerate()}
                 >
                   <RotateCcw className="h-3 w-3" />
                   Regenerate

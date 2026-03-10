@@ -1351,8 +1351,8 @@ create_quiz: tool({
       if (part.type === 'finish') {
         return {
           totalTokens: part.totalUsage.totalTokens,
-          inputTokens: part.totalUsage.promptTokens,
-          outputTokens: part.totalUsage.completionTokens,
+          inputTokens: part.totalUsage.inputTokens,
+          outputTokens: part.totalUsage.outputTokens,
           finishReason: part.finishReason,
         };
       }

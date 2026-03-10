@@ -68,7 +68,7 @@ export function ModelSelector({ selectedModelId, onModelChange }: ModelSelectorP
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-1 h-8 px-2 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors max-w-[7rem] truncate">
+        <button className="flex items-center gap-1 h-7 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors max-w-[7rem] truncate">
           <span className="truncate">{shortName}</span>
           <ChevronDown className="h-3 w-3 shrink-0" />
         </button>

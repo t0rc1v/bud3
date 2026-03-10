@@ -613,17 +613,6 @@ export function AIChat({
           <span className="font-semibold">AI Assistant</span>
         </div>
         <div className="flex items-center gap-1">
-          <ModelSelector
-            selectedModelId={selectedModelId}
-            onModelChange={setSelectedModelId}
-          />
-          <AddResourceToChat
-            attachedResources={attachedResources}
-            userId={userId}
-            userRole={userRole}
-            onAddResource={handleAddResource}
-            onRemoveResource={handleRemoveResource}
-          />
           <Button
             variant="ghost"
             size="sm"
@@ -1228,44 +1217,64 @@ export function AIChat({
       </div>
 
       {/* Input */}
-      <div className="border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-background sticky bottom-0 z-10">
+      <div className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background sticky bottom-0 z-10">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSend();
           }}
-          className="flex gap-2 items-end"
         >
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={handleTextareaChange}
-            onKeyDown={handleKeyDown}
-            onFocus={handleTextareaFocus}
-            placeholder={mounted && isMobile ? "Type your message..." : "Type your message... (Shift+Enter for new line, Enter to send)"}
-            disabled={status !== "ready"}
-            rows={textareaRows}
-            className="flex-1 min-h-[44px] max-h-[160px] resize-none py-3"
-          />
-          {status !== "ready" ? (
-            <Button
-              type="button"
-              size="icon"
-              variant="secondary"
-              onClick={stop}
-              title="Stop generating"
-            >
-              <Square className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              size="icon"
-              disabled={!input.trim()}
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          )}
+          <div className="rounded-2xl border bg-background shadow-sm transition-shadow focus-within:shadow-md focus-within:ring-1 focus-within:ring-ring/50">
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              onChange={handleTextareaChange}
+              onKeyDown={handleKeyDown}
+              onFocus={handleTextareaFocus}
+              placeholder={mounted && isMobile ? "Ask anything..." : "Ask anything... (Shift+Enter for new line)"}
+              disabled={status !== "ready"}
+              rows={textareaRows}
+              className="min-h-[52px] max-h-[160px] resize-none border-0 shadow-none focus-visible:ring-0 bg-transparent px-4 pt-3 pb-2 text-sm w-full"
+            />
+            {/* Bottom toolbar */}
+            <div className="flex items-center justify-between px-2 pb-2 pt-1">
+              <div className="flex items-center gap-1">
+                <ModelSelector
+                  selectedModelId={selectedModelId}
+                  onModelChange={setSelectedModelId}
+                />
+                <AddResourceToChat
+                  attachedResources={attachedResources}
+                  userId={userId}
+                  userRole={userRole}
+                  onAddResource={handleAddResource}
+                  onRemoveResource={handleRemoveResource}
+                />
+              </div>
+              {status !== "ready" ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="secondary"
+                  className="h-8 w-8 rounded-xl shrink-0"
+                  onClick={stop}
+                  title="Stop generating"
+                >
+                  <Square className="h-3.5 w-3.5" />
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="h-8 w-8 rounded-xl shrink-0"
+                  disabled={!input.trim()}
+                  title="Send (Enter)"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+          </div>
         </form>
       </div>
     </div>

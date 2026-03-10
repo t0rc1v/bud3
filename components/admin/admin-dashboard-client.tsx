@@ -470,6 +470,8 @@ export function AdminDashboardClient({
         }))}
         topics={allTopics}
         initialEditMode={openResourceInEditMode}
+        canEdit={selectedResource.ownerId === userId}
+        canDelete={selectedResource.ownerId === userId}
       />
     );
   }

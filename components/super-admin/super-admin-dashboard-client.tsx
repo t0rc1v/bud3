@@ -516,6 +516,8 @@ export function SuperAdminDashboardClient({
         }))}
         topics={allTopics}
         initialEditMode={openResourceInEditMode}
+        canEdit={selectedResource.ownerId === currentUserId}
+        canDelete={selectedResource.ownerId === currentUserId}
       />
     );
   }

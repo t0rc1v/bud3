@@ -851,8 +851,7 @@ function LevelNode({
   activeTab,
 }: LevelNodeProps) {
   const isOwner = level?.ownerId === userId;
-  const isSuperAdmin = userRole === "super_admin";
-  const canManage = onDeleteLevel && (isOwner || isSuperAdmin);
+  const canManage = onDeleteLevel && isOwner;
   const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false);
 
   return (
@@ -1018,8 +1017,7 @@ function SubjectNode({
   activeTab,
 }: SubjectNodeProps) {
   const isOwner = subject.ownerId === userId;
-  const isSuperAdmin = userRole === "super_admin";
-  const canManage = onDeleteSubject && (isOwner || isSuperAdmin);
+  const canManage = onDeleteSubject && isOwner;
   const [isAddTopicOpen, setIsAddTopicOpen] = useState(false);
 
   return (
@@ -1172,8 +1170,7 @@ function TopicNode({
   activeTab,
 }: TopicNodeProps) {
   const isOwner = topic.ownerId === userId;
-  const isSuperAdmin = userRole === "super_admin";
-  const canManage = onDeleteTopic && (isOwner || isSuperAdmin);
+  const canManage = onDeleteTopic && isOwner;
   const [isAddResourceOpen, setIsAddResourceOpen] = useState(false);
 
   return (
@@ -1310,8 +1307,8 @@ function ResourceNode({
   const { isResourceUnlocked, addUnlockedResource } = useUnlockedResources();
   const isOwner = resource.ownerId === userId;
   const isSuperAdmin = userRole === "super_admin";
-  const canDelete = onDelete && (isOwner || isSuperAdmin);
-  const canEdit = onEdit && (isOwner || isSuperAdmin);
+  const canDelete = onDelete && isOwner;
+  const canEdit = onEdit && isOwner;
   
   // Check if resource has isUnlocked field (from new API) or fall back to computing from isLocked
   const hasUnlockStatus = 'isUnlocked' in resource;

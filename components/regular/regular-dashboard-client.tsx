@@ -469,6 +469,8 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
           subjects={[]}
           topics={[]}
           showLearnerActions
+          canEdit={false}
+          canDelete={false}
         />
       </div>
     );

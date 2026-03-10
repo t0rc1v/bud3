@@ -27,6 +27,7 @@ import {
   MessageSquare,
   Coins,
   AlertCircle,
+  Square,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -217,6 +218,13 @@ export function AIChat({
         }
       }
     },
+    onFinish({ isAbort }) {
+      if (isAbort) return;
+      // Ensure scroll to bottom when response fully completes
+      if (viewportRef.current) {
+        viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+      }
+    },
   });
 
   // Sync chatId state with URL when URL changes
@@ -359,14 +367,6 @@ export function AIChat({
 
   // Auto-scroll to bottom when new messages arrive and check button visibility
   useEffect(() => {
-    console.log('Messages updated. Count:', messages.length);
-    if (messages.length > 0) {
-      console.log('Last message role:', messages[messages.length - 1].role);
-      const lastMsg = messages[messages.length - 1];
-      if (lastMsg.parts) {
-        console.log('Last message parts:', lastMsg.parts.map((p: { type: string }) => p.type));
-      }
-    }
     if (viewportRef.current) {
       viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
       // Check if we need to show scroll button after auto-scroll
@@ -1154,14 +1154,6 @@ export function AIChat({
                     <span>Typing...</span>
                   </>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={stop}
-                  className="h-6 text-xs"
-                >
-                  Stop
-                </Button>
               </div>
             )}
           </div>
@@ -1206,17 +1198,25 @@ export function AIChat({
             rows={textareaRows}
             className="flex-1 min-h-[44px] max-h-[160px] resize-none py-3"
           />
-          <Button
-            type="submit"
-            size="icon"
-            disabled={!input.trim() || status !== "ready"}
-          >
-            {status === "ready" ? (
+          {status !== "ready" ? (
+            <Button
+              type="button"
+              size="icon"
+              variant="secondary"
+              onClick={stop}
+              title="Stop generating"
+            >
+              <Square className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              size="icon"
+              disabled={!input.trim()}
+            >
               <Send className="h-4 w-4" />
-            ) : (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            )}
-          </Button>
+            </Button>
+          )}
         </form>
       </div>
     </div>

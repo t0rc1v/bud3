@@ -1,4 +1,4 @@
-import { streamText, UIMessage, convertToModelMessages, tool, stepCountIs } from 'ai';
+import { streamText, UIMessage, convertToModelMessages, tool, stepCountIs, smoothStream } from 'ai';
 import { z } from 'zod';
 import { auth } from '@clerk/nextjs/server';
 import { getModel } from '@/lib/ai/providers';
@@ -41,17 +41,16 @@ export async function POST(req: Request) {
     );
   }
 
-  // Get the database user ID from the clerk ID
-  const user = await getUserByClerkId(clerkId);
+  // Parallelize user lookup and body parse — both are independent of each other
+  const [user, { messages, chatId }] = await Promise.all([
+    getUserByClerkId(clerkId),
+    req.json() as Promise<{ messages: UIMessage[]; chatId?: string }>,
+  ]);
+
   if (!user) {
     return new Response('User not found', { status: 404 });
   }
   const dbUserId = user.id;
-
-  const { messages, chatId }: { 
-    messages: UIMessage[]; 
-    chatId?: string;
-  } = await req.json();
 
   // Check and deduct credits for AI response
   try {
@@ -279,10 +278,39 @@ When responding:
     abortSignal: req.signal,
     maxOutputTokens: 8192,
     stopWhen: stepCountIs(15),
+    // Smooth out token-by-token jitter for a better streaming UX
+    experimental_transform: smoothStream({ delayInMs: 15 }),
     // Anthropic ephemeral cache on the system prompt — reduces latency + token cost;
     // silently ignored by other providers.
     providerOptions: {
       anthropic: { cacheControl: { type: 'ephemeral' } },
+    },
+    // Skip expensive search tools for simple conversational queries
+    prepareStep: async ({ stepNumber, messages: stepMessages }) => {
+      if (stepNumber === 0) {
+        const lastMsg = stepMessages.at(-1);
+        let lastText = '';
+        if (typeof lastMsg?.content === 'string') {
+          lastText = lastMsg.content;
+        } else if (Array.isArray(lastMsg?.content)) {
+          lastText = (lastMsg.content as Array<{ type: string; text?: string }>)
+            .filter(p => p.type === 'text')
+            .map(p => p.text || '')
+            .join('');
+        }
+        const needsSearch = /(search|find|look up|youtube|video|browse|research|resource|current|latest|news|recent)/i.test(lastText);
+        if (!needsSearch && lastText.length < 200) {
+          // Skip web/youtube/research tools — use only local + generative tools
+          return {
+            activeTools: [
+              'save_memory', 'fetch_memory', 'get_current_time', 'server_actions',
+              'create_assignment', 'create_quiz', 'create_flashcards',
+              'generate_summary', 'generate_overview', 'identify_keywords', 'generate_study_guide',
+            ],
+          };
+        }
+      }
+      return undefined; // all tools active for search-intent queries
     },
     onError: (error) => {
       console.error('[Chat Stream Error]', error);

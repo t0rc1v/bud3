@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { UploadButton } from "@/lib/uploadthing";
 import type { SubjectWithTopicsAndLevelTitle, TopicWithResources, ResourceType } from "@/lib/types";
 import { toast } from "sonner";
-import { CheckCircle2, ExternalLink, Lock, Unlock, CreditCard, Eye, FileEdit, Globe } from "lucide-react";
+import { CheckCircle2, ExternalLink, Lock, Unlock, CreditCard, Eye, FileEdit, Globe, AlertCircle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface CreateResourceFormProps {
@@ -44,10 +44,22 @@ const ALLOWED_CONTENT = {
   image: "Image files (max 16MB)",
 } as const;
 
+interface UploadFeeInfo {
+  isEnabled: boolean;
+  baseFee: number;
+  effectiveFee: number;
+  discountPercent: number;
+  uploadCount: number;
+  balance: number;
+  canAfford: boolean;
+  nextTier: { threshold: number; discountPercent: number } | null;
+}
+
 export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResourceFormProps) {
   const router = useRouter();
   const { user: clerkUser } = useUser();
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadFeeInfo, setUploadFeeInfo] = useState<UploadFeeInfo | null>(null);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<{ name: string; url: string } | null>(null);
   const [formData, setFormData] = useState({
@@ -71,6 +83,15 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
       setFormData(prev => ({ ...prev, subjectId: subjects[0].id, topicId: "" }));
     }
   }, [subjects]);
+
+  // Fetch upload fee info on mount
+  useEffect(() => {
+    if (!clerkUser) return;
+    fetch("/api/upload-fee/my-rate")
+      .then((r) => r.json())
+      .then(setUploadFeeInfo)
+      .catch(() => {});
+  }, [clerkUser]);
 
   const filteredTopics = topics.filter(
     (topic) => topic.subjectId === formData.subjectId
@@ -118,7 +139,9 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
       toast.success("Resource created successfully");
       onSuccess?.();
     } catch (error) {
-      toast.error("Failed to create resource. Please try again.");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create resource. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -447,12 +470,57 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
         )}
       </div>
 
+      {/* Upload fee info */}
+      {uploadFeeInfo?.isEnabled && (
+        <div className="rounded-md border bg-muted/40 p-3 space-y-1 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="font-medium flex items-center gap-1.5">
+              <CreditCard className="h-4 w-4" />
+              Upload fee:
+            </span>
+            <span className="font-semibold flex items-center gap-1.5">
+              {uploadFeeInfo.effectiveFee} credit{uploadFeeInfo.effectiveFee !== 1 ? "s" : ""}
+              {uploadFeeInfo.discountPercent > 0 && (
+                <span className="text-xs text-green-600 font-normal">
+                  ({uploadFeeInfo.discountPercent}% off)
+                </span>
+              )}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span>Your balance:</span>
+            <span className={uploadFeeInfo.canAfford ? "" : "text-destructive font-medium"}>
+              {uploadFeeInfo.balance} credit{uploadFeeInfo.balance !== 1 ? "s" : ""}
+            </span>
+          </div>
+          {!uploadFeeInfo.canAfford && (
+            <div className="flex items-start gap-1.5 text-destructive text-xs pt-0.5">
+              <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>
+                Insufficient credits. You need {uploadFeeInfo.effectiveFee} credits to upload. Please top up your balance.
+              </span>
+            </div>
+          )}
+          {uploadFeeInfo.nextTier && (
+            <p className="text-xs text-muted-foreground">
+              Upload {uploadFeeInfo.nextTier.threshold - uploadFeeInfo.uploadCount} more resource{uploadFeeInfo.nextTier.threshold - uploadFeeInfo.uploadCount !== 1 ? "s" : ""} to unlock {uploadFeeInfo.nextTier.discountPercent}% off future uploads.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Publish / Save as Draft */}
       <div className="flex gap-2 pt-2">
         <Button
           type="submit"
           className="flex-1"
-          disabled={isLoading || subjects.length === 0 || !formData.url || !formData.topicId}
+          disabled={
+                  isLoading ||
+                  subjects.length === 0 ||
+                  !formData.url ||
+                  !formData.topicId ||
+                  (uploadFeeInfo?.isEnabled === true && uploadFeeInfo.canAfford === false)
+                }
           onClick={() => setFormData(prev => ({ ...prev, status: "published" }))}
         >
           <Globe className="mr-2 h-4 w-4" />
@@ -462,7 +530,13 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
           type="submit"
           variant="outline"
           className="flex-1"
-          disabled={isLoading || subjects.length === 0 || !formData.url || !formData.topicId}
+          disabled={
+                  isLoading ||
+                  subjects.length === 0 ||
+                  !formData.url ||
+                  !formData.topicId ||
+                  (uploadFeeInfo?.isEnabled === true && uploadFeeInfo.canAfford === false)
+                }
           onClick={() => setFormData(prev => ({ ...prev, status: "draft" }))}
         >
           <FileEdit className="mr-2 h-4 w-4" />

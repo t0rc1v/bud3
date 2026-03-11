@@ -1,9 +1,11 @@
 "use server";
 
-import { db } from "@/lib/db";
-import { level, subject, topic, resource, adminRegulars, user, unlockedContent, unlockFee, superAdminAdmins, superAdminRegulars } from "@/lib/db/schema";
+import { db, pool } from "@/lib/db";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { level, subject, topic, resource, adminRegulars, user, unlockedContent, unlockFee, superAdminAdmins, superAdminRegulars, userCredit, creditTransaction } from "@/lib/db/schema";
 import { getUserByClerkId } from "@/lib/actions/auth";
-import { hasUserUnlockedContent, getUnlockFeeByResource } from "@/lib/actions/credits";
+import { hasUserUnlockedContent, getUnlockFeeByResource, getActiveCreditBalance } from "@/lib/actions/credits";
+import { calculateEffectiveUploadFee } from "@/lib/actions/upload-fee";
 import { eq, and, desc, asc, inArray, or, isNull, count, ilike } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { logAudit } from "@/lib/audit";
@@ -1401,38 +1403,119 @@ export async function getResourceById(id: string): Promise<ResourceWithRelations
 }
 
 export async function createResource(input: CreateResourceInput): Promise<void> {
-  const [newResource] = await db.insert(resource).values({
-    subjectId: input.subjectId,
-    topicId: input.topicId,
-    title: input.title,
-    description: input.description,
-    type: input.type,
-    url: input.url,
-    thumbnailUrl: input.thumbnailUrl || null,
-    uploadthingKey: input.uploadthingKey || null,
-    metadata: input.metadata || null,
-    ownerId: input.ownerId,
-    ownerRole: input.ownerRole,
-    visibility: input.visibility,
-    status: input.status ?? "published",
-    isLocked: input.isLocked ?? false,
-    unlockFee: input.unlockFee ?? 0,
-    isActive: true,
-    createdAt: new Date(),
-  }).returning();
-  
-  // Sync unlock fee if price is set and resource is locked
-  if (input.isLocked && input.unlockFee && input.unlockFee > 0 && newResource) {
-    const { syncUnlockFeeForResource } = await import("@/lib/actions/credits");
-    await syncUnlockFeeForResource(newResource.id);
+  // ── Upload fee check ──────────────────────────────────────────────────────
+  const feeResult = await calculateEffectiveUploadFee(input.ownerId);
+
+  if (feeResult.isEnabled && feeResult.effectiveFee > 0) {
+    const balance = await getActiveCreditBalance(input.ownerId);
+    if (balance < feeResult.effectiveFee) {
+      throw new Error(
+        `Insufficient credits. You need ${feeResult.effectiveFee} credit${feeResult.effectiveFee !== 1 ? "s" : ""} to upload a resource but you only have ${balance}.`
+      );
+    }
   }
 
+  // ── Transactional insert + fee deduction ─────────────────────────────────
+  const client = await pool.connect();
+  let newResource: { id: string } | undefined;
+
+  try {
+    await client.query("BEGIN");
+    const txDb = drizzle(client);
+
+    const [inserted] = await txDb
+      .insert(resource)
+      .values({
+        subjectId: input.subjectId,
+        topicId: input.topicId,
+        title: input.title,
+        description: input.description,
+        type: input.type,
+        url: input.url,
+        thumbnailUrl: input.thumbnailUrl || null,
+        uploadthingKey: input.uploadthingKey || null,
+        metadata: input.metadata || null,
+        ownerId: input.ownerId,
+        ownerRole: input.ownerRole,
+        visibility: input.visibility,
+        status: input.status ?? "published",
+        isLocked: input.isLocked ?? false,
+        unlockFee: input.unlockFee ?? 0,
+        isActive: true,
+        createdAt: new Date(),
+      })
+      .returning();
+
+    newResource = inserted;
+
+    if (feeResult.isEnabled && feeResult.effectiveFee > 0) {
+      // Re-read with SELECT FOR UPDATE to prevent double-spend race
+      const lockResult = await client.query<{
+        id: string; balance: number; total_used: number;
+      }>(
+        `SELECT id, balance, total_used FROM user_credit WHERE user_id = $1 FOR UPDATE`,
+        [input.ownerId]
+      );
+
+      if (lockResult.rows.length === 0) {
+        throw new Error("User credit record not found");
+      }
+
+      const lockedRow = lockResult.rows[0];
+
+      if (lockedRow.balance < feeResult.effectiveFee) {
+        throw new Error(
+          `Insufficient credits. You need ${feeResult.effectiveFee} credits but only have ${lockedRow.balance}.`
+        );
+      }
+
+      const newBalance = lockedRow.balance - feeResult.effectiveFee;
+
+      await txDb.insert(creditTransaction).values({
+        userId: input.ownerId,
+        type: "usage",
+        amount: -feeResult.effectiveFee,
+        balanceAfter: newBalance,
+        description: "Resource upload fee",
+        metadata: {
+          resourceId: inserted.id,
+          uploadCount: feeResult.uploadCount,
+          discountPercent: feeResult.discountPercent,
+          baseFee: feeResult.baseFee,
+        },
+      });
+
+      await txDb
+        .update(userCredit)
+        .set({
+          balance: newBalance,
+          totalUsed: lockedRow.total_used + feeResult.effectiveFee,
+          updatedAt: new Date(),
+        })
+        .where(eq(userCredit.userId, input.ownerId));
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  // ── Post-transaction side-effects (idempotent / non-critical) ─────────────
   if (newResource) {
+    if (input.isLocked && input.unlockFee && input.unlockFee > 0) {
+      const { syncUnlockFeeForResource } = await import("@/lib/actions/credits");
+      await syncUnlockFeeForResource(newResource.id);
+    }
+
     await logAudit(input.ownerId, "resource.created", "resource", newResource.id, {
       title: input.title,
       type: input.type,
       status: input.status ?? "published",
       visibility: input.visibility,
+      uploadFeePaid: feeResult.effectiveFee,
     });
   }
 

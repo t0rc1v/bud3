@@ -1610,6 +1610,7 @@ export async function addMyLearner(
   });
 
   revalidatePath("/admin/regulars");
+  revalidatePath("/admin", "layout");
 }
 
 export async function removeMyLearner(adminId: string, regularId: string): Promise<void> {
@@ -1711,6 +1712,7 @@ export async function bulkAddMyLearners(
   }
   
   revalidatePath("/admin/regulars");
+  revalidatePath("/admin", "layout");
   return result;
 }
 
@@ -1850,6 +1852,32 @@ export async function getSystemStats(): Promise<SystemStats> {
     totalRegulars: users.filter(u => u.role === "regular").length,
     totalAdmins: users.filter(u => u.role === "admin").length,
     totalSuperAdmins: users.filter(u => u.role === "super_admin").length,
+    totalLevels: levels.length,
+    totalSubjects: subjects.length,
+    totalTopics: topics.length,
+    totalResources: resources.length,
+  };
+}
+
+export async function getSuperAdminScopedStats(superAdminId: string): Promise<SystemStats> {
+  const [adminIds, regularIds] = await Promise.all([
+    getSuperAdminAdminIds(superAdminId),
+    getSuperAdminRegularIds(superAdminId),
+  ]);
+  const allOwnerIds = [superAdminId, ...adminIds, ...regularIds];
+
+  const [levels, subjects, topics, resources] = await Promise.all([
+    allOwnerIds.length ? db.select({ id: level.id }).from(level).where(inArray(level.ownerId, allOwnerIds)) : Promise.resolve([]),
+    allOwnerIds.length ? db.select({ id: subject.id }).from(subject).where(inArray(subject.ownerId, allOwnerIds)) : Promise.resolve([]),
+    allOwnerIds.length ? db.select({ id: topic.id }).from(topic).where(inArray(topic.ownerId, allOwnerIds)) : Promise.resolve([]),
+    allOwnerIds.length ? db.select({ id: resource.id }).from(resource).where(inArray(resource.ownerId, allOwnerIds)) : Promise.resolve([]),
+  ]);
+
+  return {
+    totalUsers: adminIds.length + regularIds.length,
+    totalRegulars: regularIds.length,
+    totalAdmins: adminIds.length,
+    totalSuperAdmins: 1,
     totalLevels: levels.length,
     totalSubjects: subjects.length,
     totalTopics: topics.length,

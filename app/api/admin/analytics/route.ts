@@ -4,12 +4,12 @@ import { db } from "@/lib/db";
 import {
   user,
   creditTransaction,
-  creditPurchase,
   auditLog,
 } from "@/lib/db/schema";
-import { eq, desc, gte, sql, and, count } from "drizzle-orm";
+import { eq, desc, gte, sql, inArray, count, and } from "drizzle-orm";
 import { getUserByClerkId } from "@/lib/actions/auth";
 import { getTopRatedResources } from "@/lib/actions/learner";
+import { getSuperAdminAdminIds, getSuperAdminRegularIds } from "@/lib/actions/admin";
 
 export async function GET() {
   try {
@@ -24,6 +24,12 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const [adminIds, regularIds] = await Promise.all([
+      getSuperAdminAdminIds(currentUser.id),
+      getSuperAdminRegularIds(currentUser.id),
+    ]);
+    const allUserIds = [currentUser.id, ...adminIds, ...regularIds];
+
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -34,53 +40,33 @@ export async function GET() {
       userCounts,
       totalTransactions,
       recentTransactions,
-      completedPayments,
-      recentPayments,
       creditSpendingByDay,
       recentAuditLogs,
       topRatedResources,
     ] = await Promise.all([
-      // User counts by role
+      // User counts scoped to institution
       db
         .select({ role: user.role, count: count() })
         .from(user)
+        .where(inArray(user.id, allUserIds))
         .groupBy(user.role),
 
-      // Total credit transactions
-      db
-        .select({ count: count(), total: sql<number>`COALESCE(SUM(ABS(${creditTransaction.amount})), 0)` })
-        .from(creditTransaction),
-
-      // Credit transactions last 30 days
+      // Total credit transactions scoped to institution
       db
         .select({ count: count(), total: sql<number>`COALESCE(SUM(ABS(${creditTransaction.amount})), 0)` })
         .from(creditTransaction)
-        .where(gte(creditTransaction.createdAt, thirtyDaysAgo)),
+        .where(inArray(creditTransaction.userId, allUserIds)),
 
-      // Completed payments all time
+      // Credit transactions last 30 days scoped to institution
       db
-        .select({
-          count: count(),
-          total: sql<number>`COALESCE(SUM(${creditPurchase.amountKes}), 0)`,
-        })
-        .from(creditPurchase)
-        .where(eq(creditPurchase.status, "completed")),
+        .select({ count: count(), total: sql<number>`COALESCE(SUM(ABS(${creditTransaction.amount})), 0)` })
+        .from(creditTransaction)
+        .where(and(
+          inArray(creditTransaction.userId, allUserIds),
+          gte(creditTransaction.createdAt, thirtyDaysAgo)
+        )),
 
-      // Completed payments last 30 days
-      db
-        .select({
-          count: count(),
-          total: sql<number>`COALESCE(SUM(${creditPurchase.amountKes}), 0)`,
-        })
-        .from(creditPurchase)
-        .where(
-          and(
-            eq(creditPurchase.status, "completed"),
-            gte(creditPurchase.createdAt, thirtyDaysAgo)
-          )
-        ),
-
-      // Credit spending by day (last 7 days)
+      // Credit spending by day (last 7 days) scoped to institution
       db
         .select({
           day: sql<string>`DATE(${creditTransaction.createdAt})`,
@@ -88,11 +74,14 @@ export async function GET() {
           purchases: sql<number>`COALESCE(SUM(CASE WHEN ${creditTransaction.type} = 'purchase' THEN ${creditTransaction.amount} ELSE 0 END), 0)`,
         })
         .from(creditTransaction)
-        .where(gte(creditTransaction.createdAt, sevenDaysAgo))
+        .where(and(
+          inArray(creditTransaction.userId, allUserIds),
+          gte(creditTransaction.createdAt, sevenDaysAgo)
+        ))
         .groupBy(sql`DATE(${creditTransaction.createdAt})`)
         .orderBy(sql`DATE(${creditTransaction.createdAt})`),
 
-      // Recent audit log entries (last 50)
+      // Recent audit log entries scoped to institution
       db
         .select({
           id: auditLog.id,
@@ -104,11 +93,12 @@ export async function GET() {
         })
         .from(auditLog)
         .leftJoin(user, eq(auditLog.actorId, user.id))
+        .where(inArray(auditLog.actorId, allUserIds))
         .orderBy(desc(auditLog.createdAt))
         .limit(50),
 
-      // Top rated resources
-      getTopRatedResources(10),
+      // Top rated resources scoped to institution owners
+      getTopRatedResources(10, allUserIds),
     ]);
 
     const userCountMap = Object.fromEntries(
@@ -127,12 +117,6 @@ export async function GET() {
         totalCreditsFlowed: totalTransactions[0]?.total ?? 0,
         last30dTransactions: recentTransactions[0]?.count ?? 0,
         last30dCreditsFlowed: recentTransactions[0]?.total ?? 0,
-      },
-      payments: {
-        totalCompleted: completedPayments[0]?.count ?? 0,
-        totalRevenueKes: completedPayments[0]?.total ?? 0,
-        last30dCompleted: recentPayments[0]?.count ?? 0,
-        last30dRevenueKes: recentPayments[0]?.total ?? 0,
       },
       creditSpendingByDay: creditSpendingByDay.map((r) => ({
         day: r.day,

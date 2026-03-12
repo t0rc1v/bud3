@@ -139,6 +139,7 @@ export async function addSuperAdminRegular(
     });
 
     revalidatePath("/super-admin/regulars");
+    revalidatePath("/super-admin", "layout");
     return { success: true };
   } catch (error) {
     console.error("Error adding super admin regular:", error);
@@ -257,6 +258,7 @@ export async function bulkAddSuperAdminRegulars(
   }
 
   revalidatePath("/super-admin/regulars");
+  revalidatePath("/super-admin", "layout");
 
   return {
     success: successfullyAdded.length > 0,

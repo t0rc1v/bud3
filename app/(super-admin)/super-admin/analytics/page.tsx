@@ -13,8 +13,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Users,
   CreditCard,
-  TrendingUp,
-  DollarSign,
   BarChart3,
   RefreshCw,
   Activity,
@@ -38,12 +36,6 @@ interface AnalyticsData {
     totalCreditsFlowed: number;
     last30dTransactions: number;
     last30dCreditsFlowed: number;
-  };
-  payments: {
-    totalCompleted: number;
-    totalRevenueKes: number;
-    last30dCompleted: number;
-    last30dRevenueKes: number;
   };
   topRatedResources: {
     resourceId: string;
@@ -159,7 +151,7 @@ export default function AnalyticsPage() {
             <BarChart3 className="h-6 w-6" />
             Analytics
           </h1>
-          <p className="text-muted-foreground mt-1">Platform-wide statistics and trends</p>
+          <p className="text-muted-foreground mt-1">Institution statistics and trends</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => window.open("/api/admin/content/export", "_blank")}>
@@ -204,24 +196,12 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Payment Stats */}
+      {/* Credit Stats */}
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-          Payments (M-Pesa)
+          Credits
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Revenue"
-            value={`Ksh ${data.payments.totalRevenueKes.toLocaleString()}`}
-            icon={DollarSign}
-            subtitle={`${data.payments.totalCompleted} completed payments`}
-          />
-          <StatCard
-            title="Last 30 Days"
-            value={`Ksh ${data.payments.last30dRevenueKes.toLocaleString()}`}
-            icon={TrendingUp}
-            subtitle={`${data.payments.last30dCompleted} payments`}
-          />
           <StatCard
             title="Total Transactions"
             value={data.credits.totalTransactions}

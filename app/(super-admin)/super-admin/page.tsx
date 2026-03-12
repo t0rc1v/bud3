@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getUserByClerkId } from "@/lib/actions/auth";
-import { getLevelsFullHierarchy, getAllUsers, getSystemStats } from "@/lib/actions/admin";
+import { getLevelsFullHierarchy, getAllUsers, getSuperAdminScopedStats } from "@/lib/actions/admin";
 import { SuperAdminDashboardClient } from "@/components/super-admin/super-admin-dashboard-client";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export default async function SuperAdminPage() {
   const [levels, users, stats] = await Promise.all([
     getLevelsFullHierarchy(),
     getAllUsers(),
-    getSystemStats(),
+    getSuperAdminScopedStats(user.id),
   ]);
 
   return (

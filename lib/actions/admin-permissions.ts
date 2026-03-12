@@ -735,7 +735,8 @@ export async function promoteUserToAdminByEmail(
       .where(eq(superAdminRegulars.regularId, targetUser.id));
 
     revalidatePath("/super-admin/manage-admins");
-    return { 
+    revalidatePath("/super-admin", "layout");
+    return {
       success: true,
       user: {
         id: targetUser.id,

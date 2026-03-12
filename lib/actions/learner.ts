@@ -326,8 +326,8 @@ export async function getBulkRatingCounts(resourceIds: string[]): Promise<Map<st
   return map;
 }
 
-export async function getTopRatedResources(limit = 10) {
-  const rows = await db
+export async function getTopRatedResources(limit = 10, ownerIds?: string[]) {
+  const query = db
     .select({
       resourceId: resourceRating.resourceId,
       resourceTitle: resource.title,
@@ -343,7 +343,12 @@ export async function getTopRatedResources(limit = 10) {
     .innerJoin(resource, eq(resourceRating.resourceId, resource.id))
     .innerJoin(topic, eq(resource.topicId, topic.id))
     .innerJoin(subject, eq(topic.subjectId, subject.id))
-    .innerJoin(level, eq(subject.levelId, level.id))
+    .innerJoin(level, eq(subject.levelId, level.id));
+
+  const rows = await (ownerIds && ownerIds.length > 0
+    ? query.where(inArray(resource.ownerId, ownerIds))
+    : query
+  )
     .groupBy(
       resourceRating.resourceId,
       resource.title,

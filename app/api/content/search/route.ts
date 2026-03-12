@@ -47,7 +47,6 @@ export async function GET(req: Request) {
         title: resource.title,
         description: resource.description,
         type: resource.type,
-        isLocked: resource.isLocked,
         topicTitle: topic.title,
         subjectName: subject.name,
         levelTitle: level.title,

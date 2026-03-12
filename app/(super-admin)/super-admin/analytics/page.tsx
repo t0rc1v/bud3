@@ -14,7 +14,6 @@ import {
   Users,
   CreditCard,
   TrendingUp,
-  Unlock,
   DollarSign,
   BarChart3,
   RefreshCw,
@@ -46,15 +45,6 @@ interface AnalyticsData {
     last30dCompleted: number;
     last30dRevenueKes: number;
   };
-  topUnlockedResources: {
-    unlockFeeId: string;
-    unlockCount: number;
-    resourceTitle: string;
-    resourceType: string | null;
-    topicTitle: string | null;
-    subjectName: string | null;
-    levelTitle: string | null;
-  }[];
   topRatedResources: {
     resourceId: string;
     resourceTitle: string;
@@ -156,7 +146,6 @@ export default function AnalyticsPage() {
 
   if (!data) return null;
 
-  const maxUnlocks = Math.max(...data.topUnlockedResources.map((r) => r.unlockCount), 1);
   const maxCredits = Math.max(
     ...data.creditSpendingByDay.map((d) => Math.max(d.creditsUsed, d.creditsPurchased)),
     1
@@ -296,52 +285,6 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        {/* Top Unlocked Resources */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Unlock className="h-4 w-4" />
-              Most Unlocked Resources
-            </CardTitle>
-            <CardDescription>Top 10 resources by unlock count</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {data.topUnlockedResources.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">
-                No unlocks recorded yet
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {data.topUnlockedResources.map((item, i) => (
-                  <div key={item.unlockFeeId} className="space-y-1">
-                    <div className="flex justify-between items-start text-xs">
-                      <div className="flex items-start gap-2 min-w-0">
-                        <span className="text-muted-foreground font-mono w-4 shrink-0">
-                          {i + 1}.
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">{item.resourceTitle}</p>
-                          <p className="text-muted-foreground truncate">
-                            {[item.levelTitle, item.subjectName, item.topicTitle]
-                              .filter(Boolean)
-                              .join(" › ")}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge variant="secondary" className="shrink-0 ml-2">
-                        {item.unlockCount}
-                      </Badge>
-                    </div>
-                    <div
-                      className="h-1.5 bg-primary/60 rounded-full"
-                      style={{ width: `${(item.unlockCount / maxUnlocks) * 100}%`, minWidth: "2px" }}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
       {/* Content Ratings */}
       {data.topRatedResources && data.topRatedResources.length > 0 && (

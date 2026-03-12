@@ -32,7 +32,6 @@ export async function GET() {
               description: resource.description,
               type: resource.type,
               url: resource.url,
-              isLocked: resource.isLocked,
               visibility: resource.visibility,
               status: resource.status,
             })),

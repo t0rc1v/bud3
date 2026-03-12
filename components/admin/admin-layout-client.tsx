@@ -5,7 +5,7 @@ import { SidebarContentTree } from "@/components/content/sidebar-content-tree";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { PanelLeft, PanelRight, MessageSquare, Shield, Gift, Coins, Users, LayoutDashboard, ChevronDown } from "lucide-react";
+import { PanelLeft, PanelRight, MessageSquare, Shield, Gift, Users, LayoutDashboard, ChevronDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,6 @@ import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { UserButtonWrapper } from "@/components/auth/user-button-wrapper";
 import { CreditBadge, CreditModal } from "@/components/credits/credit-modal";
-import { UnlockedResourcesProvider } from "@/components/credits/unlocked-resources-context";
 import type { Resource } from "@/lib/types";
 import type { LevelWithFullHierarchy } from "@/lib/types";
 
@@ -50,7 +49,6 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
     "/admin": "Dashboard",
     "/admin/regulars": "Manage Learners",
     "/admin/rewards": "Rewards & Unlocks",
-    "/admin/manage-unlock-fees": "Manage Unlock Fees",
   });
 
   const handleResourceSelect = useCallback((resource: Resource) => {
@@ -163,18 +161,6 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
                       >
                         <Gift className="h-4 w-4" />
                         Rewards & Unlocks
-                      </Link>
-                      <Link
-                        href="/admin/manage-unlock-fees"
-                        className={cn(
-                          "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                          pathname === "/admin/manage-unlock-fees"
-                            ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                            : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                        )}
-                      >
-                        <Coins className="h-4 w-4" />
-                        Manage Unlock Fees
                       </Link>
                     </nav>
                   )}
@@ -321,18 +307,6 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
                   <Gift className="h-4 w-4" />
                   Rewards & Unlocks
                 </Link>
-                <Link
-                  href="/admin/manage-unlock-fees"
-                  className={cn(
-                    "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                    pathname === "/admin/manage-unlock-fees"
-                      ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                      : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                  )}
-                >
-                  <Coins className="h-4 w-4" />
-                  Manage Unlock Fees
-                </Link>
               </nav>
             )}
           </div>
@@ -422,9 +396,5 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
     </div>
   );
 
-  return (
-    <UnlockedResourcesProvider>
-      {showMobile ? mobileLayout : desktopLayout}
-    </UnlockedResourcesProvider>
-  );
+  return showMobile ? mobileLayout : desktopLayout;
 }

@@ -23,9 +23,6 @@ import {
   User,
   Users,
   Shield,
-  Lock,
-  Unlock,
-  CreditCard,
   Building2,
 } from "lucide-react";
 import { ResourceViewer, ResourceViewerSkeleton } from "@/components/resources/resource-viewer";
@@ -58,8 +55,6 @@ import { EditLevelForm } from "@/components/forms/edit-level-form";
 import { EditSubjectForm } from "@/components/forms/edit-subject-form";
 import { EditTopicForm } from "@/components/forms/edit-topic-form";
 import { EditResourceForm } from "@/components/forms/edit-resource-form";
-import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
-import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   deleteLevelWithSession,
@@ -70,12 +65,10 @@ import {
 } from "@/lib/actions/admin";
 import type {
   LevelWithFullHierarchy,
-  LevelWithFullHierarchyAndUnlockStatus,
   SubjectWithTopics,
   SubjectWithTopicsAndLevelTitle,
   TopicWithResources,
   Resource,
-  ResourceWithUnlockStatus,
   ResourceWithRelations,
   Level,
   Subject,
@@ -84,7 +77,7 @@ import type {
 import { toast } from "sonner";
 
 interface UnifiedAdminPageClientProps {
-  initialLevels: LevelWithFullHierarchy[] | LevelWithFullHierarchyAndUnlockStatus[];
+  initialLevels: LevelWithFullHierarchy[];
   userId: string;
   userRole: "admin" | "super_admin";
 }
@@ -143,9 +136,6 @@ export function AdminDashboardClient({
   const [itemToDelete, setItemToDelete] = useState<{ id: string; type: string; name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteCallback, setDeleteCallback] = useState<(() => Promise<void>) | null>(null);
-
-  // Use shared context for unlocked resources
-  const { isResourceUnlocked, addUnlockedResource } = useUnlockedResources();
 
   // Bulk selection state
   const [selectedResourceIds, setSelectedResourceIds] = useState<Set<string>>(new Set());
@@ -859,23 +849,10 @@ export function AdminDashboardClient({
                                                 onClick={(e) => e.stopPropagation()}
                                                 className="flex-shrink-0"
                                               />
-                                              {resource.isLocked ? (
-                                                <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
-                                              ) : (
-                                                <Unlock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
-                                              )}
                                               <span className="text-xs sm:text-sm truncate">{resource.title}</span>
                                               <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 hidden sm:inline">
                                                 ({resource.type})
                                               </span>
-                                              {resource.isLocked && (
-                                                <span className="text-[10px] sm:text-xs text-yellow-600 font-medium flex items-center gap-1 flex-shrink-0">
-                                                  <CreditCard className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                                  <span className="hidden sm:inline">Ksh </span>
-                                                  <span className="sm:hidden">K</span>
-                                                  {resource.unlockFee}
-                                                </span>
-                                              )}
                                             </div>
                                             <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
                                               <Button 
@@ -1090,71 +1067,27 @@ export function AdminDashboardClient({
                                               No resources available.
                                             </div>
                                           ) : (
-                                            topic.resources.map((resource: Resource) => {
-                                              // Check unlock status: context takes priority, then API field, then isLocked
-                                              const contextUnlocked = isResourceUnlocked(resource.id);
-                                              const hasUnlockStatus = 'isUnlocked' in resource;
-                                              const isUnlocked = contextUnlocked || 
-                                                (hasUnlockStatus && (resource as ResourceWithUnlockStatus).isUnlocked) || 
-                                                !resource.isLocked;
-                                              return (
-                                                <div 
+                                            topic.resources.map((resource: Resource) => (
+                                                <div
                                                   key={resource.id}
                                                   className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-primary/5 rounded gap-2"
                                                 >
                                                   <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                                                    {resource.isLocked ? (
-                                                      <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
-                                                    ) : (
-                                                      <Unlock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
-                                                    )}
                                                     <span className="text-xs sm:text-sm truncate">{resource.title}</span>
                                                     <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 hidden sm:inline">
                                                       ({resource.type})
                                                     </span>
-                                                    {resource.isLocked && (
-                                                      <span className="text-[10px] sm:text-xs text-yellow-600 font-medium flex items-center gap-1 flex-shrink-0">
-                                                        <CreditCard className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                                        <span className="hidden sm:inline">Ksh </span>
-                                                        <span className="sm:hidden">K</span>
-                                                        {resource.unlockFee}
-                                                      </span>
-                                                    )}
                                                   </div>
-                                                  {resource.isLocked && !isUnlocked ? (
-                                                    <ResourceUnlockModal
-                                                      resourceId={resource.id}
-                                                      resourceTitle={resource.title}
-                                                      resourceType={resource.type}
-                                                      unlockFeeKes={resource.unlockFee || 100}
-                                                      isUnlocked={false}
-                                                      trigger={
-                                                        <Button 
-                                                          variant="ghost" 
-                                                          size="icon"
-                                                          className="h-7 w-7 sm:h-9 sm:w-auto sm:px-3 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-500/10"
-                                                        >
-                                                          <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
-                                                          <span className="hidden sm:inline">Unlock</span>
-                                                        </Button>
-                                                      }
-                                                      onUnlockSuccess={() => {
-                                                        addUnlockedResource(resource.id);
-                                                      }}
-                                                    />
-                                                  ) : (
-                                                    <Button 
-                                                      variant="ghost" 
-                                                      size="icon"
-                                                      className="h-7 w-7 sm:h-9 sm:w-9"
-                                                      onClick={() => handleViewResource(resource)}
-                                                    >
-                                                      <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                                    </Button>
-                                                  )}
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 sm:h-9 sm:w-9"
+                                                    onClick={() => handleViewResource(resource)}
+                                                  >
+                                                    <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                  </Button>
                                                 </div>
-                                              );
-                                            })
+                                            ))
                                           )}
                                         </div>
                                       )}

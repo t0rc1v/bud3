@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";
 import {
   Crown,
   Download,
@@ -17,9 +16,6 @@ import {
   ChevronRight,
   Trash2,
   Gift,
-  Unlock,
-  Lock,
-  DollarSign,
   User,
   Shield,
   Building2,
@@ -31,7 +27,6 @@ import {
   ChevronDownSquare,
   ChevronRightSquare,
   FolderOpen,
-  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -106,16 +101,9 @@ export function SuperAdminDashboardClient({
 }: SuperAdminDashboardClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isResourceUnlocked } = useUnlockedResources();
   const [levels, setLevels] = useState<LevelWithFullHierarchy[]>(initialLevels);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("super");
-  const [revenueStats, setRevenueStats] = useState({
-    totalRevenue: 0,
-    totalPurchases: 0,
-    completedPurchases: 0,
-  });
-  
   // State for tracking admins and regulars managed by this super-admin
   const [myAdminIds, setMyAdminIds] = useState<string[]>([]);
   const [myRegularIds, setMyRegularIds] = useState<string[]>([]);
@@ -160,22 +148,6 @@ export function SuperAdminDashboardClient({
   const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set());
   const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
-
-  // Load revenue stats
-  useEffect(() => {
-    const loadRevenueStats = async () => {
-      try {
-        const response = await fetch("/api/admin/revenue-stats");
-        if (response.ok) {
-          const data = await response.json();
-          setRevenueStats(data);
-        }
-      } catch (error) {
-        console.error("Failed to load revenue stats:", error);
-      }
-    };
-    loadRevenueStats();
-  }, []);
 
   // Handle viewResource query param from file tree dropdown
   useEffect(() => {
@@ -628,20 +600,6 @@ export function SuperAdminDashboardClient({
             <div className="text-lg sm:text-xl lg:text-2xl font-bold">{initialStats.totalResources}</div>
           </CardContent>
         </Card>
-        <Card className="bg-primary/15 border-primary/60">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-2 text-foreground">
-              <DollarSign className="h-4 w-4 text-foreground" />
-              Revenue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground">Ksh {revenueStats.totalRevenue.toLocaleString()}</div>
-            <p className="text-xs text-foreground">
-              {revenueStats.completedPurchases} completed purchases
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Content Tabs */}
@@ -1067,36 +1025,20 @@ export function SuperAdminDashboardClient({
                                             No resources available.
                                           </div>
                                         ) : (
-                                          topic.resources?.map((resource: Resource) => {
-                                            const contextUnlocked = isResourceUnlocked(resource.id);
-                                            const isUnlocked = contextUnlocked || !resource.isLocked;
-                                            return (
-                                            <div 
+                                          topic.resources?.map((resource: Resource) => (
+                                            <div
                                               key={resource.id}
                                               className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-primary/5 rounded gap-2"
                                             >
                                               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                                                {isUnlocked ? (
-                                                  <Unlock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
-                                                ) : (
-                                                  <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
-                                                )}
                                                 <span className="text-xs sm:text-sm truncate">{resource.title}</span>
                                                 <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 inline">
                                                   ({resource.type})
                                                 </span>
-                                                {!isUnlocked && resource.isLocked && (
-                                                  <span className="text-[10px] sm:text-xs text-yellow-600 font-medium flex items-center gap-1 flex-shrink-0">
-                                                    <CreditCard className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                                    <span className="inline">Ksh </span>
-                                                    <span className="sm:hidden">K</span>
-                                                    {resource.unlockFee}
-                                                  </span>
-                                                )}
                                               </div>
                                               <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
-                                                <Button 
-                                                  variant="ghost" 
+                                                <Button
+                                                  variant="ghost"
                                                   size="icon"
                                                   className="h-7 w-7 sm:h-9 sm:w-9"
                                                   onClick={() => handleViewResource(resource)}
@@ -1137,8 +1079,7 @@ export function SuperAdminDashboardClient({
                                                 </DropdownMenu>
                                               </div>
                                             </div>
-                                          );
-                                          })
+                                          ))
                                         )}
                                       </div>
                                     )}
@@ -1352,36 +1293,20 @@ export function SuperAdminDashboardClient({
                                             No resources available.
                                           </div>
                                         ) : (
-                                          topic.resources?.map((resource: Resource) => {
-                                            const contextUnlocked = isResourceUnlocked(resource.id);
-                                            const isUnlocked = contextUnlocked || !resource.isLocked;
-                                            return (
-                                            <div 
+                                          topic.resources?.map((resource: Resource) => (
+                                            <div
                                               key={resource.id}
                                               className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-primary/5 rounded gap-2"
                                             >
                                               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                                                {isUnlocked ? (
-                                                  <Unlock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
-                                                ) : (
-                                                  <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
-                                                )}
                                                 <span className="text-xs sm:text-sm truncate">{resource.title}</span>
                                                 <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 inline">
                                                   ({resource.type})
                                                 </span>
-                                                {!isUnlocked && resource.isLocked && (
-                                                  <span className="text-[10px] sm:text-xs text-yellow-600 font-medium flex items-center gap-1 flex-shrink-0">
-                                                    <CreditCard className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                                    <span className="inline">Ksh </span>
-                                                    <span className="sm:hidden">K</span>
-                                                    {resource.unlockFee}
-                                                  </span>
-                                                )}
                                               </div>
                                               <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
-                                                <Button 
-                                                  variant="ghost" 
+                                                <Button
+                                                  variant="ghost"
                                                   size="sm"
                                                   onClick={() => handleViewResource(resource)}
                                                 >
@@ -1413,8 +1338,7 @@ export function SuperAdminDashboardClient({
                                                 </DropdownMenu>
                                               </div>
                                             </div>
-                                          );
-                                          })
+                                          ))
                                         )}
                                       </div>
                                     )}
@@ -1622,36 +1546,20 @@ export function SuperAdminDashboardClient({
                                             No resources available.
                                           </div>
                                         ) : (
-                                          topic.resources?.map((resource: Resource) => {
-                                            const contextUnlocked = isResourceUnlocked(resource.id);
-                                            const isUnlocked = contextUnlocked || !resource.isLocked;
-                                            return (
-                                            <div 
+                                          topic.resources?.map((resource: Resource) => (
+                                            <div
                                               key={resource.id}
                                               className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-primary/5 rounded gap-2"
                                             >
                                               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                                                {isUnlocked ? (
-                                                  <Unlock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
-                                                ) : (
-                                                  <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
-                                                )}
                                                 <span className="text-xs sm:text-sm truncate">{resource.title}</span>
                                                 <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 inline">
                                                   ({resource.type})
                                                 </span>
-                                                {!isUnlocked && resource.isLocked && (
-                                                  <span className="text-[10px] sm:text-xs text-yellow-600 font-medium flex items-center gap-1 flex-shrink-0">
-                                                    <CreditCard className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                                    <span className="inline">Ksh </span>
-                                                    <span className="sm:hidden">K</span>
-                                                    {resource.unlockFee}
-                                                  </span>
-                                                )}
                                               </div>
                                               <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
-                                                <Button 
-                                                  variant="ghost" 
+                                                <Button
+                                                  variant="ghost"
                                                   size="sm"
                                                   onClick={() => handleViewResource(resource)}
                                                 >
@@ -1683,8 +1591,7 @@ export function SuperAdminDashboardClient({
                                                 </DropdownMenu>
                                               </div>
                                             </div>
-                                          );
-                                          })
+                                          ))
                                         )}
                                       </div>
                                     )}

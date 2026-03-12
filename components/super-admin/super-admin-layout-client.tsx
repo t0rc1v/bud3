@@ -5,7 +5,7 @@ import { SidebarContentTree } from "@/components/content/sidebar-content-tree";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { PanelLeft, PanelRight, MessageSquare, Crown, Gift, Unlock, Users, LayoutDashboard, BarChart2, ChevronDown } from "lucide-react";
+import { PanelLeft, PanelRight, MessageSquare, Crown, Gift, Users, LayoutDashboard, BarChart2, ChevronDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -15,7 +15,6 @@ import { usePathname } from "next/navigation";
 import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { UserButtonWrapper } from "@/components/auth/user-button-wrapper";
-import { UnlockedResourcesProvider } from "@/components/credits/unlocked-resources-context";
 import { CreditModal, CreditBadge } from "@/components/credits/credit-modal";
 import type { Resource } from "@/lib/types";
 import type { LevelWithFullHierarchy } from "@/lib/types";
@@ -49,7 +48,6 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
     "/super-admin": "Dashboard",
     "/super-admin/analytics": "Analytics",
     "/super-admin/rewards": "Gift Credits & Unlocks",
-    "/super-admin/manage-unlock-fees": "Manage Unlock Fees",
     "/super-admin/manage-admins": "Manage Admins",
     "/super-admin/regulars": "Manage Regulars",
   });
@@ -161,18 +159,6 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
                     >
                       <Gift className="h-4 w-4" />
                       Gift Credits
-                    </Link>
-                    <Link
-                      href="/super-admin/manage-unlock-fees"
-                      className={cn(
-                        "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                        pathname === "/super-admin/manage-unlock-fees"
-                          ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                          : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                      )}
-                    >
-                      <Unlock className="h-4 w-4" />
-                      Manage Unlock Fees
                     </Link>
                     <Link
                       href="/super-admin/manage-admins"
@@ -338,18 +324,6 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
                 Gift Credits & Unlocks
               </Link>
               <Link
-                href="/super-admin/manage-unlock-fees"
-                className={cn(
-                  "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                  pathname === "/super-admin/manage-unlock-fees"
-                    ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                )}
-              >
-                <Unlock className="h-4 w-4" />
-                Manage Unlock Fees
-              </Link>
-              <Link
                 href="/super-admin/manage-admins"
                 className={cn(
                   "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
@@ -459,9 +433,5 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
     </div>
   );
 
-  return (
-    <UnlockedResourcesProvider>
-      {showMobile ? mobileLayout : desktopLayout}
-    </UnlockedResourcesProvider>
-  );
+  return showMobile ? mobileLayout : desktopLayout;
 }

@@ -16,7 +16,6 @@ import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { UserButtonWrapper } from "@/components/auth/user-button-wrapper";
 import { CreditBadge, CreditModal } from "@/components/credits/credit-modal";
-import { UnlockedResourcesProvider } from "@/components/credits/unlocked-resources-context";
 import type { Resource } from "@/lib/types";
 import type { LevelWithFullHierarchy } from "@/lib/types";
 
@@ -365,9 +364,5 @@ export function RegularLayoutClient({ children, userId, dbUserId, userRole, init
     </div>
   );
 
-  return (
-    <UnlockedResourcesProvider>
-      {showMobile ? mobileLayout : desktopLayout}
-    </UnlockedResourcesProvider>
-  );
+  return showMobile ? mobileLayout : desktopLayout;
 }

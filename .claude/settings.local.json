@@ -10,7 +10,11 @@
       "WebFetch(domain:ai-sdk.dev)",
       "WebSearch",
       "Bash(node:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(find /c/Users/HP/Desktop/nextjs/bud3/lib -name \"calculator*\" -o -name \"*credit*\" 2>/dev/null | head -20)",
+      "Bash(find /c/Users/HP/Desktop/nextjs/bud3/lib -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) 2>/dev/null | head -50)",
+      "Bash(find /c/Users/HP/Desktop/nextjs/bud3/app/api -name \"*unlock*\" -o -name \"*fee*\" 2>/dev/null | grep -v node_modules)",
+      "Bash(find /c/Users/HP/Desktop/nextjs/bud3/components -name \"*unlock*\" -o -name \"*fee*\" 2>/dev/null | grep -v node_modules)"
     ]
   }
 }

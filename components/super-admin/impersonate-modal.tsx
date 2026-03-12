@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronDown, ChevronRight, Eye, Lock, FileText } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, FileText } from "lucide-react";
 
 interface ImpersonateLevel {
   id: string;
@@ -25,8 +25,6 @@ interface ImpersonateLevel {
         id: string;
         title: string;
         type: string;
-        isLocked: boolean;
-        isUnlocked: boolean;
       }[];
     }[];
   }[];
@@ -154,9 +152,6 @@ export function ImpersonateModal({ userId, userEmail, open, onClose }: Impersona
                                       <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
                                       <span className="flex-1 truncate">{res.title}</span>
                                       <Badge variant="outline" className="text-[10px] capitalize">{res.type}</Badge>
-                                      {res.isLocked && !res.isUnlocked && (
-                                        <Lock className="h-3 w-3 text-muted-foreground" />
-                                      )}
                                     </div>
                                   ))}
                                 </div>

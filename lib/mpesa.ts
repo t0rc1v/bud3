@@ -335,10 +335,6 @@ export const DEFAULT_CREDIT_CONFIG = {
   // 1 credit = 1 AI response (customizable)
   creditsPerAIResponse: 1,
 
-  // Default unlock fee
-  defaultUnlockFeeKes: 100,
-  defaultUnlockCredits: 50,
-
   // Minimum purchase amount
   minimumPurchaseKes: 100,
 

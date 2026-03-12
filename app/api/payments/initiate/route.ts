@@ -43,7 +43,8 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { phoneNumber, amount, type = "credits" } = body;
+    const { phoneNumber, amount } = body;
+    const type = "credits" as const;
 
     // Validate inputs
     if (!phoneNumber || !amount) {
@@ -89,7 +90,7 @@ export async function POST(req: Request) {
       phoneNumber: formattedPhone,
       amount,
       accountReference: `BUD${purchase.id.slice(-6)}`,
-      transactionDesc: type === "unlock" ? "Content Unlock" : "AI Credits",
+      transactionDesc: "AI Credits",
       callbackUrl,
     });
 

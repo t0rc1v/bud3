@@ -37,22 +37,6 @@ export interface LevelWithFullHierarchy extends Level {
   subjects: SubjectWithTopics[];
 }
 
-// Extended types that include unlock status for the current user
-export interface ResourceWithUnlockStatus extends Resource {
-  isUnlocked: boolean;
-}
-
-export interface TopicWithResourcesAndUnlockStatus extends Topic {
-  resources: ResourceWithUnlockStatus[];
-}
-
-export interface SubjectWithTopicsAndUnlockStatus extends Subject {
-  topics: TopicWithResourcesAndUnlockStatus[];
-}
-
-export interface LevelWithFullHierarchyAndUnlockStatus extends Level {
-  subjects: SubjectWithTopicsAndUnlockStatus[];
-}
 
 export interface ResourceWithRelations extends Resource {
   subject: Subject | null;
@@ -125,16 +109,11 @@ export interface CreateResourceInput {
   visibility: ResourceVisibility;
   // Publish status
   status?: "draft" | "published";
-  // Lock and pricing fields
-  isLocked?: boolean;
-  unlockFee?: number;
 }
 
 export interface UpdateResourceInput extends Partial<Omit<CreateResourceInput, "topicId" | "uploadthingKey"> & {
   topicId?: string;
   uploadthingKey?: string | null;
-  isLocked?: boolean;
-  unlockFee?: number;
 }> {
   id: string;
 }

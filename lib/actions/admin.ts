@@ -2,9 +2,9 @@
 
 import { db, pool } from "@/lib/db";
 import { drizzle } from "drizzle-orm/neon-serverless";
-import { level, subject, topic, resource, adminRegulars, user, unlockedContent, unlockFee, superAdminAdmins, superAdminRegulars, userCredit, creditTransaction } from "@/lib/db/schema";
+import { level, subject, topic, resource, adminRegulars, user, superAdminAdmins, superAdminRegulars, userCredit, creditTransaction } from "@/lib/db/schema";
 import { getUserByClerkId } from "@/lib/actions/auth";
-import { hasUserUnlockedContent, getUnlockFeeByResource, getActiveCreditBalance } from "@/lib/actions/credits";
+import { getActiveCreditBalance } from "@/lib/actions/credits";
 import { calculateEffectiveUploadFee } from "@/lib/actions/upload-fee";
 import { eq, and, desc, asc, inArray, or, isNull, count, ilike } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -24,7 +24,6 @@ import type {
   TopicWithResourcesAndSubject,
   ResourceWithRelations,
   LevelWithFullHierarchy,
-  LevelWithFullHierarchyAndUnlockStatus,
   SubjectWithTopicsAndLevel,
   Level,
   Subject,
@@ -306,28 +305,28 @@ export async function canModifyContent(
 export async function getLevelsForUser(
   userId: string,
   userRole: UserRole
-): Promise<LevelWithFullHierarchyAndUnlockStatus[]> {
+): Promise<LevelWithFullHierarchy[]> {
   const adminIds = userRole === "regular" ? await getRegularAdminIds(userId) : [];
-  
+
   const visibilityFilter = await buildContentVisibilityFilter(userId, userRole, adminIds);
-  
+
   // Fetch levels
   const levelsData = await db
     .select()
     .from(level)
     .where(visibilityFilter || undefined)
     .orderBy(asc(level.order));
-  
+
   // Fetch all subjects for these levels
   const levelIds = levelsData.map(l => l.id);
-  const subjectsData = levelIds.length > 0 
+  const subjectsData = levelIds.length > 0
     ? await db
         .select()
         .from(subject)
         .where(inArray(subject.levelId, levelIds))
         .orderBy(asc(subject.name))
     : [];
-  
+
   // Fetch all topics for these subjects
   const subjectIds = subjectsData.map(s => s.id);
   const topicsData = subjectIds.length > 0
@@ -337,7 +336,7 @@ export async function getLevelsForUser(
         .where(inArray(topic.subjectId, subjectIds))
         .orderBy(asc(topic.order))
     : [];
-  
+
   // Fetch all resources for these topics
   const topicIds = topicsData.map(t => t.id);
   const resourcesData = topicIds.length > 0
@@ -348,42 +347,7 @@ export async function getLevelsForUser(
         .orderBy(desc(resource.createdAt))
     : [];
 
-  // Fetch all unlock fees for these resources in one query
-  const resourceIds = resourcesData.map(r => r.id);
-  const unlockFeesData = resourceIds.length > 0
-    ? await db
-        .select()
-        .from(unlockFee)
-        .where(and(
-          inArray(unlockFee.resourceId, resourceIds),
-          eq(unlockFee.isActive, true)
-        ))
-    : [];
-
-  // Create a map of resourceId to unlockFeeId
-  const resourceIdToUnlockFeeId = new Map<string, string>();
-  unlockFeesData.forEach(fee => {
-    if (fee.resourceId) {
-      resourceIdToUnlockFeeId.set(fee.resourceId, fee.id);
-    }
-  });
-
-  // Fetch all unlocked content for this user in one query
-  const unlockFeeIds = unlockFeesData.map(fee => fee.id);
-  const unlockedContentData = unlockFeeIds.length > 0
-    ? await db
-        .select()
-        .from(unlockedContent)
-        .where(and(
-          eq(unlockedContent.userId, userId),
-          inArray(unlockedContent.unlockFeeId, unlockFeeIds)
-        ))
-    : [];
-
-  // Create a set of unlocked unlockFeeIds for quick lookup
-  const unlockedFeeIds = new Set(unlockedContentData.map(uc => uc.unlockFeeId));
-  
-  // Assemble the hierarchy with unlock status
+  // Assemble the hierarchy
   const levels = levelsData.map(l => ({
     ...l,
     subjects: subjectsData
@@ -394,21 +358,12 @@ export async function getLevelsForUser(
           .filter(t => t.subjectId === s.id)
           .map(t => ({
             ...t,
-            resources: resourcesData
-              .filter(r => r.topicId === t.id)
-              .map(r => {
-                const unlockFeeId = resourceIdToUnlockFeeId.get(r.id);
-                const isUnlocked = unlockFeeId ? unlockedFeeIds.has(unlockFeeId) : false;
-                return {
-                  ...r,
-                  isUnlocked,
-                };
-              }),
+            resources: resourcesData.filter(r => r.topicId === t.id),
           })),
       })),
   }));
-  
-  return levels as unknown as LevelWithFullHierarchyAndUnlockStatus[];
+
+  return levels as unknown as LevelWithFullHierarchy[];
 }
 
 export async function getLevelByIdWithAccessCheck(
@@ -1439,8 +1394,6 @@ export async function createResource(input: CreateResourceInput): Promise<void> 
         ownerRole: input.ownerRole,
         visibility: input.visibility,
         status: input.status ?? "published",
-        isLocked: input.isLocked ?? false,
-        unlockFee: input.unlockFee ?? 0,
         isActive: true,
         createdAt: new Date(),
       })
@@ -1505,11 +1458,6 @@ export async function createResource(input: CreateResourceInput): Promise<void> 
 
   // ── Post-transaction side-effects (idempotent / non-critical) ─────────────
   if (newResource) {
-    if (input.isLocked && input.unlockFee && input.unlockFee > 0) {
-      const { syncUnlockFeeForResource } = await import("@/lib/actions/credits");
-      await syncUnlockFeeForResource(newResource.id);
-    }
-
     await logAudit(input.ownerId, "resource.created", "resource", newResource.id, {
       title: input.title,
       type: input.type,
@@ -1525,15 +1473,7 @@ export async function createResource(input: CreateResourceInput): Promise<void> 
 
 export async function updateResource(input: UpdateResourceInput): Promise<void> {
   const { id, ...data } = input;
-  
-  // Get current resource data to check if unlockFee changed
-  const currentResource = await db
-    .select()
-    .from(resource)
-    .where(eq(resource.id, id))
-    .limit(1)
-    .then(res => res[0] || null);
-  
+
   await db
     .update(resource)
     .set({
@@ -1541,63 +1481,11 @@ export async function updateResource(input: UpdateResourceInput): Promise<void> 
       updatedAt: new Date(),
     })
     .where(eq(resource.id, id));
-  
-  // Sync unlock fee if price changed or lock status changed
-  if (data.unlockFee !== undefined || data.isLocked !== undefined) {
-    const { syncUnlockFeeForResource } = await import("@/lib/actions/credits");
-    await syncUnlockFeeForResource(id);
-  }
-  
-  revalidatePath("/admin");
-  revalidatePath("/regular");
-}
-
-// New function to update resource lock status and fee
-export async function updateResourceLockStatus(
-  resourceId: string,
-  isLocked: boolean,
-  unlockFee: number,
-  userId: string,
-  userRole: UserRole
-): Promise<void> {
-  // Check ownership
-  const existingResource = await db
-    .select()
-    .from(resource)
-    .where(eq(resource.id, resourceId))
-    .limit(1)
-    .then(res => res[0] || null);
-
-  if (!existingResource) {
-    throw new Error("Resource not found");
-  }
-
-  const canModify = await canModifyContent(
-    existingResource.ownerId,
-    userId,
-    userRole
-  );
-
-  if (!canModify) {
-    throw new Error("You don't have permission to modify this resource");
-  }
-
-  await db
-    .update(resource)
-    .set({
-      isLocked,
-      unlockFee,
-      updatedAt: new Date(),
-    })
-    .where(eq(resource.id, resourceId));
-  
-  // Sync unlock fee to ensure single source of truth
-  const { syncUnlockFeeForResource } = await import("@/lib/actions/credits");
-  await syncUnlockFeeForResource(resourceId);
 
   revalidatePath("/admin");
   revalidatePath("/regular");
 }
+
 
 export async function deleteResource(id: string): Promise<void> {
   // Fetch the uploadthing key before deletion so we can clean up the file

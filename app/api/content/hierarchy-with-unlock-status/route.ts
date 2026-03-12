@@ -3,10 +3,6 @@ import { auth } from "@clerk/nextjs/server";
 import { getLevelsFullHierarchy } from "@/lib/actions/admin";
 import { getUserByClerkId } from "@/lib/actions/auth";
 import { getRegularAdminIds } from "@/lib/actions/admin";
-import { db } from "@/lib/db";
-import { unlockFee, unlockedContent } from "@/lib/db/schema";
-import { eq, and, inArray } from "drizzle-orm";
-import { DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
 import type { LevelWithFullHierarchy, SubjectWithTopics, TopicWithResources, Resource } from "@/lib/types";
 import type { UserRole } from "@/lib/types";
 
@@ -221,36 +217,7 @@ export async function GET(req: Request) {
     // Filter levels based on ownership
     const filteredLevels = filterLevels(levels, userDbId, userRole, userAdminIds);
 
-    // Collect all visible resource IDs to batch-load fees and unlocks
-    const resourceIds = filteredLevels.flatMap(l =>
-      (l.subjects || []).flatMap(s =>
-        (s.topics || []).flatMap(t =>
-          (t.resources || []).map(r => r.id)
-        )
-      )
-    );
-
-    // Batch-load unlock fees and user unlocks in 2 queries instead of O(N) per-resource calls
-    // Note: uses userDbId (DB UUID) — not clerkId — to query unlockedContent.userId (UUID column)
-    const [allFees, userUnlocks] = await Promise.all([
-      resourceIds.length > 0
-        ? db.select().from(unlockFee).where(
-            and(
-              inArray(unlockFee.resourceId, resourceIds),
-              eq(unlockFee.isActive, true)
-            )
-          )
-        : [],
-      db
-        .select({ unlockFeeId: unlockedContent.unlockFeeId })
-        .from(unlockedContent)
-        .where(eq(unlockedContent.userId, userDbId)),
-    ]);
-
-    const feeByResourceId = new Map(allFees.map(f => [f.resourceId!, f]));
-    const unlockedFeeIds = new Set(userUnlocks.map(u => u.unlockFeeId));
-
-    const levelsWithUnlockStatus = filteredLevels.map((level) => ({
+    const levelsWithStatus = filteredLevels.map((level) => ({
       id: level.id,
       title: level.title,
       ownerId: level.ownerId,
@@ -262,28 +229,20 @@ export async function GET(req: Request) {
           id: topic.id,
           title: topic.title,
           ownerId: topic.ownerId,
-          resources: (topic.resources || []).map((resource) => {
-            const fee = feeByResourceId.get(resource.id);
-            const feeAmount = fee?.feeAmount ?? DEFAULT_CREDIT_CONFIG.defaultUnlockFeeKes;
-            const isUnlocked = fee ? unlockedFeeIds.has(fee.id) : false;
-            return {
-              id: resource.id,
-              title: resource.title,
-              type: resource.type,
-              // SECURITY: Only expose URL if content is unlocked
-              url: isUnlocked ? resource.url : null,
-              description: resource.description,
-              unlockFee: feeAmount,
-              isUnlocked,
-              ownerId: resource.ownerId,
-            };
-          }),
+          resources: (topic.resources || []).map((resource) => ({
+            id: resource.id,
+            title: resource.title,
+            type: resource.type,
+            url: resource.url,
+            description: resource.description,
+            ownerId: resource.ownerId,
+          })),
         })),
       })),
     }));
 
     return NextResponse.json({
-      levels: levelsWithUnlockStatus,
+      levels: levelsWithStatus,
     });
 
   } catch (error) {

@@ -16,8 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { UploadButton } from "@/lib/uploadthing";
-import { CheckCircle2, AlertTriangle, Lock, Unlock, CreditCard, Globe, FileEdit } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { CheckCircle2, AlertTriangle, Globe, FileEdit } from "lucide-react";
 import {
   Alert,
   AlertDescription,
@@ -78,8 +77,6 @@ export function EditResourceForm({
     url: resource.url,
     thumbnailUrl: resource.thumbnailUrl || "",
     uploadthingKey: resource.uploadthingKey,
-    isLocked: resource.isLocked ?? false,
-    unlockFee: resource.unlockFee ?? 0,
     status: (resource.status ?? "published") as "draft" | "published",
   });
 
@@ -152,17 +149,6 @@ export function EditResourceForm({
   const handleRemoveThumbnail = () => {
     setFormData({ ...formData, thumbnailUrl: "" });
     setThumbnailFile(null);
-  };
-
-  // Handle lock status change
-  const handleLockChange = (checked: boolean) => {
-    setFormData({ ...formData, isLocked: checked, unlockFee: checked ? formData.unlockFee || 100 : 0 });
-  };
-
-  // Handle unlock fee change
-  const handleUnlockFeeChange = (value: string) => {
-    const fee = parseInt(value) || 0;
-    setFormData({ ...formData, unlockFee: fee });
   };
 
   return (
@@ -393,48 +379,6 @@ export function EditResourceForm({
           )}
         </div>
       )}
-
-      {/* Lock/Unlock Settings */}
-      <div className="space-y-4 border-t pt-4 mt-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {formData.isLocked ? (
-              <Lock className="h-4 w-4 text-yellow-600" />
-            ) : (
-              <Unlock className="h-4 w-4 text-green-600" />
-            )}
-            <Label htmlFor="isLocked" className="cursor-pointer">
-              {formData.isLocked ? "Locked (Paid)" : "Free Access"}
-            </Label>
-          </div>
-          <Checkbox
-            id="isLocked"
-            checked={formData.isLocked}
-            onCheckedChange={handleLockChange}
-          />
-        </div>
-
-        {formData.isLocked && (
-          <div className="space-y-2 pl-6">
-            <Label htmlFor="unlockFee" className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              Unlock Fee (KES)
-            </Label>
-            <Input
-              id="unlockFee"
-              type="number"
-              min={1}
-              value={formData.unlockFee}
-              onChange={(e) => handleUnlockFeeChange(e.target.value)}
-              placeholder="e.g., 100"
-              className="w-full"
-            />
-            <p className="text-xs text-muted-foreground">
-              Users will pay this amount via M-Pesa to unlock and access this resource
-            </p>
-          </div>
-        )}
-      </div>
 
       <div className="flex gap-2 pt-4">
         <Button

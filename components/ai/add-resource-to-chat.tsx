@@ -14,11 +14,9 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, FileText, Video, Headphones, Image as ImageIcon, Check, Lock, Unlock, User, Shield, GraduationCap, CreditCard } from "lucide-react";
+import { Plus, FileText, Video, Headphones, Image as ImageIcon, Check, User, Shield, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getResourcesForUser } from "@/lib/actions/admin";
-import { hasUserUnlockedContent, getUnlockFeeByResource } from "@/lib/actions/credits";
-import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import type { Resource } from "@/lib/types";
 import type { UserRole } from "@/lib/types";
 
@@ -46,9 +44,7 @@ export interface ChatResource {
 
 type ResourceSource = "own" | "super_admin" | "admin";
 
-interface ResourceWithUnlockStatus extends Resource {
-  isUnlocked: boolean;
-  creditsRequired: number;
+interface ResourceWithSource extends Resource {
   source: ResourceSource;
 }
 
@@ -68,7 +64,7 @@ export function AddResourceToChat({
   userRole,
 }: AddResourceToChatProps) {
   const [open, setOpen] = useState(false);
-  const [resources, setResources] = useState<ResourceWithUnlockStatus[]>([]);
+  const [resources, setResources] = useState<ResourceWithSource[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -77,47 +73,19 @@ export function AddResourceToChat({
     if (resources.length === 0 && userId && userRole) {
       setIsLoading(true);
       try {
-        // Get resources the user has access to based on ownership rules
         const accessibleResources = await getResourcesForUser(userId, userRole);
-        
-        // Check unlock status for each resource and categorize by source
-        const resourcesWithStatus = await Promise.all(
-          accessibleResources.map(async (resource) => {
-            let isUnlocked = true; // Default to unlocked
-            let creditsRequired = 0;
-            
-            // Determine source
-            let source: ResourceSource = "own";
-            if (resource.ownerRole === "super_admin") {
-              source = "super_admin";
-            } else if (resource.ownerId !== userId && resource.ownerRole === "admin") {
-              source = "admin";
-            }
-            
-            // Super-admins bypass all locking - all resources are unlocked for them
-            if (userRole === "super_admin") {
-              isUnlocked = true;
-            } else if (source !== "own" && resource.isLocked && userId) {
-              const unlockFee = await getUnlockFeeByResource(resource.id);
-              if (unlockFee) {
-                creditsRequired = unlockFee.creditsRequired;
-                isUnlocked = await hasUserUnlockedContent(userId, unlockFee.id);
-              } else {
-                // Resource is marked as locked but no unlock fee exists
-                isUnlocked = false;
-              }
-            }
-            
-            return {
-              ...resource,
-              isUnlocked,
-              creditsRequired,
-              source,
-            };
-          })
-        );
-        
-        setResources(resourcesWithStatus);
+
+        const resourcesWithSource = accessibleResources.map((resource) => {
+          let source: ResourceSource = "own";
+          if (resource.ownerRole === "super_admin") {
+            source = "super_admin";
+          } else if (resource.ownerId !== userId && resource.ownerRole === "admin") {
+            source = "admin";
+          }
+          return { ...resource, source };
+        });
+
+        setResources(resourcesWithSource);
       } catch (error) {
         console.error("Failed to load resources:", error);
       } finally {
@@ -126,15 +94,11 @@ export function AddResourceToChat({
     }
   };
 
-  // Filter resources based on search only - show all accessible resources including locked ones
-  const filteredResources = resources.filter((resource) => {
-    return (
-      resource.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      resource.description.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  });
+  const filteredResources = resources.filter((resource) =>
+    resource.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    resource.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  // Group resources by source
   const ownResources = filteredResources.filter(r => r.source === "own");
   const superAdminResources = filteredResources.filter(r => r.source === "super_admin");
   const adminResources = filteredResources.filter(r => r.source === "admin");
@@ -142,7 +106,7 @@ export function AddResourceToChat({
   const isAttached = (resourceId: string) =>
     attachedResources.some((r) => r.id === resourceId);
 
-  const handleToggleResource = async (resource: ResourceWithUnlockStatus) => {
+  const handleToggleResource = (resource: ResourceWithSource) => {
     if (isAttached(resource.id)) {
       onRemoveResource(resource.id);
     } else {
@@ -156,82 +120,41 @@ export function AddResourceToChat({
     }
   };
 
-  const renderResourceItem = (resource: ResourceWithUnlockStatus) => {
+  const renderResourceItem = (resource: ResourceWithSource) => {
     const Icon = TYPE_ICONS[resource.type];
     const attached = isAttached(resource.id);
-    const isLocked = !resource.isUnlocked && resource.source !== "own";
-
-    const handleUnlockSuccess = () => {
-      // Update the resource's unlock status in the local state
-      setResources(prev => prev.map(r => 
-        r.id === resource.id ? { ...r, isUnlocked: true } : r
-      ));
-    };
 
     return (
       <div
         key={resource.id}
-        onClick={() => !isLocked && handleToggleResource(resource)}
+        onClick={() => handleToggleResource(resource)}
         className={cn(
-          "flex items-center gap-3 py-2 px-3 rounded-lg transition-colors",
-          isLocked
-            ? "bg-muted/50 border border-muted cursor-not-allowed"
-            : attached
-              ? "bg-primary/10 border border-primary/20 cursor-pointer"
-              : "hover:bg-muted border border-transparent cursor-pointer"
+          "flex items-center gap-3 py-2 px-3 rounded-lg transition-colors cursor-pointer",
+          attached
+            ? "bg-primary/10 border border-primary/20"
+            : "hover:bg-muted border border-transparent"
         )}
       >
         <Checkbox
           checked={attached}
-          disabled={isLocked}
           onChange={() => {}}
         />
         <Icon
           className={cn(
             "h-4 w-4 flex-shrink-0",
-            isLocked ? "text-muted-foreground" : TYPE_COLORS[resource.type].split(" ").find(c => c.startsWith("text-")) ?? "text-muted-foreground"
+            TYPE_COLORS[resource.type].split(" ").find(c => c.startsWith("text-")) ?? "text-muted-foreground"
           )}
         />
-        <h4 className={cn("flex-1 min-w-0 truncate font-medium text-sm", isLocked && "text-muted-foreground")}>
+        <h4 className="flex-1 min-w-0 truncate font-medium text-sm">
           {resource.title}
         </h4>
         {attached && <Check className="h-4 w-4 text-primary flex-shrink-0" />}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <Badge
-            variant="secondary"
-            className={cn("text-xs", isLocked ? "bg-muted text-muted-foreground" : TYPE_COLORS[resource.type])}
-          >
-            {resource.type}
-          </Badge>
-          {isLocked ? (
-            <>
-              <Lock className="h-3 w-3 text-yellow-600" />
-              {resource.source !== "own" && (
-                <ResourceUnlockModal
-                  resourceId={resource.id}
-                  resourceTitle={resource.title}
-                  resourceType={resource.type}
-                  unlockFeeKes={resource.unlockFee || 100}
-                  isUnlocked={false}
-                  trigger={
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-xs text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <CreditCard className="h-3 w-3 mr-1" />
-                      Unlock
-                    </Button>
-                  }
-                  onUnlockSuccess={handleUnlockSuccess}
-                />
-              )}
-            </>
-          ) : (
-            <Unlock className="h-3 w-3 text-green-600" />
-          )}
-        </div>
+        <Badge
+          variant="secondary"
+          className={cn("text-xs", TYPE_COLORS[resource.type])}
+        >
+          {resource.type}
+        </Badge>
       </div>
     );
   };
@@ -248,16 +171,7 @@ export function AddResourceToChat({
         <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0 border-b">
           <DialogTitle>Add Resources to Chat</DialogTitle>
           <DialogDescription>
-            {userRole === "regular" ? (
-              <>
-                Select unlocked resources to include in your conversation.
-                <span className="block mt-1 text-xs text-muted-foreground">
-                  Showing: Your content + Super Admin content + Content from your Admin (locked resources shown but require unlock)
-                </span>
-              </>
-            ) : (
-              "Select resources to include in your conversation."
-            )}
+            Select resources to include in your conversation.
           </DialogDescription>
         </DialogHeader>
 
@@ -277,7 +191,7 @@ export function AddResourceToChat({
               </div>
             ) : filteredResources.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <Lock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>No accessible resources available</p>
                 <p className="text-sm mt-2">
                   No resources match your search
@@ -285,7 +199,6 @@ export function AddResourceToChat({
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Your Content Section */}
                 {ownResources.length > 0 && (
                   <div>
                     <div className="flex items-center gap-2 mb-3 pb-2 border-b">
@@ -301,7 +214,6 @@ export function AddResourceToChat({
                   </div>
                 )}
 
-                {/* Super Admin Content Section */}
                 {superAdminResources.length > 0 && (
                   <div>
                     <div className="flex items-center gap-2 mb-3 pb-2 border-b">
@@ -317,19 +229,13 @@ export function AddResourceToChat({
                   </div>
                 )}
 
-                {/* Admin Content Section */}
                 {adminResources.length > 0 && (
                   <div>
                     <div className="flex items-center gap-2 mb-3 pb-2 border-b">
                       <GraduationCap className="h-4 w-4 text-foreground" />
                       <h3 className="font-semibold text-sm">From Your Admin</h3>
                       <Badge variant="secondary" className="ml-auto">
-                        {adminResources.filter(r => r.isUnlocked).length} unlocked
-                        {adminResources.filter(r => !r.isUnlocked).length > 0 && (
-                          <span className="text-yellow-600 ml-1">
-                            ({adminResources.filter(r => !r.isUnlocked).length} locked)
-                          </span>
-                        )}
+                        {adminResources.length}
                       </Badge>
                     </div>
                     <div className="space-y-2">

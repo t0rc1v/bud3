@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { checkUserPermission, ensureAdminPermissions } from "@/lib/actions/admin-permissions";
-import { RewardPermissions } from "@/lib/permissions";
+import { FinancePermissions } from "@/lib/permissions";
 import { AdminRewardsManager } from "@/components/admin/admin-rewards-manager";
 import { getUserByClerkId } from "@/lib/actions/auth";
 
@@ -29,7 +29,7 @@ export default async function AdminRewardsPage() {
   await ensureAdminPermissions(userId);
 
   // Check if admin has credit_reward permission for their own content
-  const hasCreditReward = await checkUserPermission(userId, RewardPermissions.CREDIT_REWARD);
+  const hasCreditReward = await checkUserPermission(userId, FinancePermissions.CREDITS_GIFT);
 
   if (!hasCreditReward) {
     redirect("/admin");

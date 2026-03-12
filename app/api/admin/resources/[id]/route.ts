@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { eq, and } from "drizzle-orm";
-import { resource, unlockFee } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { resource } from "@/lib/db/schema";
 import { checkUserPermission } from "@/lib/actions/admin-permissions";
 import { ContentPermissions } from "@/lib/permissions";
 
@@ -51,23 +51,11 @@ export async function GET(
       );
     }
 
-    // Get unlock fee if exists
-    const unlockFeeData = await db
-      .select()
-      .from(unlockFee)
-      .where(and(
-        eq(unlockFee.resourceId, resourceId),
-        eq(unlockFee.isActive, true)
-      ))
-      .limit(1)
-      .then(res => res[0] || null);
-
     return NextResponse.json({
       resource: {
         id: resourceData.id,
         title: resourceData.title,
         type: resourceData.type,
-        unlockFee: unlockFeeData?.creditsRequired ?? null,
       },
     });
 

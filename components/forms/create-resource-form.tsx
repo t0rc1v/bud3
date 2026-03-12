@@ -19,8 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { UploadButton } from "@/lib/uploadthing";
 import type { SubjectWithTopicsAndLevelTitle, TopicWithResources, ResourceType } from "@/lib/types";
 import { toast } from "sonner";
-import { CheckCircle2, ExternalLink, Lock, Unlock, CreditCard, Eye, FileEdit, Globe, AlertCircle } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { CheckCircle2, ExternalLink, CreditCard, Eye, FileEdit, Globe, AlertCircle } from "lucide-react";
 
 interface CreateResourceFormProps {
   subjects: SubjectWithTopicsAndLevelTitle[];
@@ -71,8 +70,6 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
     url: "",
     thumbnailUrl: "",
     uploadthingKey: "",
-    isLocked: false,
-    unlockFee: 0,
     visibility: "admin_and_regulars" as "public" | "admin_only" | "admin_and_regulars" | "regular_only",
     status: "published" as "draft" | "published",
   });
@@ -129,8 +126,6 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
         url: "",
         thumbnailUrl: "",
         uploadthingKey: "",
-        isLocked: false,
-        unlockFee: 0,
         visibility: "admin_and_regulars",
         status: "published",
       });
@@ -151,17 +146,6 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
     setFormData({ ...formData, type: value, url: "", uploadthingKey: "", thumbnailUrl: "" });
     setUploadedFile(null);
     setThumbnailFile(null);
-  };
-
-  // Handle lock status change
-  const handleLockChange = (checked: boolean) => {
-    setFormData({ ...formData, isLocked: checked, unlockFee: checked ? formData.unlockFee || 100 : 0 });
-  };
-
-  // Handle unlock fee change
-  const handleUnlockFeeChange = (value: string) => {
-    const fee = parseInt(value) || 0;
-    setFormData({ ...formData, unlockFee: fee });
   };
 
   const handleFileUpload = (res: Array<{ name: string; url: string; ufsUrl: string; key: string }>) => {
@@ -426,48 +410,6 @@ export function CreateResourceForm({ subjects, topics, onSuccess }: CreateResour
         <p className="text-xs text-muted-foreground">
           Controls who can see this resource in the content browser.
         </p>
-      </div>
-
-      {/* Lock/Unlock Settings */}
-      <div className="space-y-4 border-t pt-4 mt-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {formData.isLocked ? (
-              <Lock className="h-4 w-4 text-yellow-600" />
-            ) : (
-              <Unlock className="h-4 w-4 text-green-600" />
-            )}
-            <Label htmlFor="isLocked" className="cursor-pointer">
-              {formData.isLocked ? "Locked (Paid)" : "Free Access"}
-            </Label>
-          </div>
-          <Checkbox
-            id="isLocked"
-            checked={formData.isLocked}
-            onCheckedChange={handleLockChange}
-          />
-        </div>
-
-        {formData.isLocked && (
-          <div className="space-y-2 pl-6">
-            <Label htmlFor="unlockFee" className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              Unlock Fee (KES)
-            </Label>
-            <Input
-              id="unlockFee"
-              type="number"
-              min={1}
-              value={formData.unlockFee}
-              onChange={(e) => handleUnlockFeeChange(e.target.value)}
-              placeholder="e.g., 100"
-              className="w-full"
-            />
-            <p className="text-xs text-muted-foreground">
-              Users will pay this amount via M-Pesa to unlock and access this resource
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Upload fee info */}

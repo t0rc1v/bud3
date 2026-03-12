@@ -1,4 +1,4 @@
-import { pgTable, text, integer, boolean, timestamp, uuid, varchar, jsonb, pgEnum, uniqueIndex, index, check } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, boolean, timestamp, uuid, varchar, jsonb, pgEnum, uniqueIndex, index } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
 
@@ -111,9 +111,6 @@ export const resource = pgTable("resource", {
   metadata: jsonb('metadata'),
   // Publish status — draft resources are hidden from learners
   status: resourceStatusEnum('status').notNull().default("published"),
-  // Lock and pricing fields
-  isLocked: boolean('is_locked').default(false).notNull(),
-  unlockFee: integer('unlock_fee').default(0).notNull(), // Fee in KES (0 means free)
   isActive: boolean('is_active').default(true).notNull(),
   createdAt,
   updatedAt,
@@ -462,7 +459,6 @@ export const userRelationsExtended = relations(user, ({ many }) => ({
   credit: many(userCredit),
   creditTransactions: many(creditTransaction),
   creditPurchases: many(creditPurchase),
-  unlockedContent: many(unlockedContent),
 }));
 
 // Credit System Tables
@@ -486,7 +482,6 @@ export const transactionTypeEnum = pgEnum("transaction_type", [
   "usage",
   "refund",
   "gift",
-  "unlock",
   "bonus",
   "transfer"
 ]);
@@ -521,8 +516,7 @@ export const paymentStatusEnum = pgEnum("payment_status", [
 ]);
 
 export const purchaseTypeEnum = pgEnum("purchase_type", [
-  "credits",
-  "unlock"
+  "credits"
 ]);
 
 export const creditPurchase = pgTable("credit_purchase", {
@@ -549,57 +543,6 @@ export const creditPurchase = pgTable("credit_purchase", {
   userStatusIdx: index("credit_purchase_user_status_idx").on(table.userId, table.status),
 }));
 
-// Unlock fees configuration
-export const unlockableTypeEnum = pgEnum("unlockable_type", [
-  "resource",
-  "topic",
-  "subject"
-]);
-
-export const unlockFee = pgTable("unlock_fee", {
-  id: uuid('id').defaultRandom().primaryKey(),
-  type: unlockableTypeEnum('type').notNull(),
-  resourceId: uuid('resource_id').references(() => resource.id, { onDelete: 'cascade' }),
-  topicId: uuid('topic_id').references(() => topic.id, { onDelete: 'cascade' }),
-  subjectId: uuid('subject_id').references(() => subject.id, { onDelete: 'cascade' }),
-  feeAmount: integer('fee_amount').notNull().default(100), // Default Ksh 100
-  creditsRequired: integer('credits_required').notNull().default(50), // Credits needed to unlock
-  isActive: boolean('is_active').default(true).notNull(),
-  createdAt,
-  updatedAt,
-}, (table) => ({
-  // One fee record per resource/topic/subject (NULLs are distinct in Postgres unique indexes)
-  uniqueResourceFee: uniqueIndex("uc_unlock_fee_resource").on(table.resourceId),
-  uniqueTopicFee: uniqueIndex("uc_unlock_fee_topic").on(table.topicId),
-  uniqueSubjectFee: uniqueIndex("uc_unlock_fee_subject").on(table.subjectId),
-  isActiveIdx: index("unlock_fee_is_active_idx").on(table.isActive),
-  // Enforce exactly one of resourceId, topicId, subjectId is set
-  exactlyOneFk: check(
-    "chk_unlock_fee_exactly_one_fk",
-    sql`(resource_id IS NOT NULL)::int + (topic_id IS NOT NULL)::int + (subject_id IS NOT NULL)::int = 1`
-  ),
-}));
-
-// Track unlocked content per user
-// Note: All unlocks are done via direct M-Pesa payment (not credits)
-// Credits are only used for AI chat responses
-export const unlockedContent = pgTable("unlocked_content", {
-  id: uuid('id').defaultRandom().primaryKey(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  unlockFeeId: uuid('unlock_fee_id')
-    .notNull()
-    .references(() => unlockFee.id, { onDelete: 'cascade' }),
-  // M-Pesa payment receipt number for tracking
-  paymentReference: varchar('payment_reference', { length: 100 }),
-  // Amount paid in KES (for record keeping)
-  amountPaidKes: integer('amount_paid_kes').notNull().default(0),
-  unlockedAt: timestamp('unlocked_at', { withTimezone: true }).notNull().defaultNow(),
-  createdAt,
-}, (table) => ({
-  uniqueUserUnlock: uniqueIndex("uc_unlocked_content").on(table.userId, table.unlockFeeId),
-}));
 
 // Relations for credit tables
 export const userCreditRelations = relations(userCredit, ({ one, many }) => ({
@@ -624,32 +567,6 @@ export const creditPurchaseRelations = relations(creditPurchase, ({ one }) => ({
   }),
 }));
 
-export const unlockFeeRelations = relations(unlockFee, ({ one, many }) => ({
-  resource: one(resource, {
-    fields: [unlockFee.resourceId],
-    references: [resource.id],
-  }),
-  topic: one(topic, {
-    fields: [unlockFee.topicId],
-    references: [topic.id],
-  }),
-  subject: one(subject, {
-    fields: [unlockFee.subjectId],
-    references: [subject.id],
-  }),
-  unlockedBy: many(unlockedContent),
-}));
-
-export const unlockedContentRelations = relations(unlockedContent, ({ one }) => ({
-  user: one(user, {
-    fields: [unlockedContent.userId],
-    references: [user.id],
-  }),
-  unlockFee: one(unlockFee, {
-    fields: [unlockedContent.unlockFeeId],
-    references: [unlockFee.id],
-  }),
-}));
 
 // AI Generated Assignments Table - for teacher-created printable assignments
 export const aiAssignment = pgTable("ai_assignment", {

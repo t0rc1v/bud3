@@ -5,12 +5,6 @@ import {
   user,
   creditTransaction,
   creditPurchase,
-  unlockedContent,
-  unlockFee,
-  resource,
-  topic,
-  subject,
-  level,
   auditLog,
 } from "@/lib/db/schema";
 import { eq, desc, gte, sql, and, count } from "drizzle-orm";
@@ -42,7 +36,6 @@ export async function GET() {
       recentTransactions,
       completedPayments,
       recentPayments,
-      topUnlockedResources,
       creditSpendingByDay,
       recentAuditLogs,
       topRatedResources,
@@ -86,34 +79,6 @@ export async function GET() {
             gte(creditPurchase.createdAt, thirtyDaysAgo)
           )
         ),
-
-      // Most unlocked resources (top 10)
-      db
-        .select({
-          unlockFeeId: unlockedContent.unlockFeeId,
-          unlockCount: count(),
-          resourceTitle: resource.title,
-          resourceType: resource.type,
-          topicTitle: topic.title,
-          subjectName: subject.name,
-          levelTitle: level.title,
-        })
-        .from(unlockedContent)
-        .leftJoin(unlockFee, eq(unlockedContent.unlockFeeId, unlockFee.id))
-        .leftJoin(resource, eq(unlockFee.resourceId, resource.id))
-        .leftJoin(topic, eq(resource.topicId, topic.id))
-        .leftJoin(subject, eq(topic.subjectId, subject.id))
-        .leftJoin(level, eq(subject.levelId, level.id))
-        .groupBy(
-          unlockedContent.unlockFeeId,
-          resource.title,
-          resource.type,
-          topic.title,
-          subject.name,
-          level.title
-        )
-        .orderBy(desc(sql`count(*)`))
-        .limit(10),
 
       // Credit spending by day (last 7 days)
       db
@@ -169,15 +134,6 @@ export async function GET() {
         last30dCompleted: recentPayments[0]?.count ?? 0,
         last30dRevenueKes: recentPayments[0]?.total ?? 0,
       },
-      topUnlockedResources: topUnlockedResources.map((r) => ({
-        unlockFeeId: r.unlockFeeId,
-        unlockCount: r.unlockCount,
-        resourceTitle: r.resourceTitle ?? "Unknown Resource",
-        resourceType: r.resourceType,
-        topicTitle: r.topicTitle,
-        subjectName: r.subjectName,
-        levelTitle: r.levelTitle,
-      })),
       creditSpendingByDay: creditSpendingByDay.map((r) => ({
         day: r.day,
         creditsUsed: r.credits,

@@ -14,7 +14,6 @@ interface BookmarkItem {
     title: string;
     description: string;
     type: "notes" | "video" | "audio" | "image";
-    isLocked: boolean;
   };
   topicTitle: string;
   subjectName: string;
@@ -100,9 +99,6 @@ export function BookmarksTab({ onOpenResource }: BookmarksTabProps) {
                   <Icon className="h-3 w-3 mr-1" />
                   {bm.resource.type.charAt(0).toUpperCase() + bm.resource.type.slice(1)}
                 </Badge>
-                {bm.resource.isLocked && (
-                  <Badge variant="outline" className="text-xs">Locked</Badge>
-                )}
                 <span className="text-xs text-muted-foreground ml-auto">
                   {new Date(bm.bookmarkedAt).toLocaleDateString()}
                 </span>

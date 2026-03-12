@@ -24,9 +24,6 @@ import {
   Shield,
   Building2,
   Crown,
-  Lock,
-  Unlock,
-  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -75,14 +72,11 @@ import {
   getSuperAdminRegularIds,
   getAdminSuperAdminId,
 } from "@/lib/actions/admin";
-import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
 import type {
   LevelWithFullHierarchy,
-  LevelWithFullHierarchyAndUnlockStatus,
   SubjectWithTopics,
   TopicWithResources,
   Resource,
-  ResourceWithUnlockStatus,
   ResourceWithRelations,
   Level,
   Subject,
@@ -90,13 +84,12 @@ import type {
 } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";
 
 type ContentTab = "my" | "admin(s)" | "institution" | "super" | "admin" | "regular";
 type UserRole = "regular" | "admin" | "super_admin";
 
 interface SidebarContentTreeProps {
-  initialLevels: LevelWithFullHierarchy[] | LevelWithFullHierarchyAndUnlockStatus[];
+  initialLevels: LevelWithFullHierarchy[];
   userId: string;
   userRole: UserRole;
   adminIds?: string[];
@@ -1284,7 +1277,7 @@ function TopicNode({
 
 // Resource Node Component
 interface ResourceNodeProps {
-  resource: Resource | ResourceWithUnlockStatus;
+  resource: Resource;
   onView: () => void;
   onAddToChat: () => void;
   onDelete?: (id: string) => void;
@@ -1304,63 +1297,22 @@ function ResourceNode({
   userRole,
   activeTab,
 }: ResourceNodeProps) {
-  const { isResourceUnlocked, addUnlockedResource } = useUnlockedResources();
   const isOwner = resource.ownerId === userId;
-  const isSuperAdmin = userRole === "super_admin";
   const canDelete = onDelete && isOwner;
   const canEdit = onEdit && isOwner;
-  
-  // Check if resource has isUnlocked field (from new API) or fall back to computing from isLocked
-  const hasUnlockStatus = 'isUnlocked' in resource;
-  const contextUnlocked = isResourceUnlocked(resource.id);
-  const initiallyUnlocked = contextUnlocked || hasUnlockStatus 
-    ? (resource as ResourceWithUnlockStatus).isUnlocked || !resource.isLocked || isOwner || isSuperAdmin
-    : !resource.isLocked || isOwner || isSuperAdmin;
-  const [localUnlocked, setLocalUnlocked] = useState(initiallyUnlocked);
-  
-  // Use context state if available, otherwise fall back to local state
-  const isUnlocked = contextUnlocked || localUnlocked;
-
-  const handleUnlockSuccess = () => {
-    addUnlockedResource(resource.id);
-    setLocalUnlocked(true);
-  };
 
   return (
     <div className="flex items-center gap-1 py-0.5 px-1 rounded-sm hover:bg-accent group">
-      {resource.isLocked ? (
-        <Lock className="h-3 w-3 text-yellow-500 flex-shrink-0" />
-      ) : (
-        <FileText className="h-3 w-3 text-primary flex-shrink-0" />
-      )}
-      
-      <span 
+      <FileText className="h-3 w-3 text-primary flex-shrink-0" />
+
+      <span
         className="text-[11px] flex-1 truncate cursor-pointer"
-        onClick={isUnlocked ? onView : undefined}
+        onClick={onView}
       >
         {resource.title}
       </span>
-      
-      {resource.isLocked && !isUnlocked && !isOwner && !isSuperAdmin ? (
-        <ResourceUnlockModal
-          resourceId={resource.id}
-          resourceTitle={resource.title}
-          resourceType={resource.type}
-          unlockFeeKes={resource.unlockFee || 100}
-          isUnlocked={false}
-          trigger={
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="h-4 w-4 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-500/10"
-            >
-              <CreditCard className="h-2.5 w-2.5" />
-            </Button>
-          }
-          onUnlockSuccess={handleUnlockSuccess}
-        />
-      ) : (
-            <DropdownMenu>
+
+      <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
@@ -1396,7 +1348,6 @@ function ResourceNode({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-      )}
     </div>
   );
 }

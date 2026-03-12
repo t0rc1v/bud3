@@ -128,15 +128,8 @@ export const FinancePermissions = {
   CREDITS_PURCHASE: "finance:credits:purchase",
   CREDITS_GIFT: "finance:credits:gift",
   CREDITS_MANAGE: "finance:credits:manage",
-  UNLOCK_FEE_MANAGE: "finance:unlock_fee:manage",
   PAYMENTS_VIEW: "finance:payments:view",
   PAYMENTS_REFUND: "finance:payments:refund",
-} as const;
-
-// Reward/Unlock permissions
-export const RewardPermissions = {
-  CREDIT_REWARD: "credit:reward",
-  CONTENT_UNLOCK: "content:unlock",
 } as const;
 
 // Combine all permissions
@@ -147,7 +140,6 @@ export const Permissions = {
   ...SystemPermissions,
   ...AnalyticsPermissions,
   ...FinancePermissions,
-  ...RewardPermissions,
 } as const;
 
 // Type for all permission strings
@@ -233,11 +225,8 @@ export const PermissionGroups = {
     // Only read regulars, not manage them (moved to super-admin)
     UserPermissions.REGULARS_READ,
     AdminPermissions.ADMINS_READ,
-    // Finance and rewards
+    // Finance
     FinancePermissions.CREDITS_GIFT,
-    FinancePermissions.UNLOCK_FEE_MANAGE,
-    RewardPermissions.CREDIT_REWARD,
-    RewardPermissions.CONTENT_UNLOCK,
   ],
   
   // User management
@@ -359,13 +348,8 @@ export const PermissionDescriptions: Record<Permission, { label: string; descrip
   [FinancePermissions.CREDITS_PURCHASE]: { label: "Purchase Credits", description: "Buy AI credits using M-Pesa", category: "Finance - Credits" },
   [FinancePermissions.CREDITS_GIFT]: { label: "Gift Credits", description: "Gift credits to other users (admin only)", category: "Finance - Credits" },
   [FinancePermissions.CREDITS_MANAGE]: { label: "Manage Credits", description: "View and manage user credit balances", category: "Finance - Credits" },
-  [FinancePermissions.UNLOCK_FEE_MANAGE]: { label: "Manage Unlock Fees", description: "Configure unlock fees for resources, topics, and subjects", category: "Finance - Unlock Fees" },
   [FinancePermissions.PAYMENTS_VIEW]: { label: "View Payments", description: "View payment history and transactions", category: "Finance - Payments" },
   [FinancePermissions.PAYMENTS_REFUND]: { label: "Process Refunds", description: "Refund payments to users", category: "Finance - Payments" },
-  
-  // Reward/Unlock Permissions
-  [RewardPermissions.CREDIT_REWARD]: { label: "Credit Reward", description: "Gift credits and unlock content for users by email (super-admin or admin privilege)", category: "Rewards" },
-  [RewardPermissions.CONTENT_UNLOCK]: { label: "Unlock Content", description: "Manually unlock resources, topics, or subjects for users", category: "Rewards" },
 };
 
 // Helper function to check if a permission exists

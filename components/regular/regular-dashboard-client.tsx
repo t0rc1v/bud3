@@ -25,9 +25,6 @@ import {
   Users,
   Shield,
   Edit,
-  Lock,
-  Unlock,
-  CreditCard,
   ArrowRight,
   CheckCircle,
   Bookmark,
@@ -61,17 +58,13 @@ import { EditTopicForm } from "@/components/forms/edit-topic-form";
 import { EditResourceForm } from "@/components/forms/edit-resource-form";
 import { ResourceViewer } from "@/components/resources/resource-viewer";
 import { deleteLevelWithSession, deleteSubjectWithSession, deleteTopicWithSession, deleteResource, getResourceById, getRegularSuperAdminId, getSuperAdminAdminIds } from "@/lib/actions/admin";
-import { ResourceUnlockModal } from "@/components/credits/resource-unlock-modal";
-import { useUnlockedResources } from "@/components/credits/unlocked-resources-context";
 import { recordResourceView } from "@/lib/actions/credits";
 import { BookmarksTab } from "@/components/regular/bookmarks-tab";
 import type {
   LevelWithFullHierarchy,
-  LevelWithFullHierarchyAndUnlockStatus,
   SubjectWithTopics,
   TopicWithResources,
   Resource,
-  ResourceWithUnlockStatus,
   ResourceWithRelations,
   Level,
   Subject,
@@ -79,7 +72,7 @@ import type {
 } from "@/lib/types";
 
 interface RegularDashboardClientProps {
-  initialLevels: LevelWithFullHierarchy[] | LevelWithFullHierarchyAndUnlockStatus[];
+  initialLevels: LevelWithFullHierarchy[];
   userId: string;
   adminIds: string[];
 }
@@ -1024,9 +1017,9 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
   );
 }
 
-// Resource Item Component with Lock/Unlock handling
+// Resource Item Component
 interface ResourceItemProps {
-  resource: Resource | ResourceWithUnlockStatus;
+  resource: Resource;
   canDelete: boolean;
   currentUserId: string;
   onViewResource: (resource: Resource) => void;
@@ -1035,127 +1028,24 @@ interface ResourceItemProps {
 }
 
 function ResourceItem({ resource, canDelete, currentUserId, onViewResource, onDeleteResource, onEditResource }: ResourceItemProps) {
-  const { isResourceUnlocked, addUnlockedResource } = useUnlockedResources();
-  
-  // Check if resource has isUnlocked field from new API
-  const hasUnlockStatus = 'isUnlocked' in resource;
-  const contextUnlocked = isResourceUnlocked(resource.id);
-  
-  // Use API data, context state, or fall back to isLocked field
-  const initiallyUnlocked = contextUnlocked || hasUnlockStatus 
-    ? (resource as ResourceWithUnlockStatus).isUnlocked || !resource.isLocked
-    : !resource.isLocked;
-  const [localUnlocked, setLocalUnlocked] = useState(initiallyUnlocked);
-  const [isChecking, setIsChecking] = useState(!hasUnlockStatus && !contextUnlocked);
-  
-  // Combined unlocked state: context takes priority, then local
-  const isUnlocked = contextUnlocked || localUnlocked;
-
-  // Check unlock status on mount (only if not already provided by API or context)
-  useEffect(() => {
-    // If we already have unlock status from the API or context, don't fetch again
-    if (hasUnlockStatus || contextUnlocked) {
-      return;
-    }
-
-    const checkUnlockStatus = async () => {
-      if (!resource.isLocked) {
-        setLocalUnlocked(true);
-        setIsChecking(false);
-        return;
-      }
-
-      try {
-        const response = await fetch(`/api/content/unlock?resourceId=${resource.id}`);
-        if (response.ok) {
-          const data = await response.json();
-          setLocalUnlocked(data.isUnlocked);
-        }
-      } catch (error) {
-        console.error("Failed to check unlock status:", error);
-      } finally {
-        setIsChecking(false);
-      }
-    };
-
-    checkUnlockStatus();
-  }, [resource.id, resource.isLocked, hasUnlockStatus, contextUnlocked]);
-
-  const handleUnlockSuccess = () => {
-    addUnlockedResource(resource.id);
-    setLocalUnlocked(true);
-  };
-
-  const handleView = () => {
-    if (isUnlocked) {
-      onViewResource(resource);
-    }
-  };
-
-  if (isChecking) {
-    return (
-      <div className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-muted/20 rounded gap-2">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-          <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-          <span className="text-xs sm:text-sm truncate">{resource.title}</span>
-          <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 hidden sm:inline">
-            ({resource.type})
-          </span>
-        </div>
-        <div className="h-7 w-7 sm:h-8 sm:w-8 animate-pulse bg-muted rounded flex-shrink-0" />
-      </div>
-    );
-  }
-
   return (
     <div className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-muted/20 rounded gap-2">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-        {resource.isLocked ? (
-          <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
-        ) : (
-          <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-        )}
+        <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
         <span className="text-xs sm:text-sm truncate">{resource.title}</span>
         <span className="text-[10px] sm:text-xs text-muted-foreground capitalize flex-shrink-0 hidden sm:inline">
           ({resource.type})
         </span>
-        {resource.isLocked && (
-          <span className="text-[10px] sm:text-xs text-yellow-600 font-medium flex-shrink-0">
-            <span className="hidden sm:inline">Ksh </span>
-            <span className="sm:hidden">K</span>
-            {resource.unlockFee}
-          </span>
-        )}
       </div>
       <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
-        {resource.isLocked && !isUnlocked ? (
-          <ResourceUnlockModal
-            resourceId={resource.id}
-            resourceTitle={resource.title}
-            resourceType={resource.type}
-            unlockFeeKes={resource.unlockFee || 100}
-            isUnlocked={false}
-            trigger={
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="h-7 w-7 sm:h-9 sm:w-9 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-500/10"
-              >
-                <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              </Button>
-            }
-            onUnlockSuccess={handleUnlockSuccess}
-          />
-        ) : (
-          <Button 
-            variant="ghost" 
-            size="icon"
-            className="h-7 w-7 sm:h-9 sm:w-9"
-            onClick={handleView}
-          >
-            <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 sm:h-9 sm:w-9"
+          onClick={() => onViewResource(resource)}
+        >
+          <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+        </Button>
         {(canDelete && resource.ownerId === currentUserId) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

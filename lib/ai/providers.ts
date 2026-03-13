@@ -93,18 +93,26 @@ export function getModelById(modelId: string): LanguageModel {
     case 'anthropic':
       if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY not set');
       return anthropic(modelId);
+    case 'ai-gateway': {
+      if (!process.env.AI_GATEWAY_URL) throw new Error('AI_GATEWAY_URL not set');
+      if (!process.env.AI_GATEWAY_API_KEY) throw new Error('AI_GATEWAY_API_KEY not set');
+      const gatewayProvider = createAnthropic({
+        apiKey: process.env.AI_GATEWAY_API_KEY,
+        baseURL: process.env.AI_GATEWAY_URL,
+      });
+      return gatewayProvider(modelId);
+    }
     default:
       throw new Error(`Provider ${config.provider} not supported for model selection`);
   }
 }
 
 export function getAvailableModels(): ModelConfig[] {
-  const provider = (process.env.AI_PROVIDER as AIProvider) || 'ai-gateway';
-  if (provider === 'ai-gateway') return [];
   return AVAILABLE_MODELS.filter(m => {
-    if (m.provider === 'openai')    return !!process.env.OPENAI_API_KEY;
-    if (m.provider === 'google')    return !!process.env.GOOGLE_API_KEY;
-    if (m.provider === 'anthropic') return !!process.env.ANTHROPIC_API_KEY;
+    if (m.provider === 'openai')      return !!process.env.OPENAI_API_KEY;
+    if (m.provider === 'google')      return !!process.env.GOOGLE_API_KEY;
+    if (m.provider === 'anthropic')   return !!process.env.ANTHROPIC_API_KEY;
+    if (m.provider === 'ai-gateway')  return !!(process.env.AI_GATEWAY_URL && process.env.AI_GATEWAY_API_KEY);
     return false;
   });
 }

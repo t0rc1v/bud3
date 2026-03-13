@@ -16,6 +16,7 @@ const TIER_STYLES: Record<CapabilityTier, string> = {
   fast:     'bg-green-500/15 text-green-700 dark:text-green-400',
   balanced: 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
   powerful: 'bg-purple-500/15 text-purple-700 dark:text-purple-400',
+  thinking: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
 };
 
 const STORAGE_KEY = 'ai_model_preference';

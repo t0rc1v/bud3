@@ -22,6 +22,20 @@
       "when": 1773156957045,
       "tag": "0002_glamorous_tiger_shark",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1773500000000,
+      "tag": "0003_remove_unlock_system",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1773600000000,
+      "tag": "0004_chat_sharing",
+      "breakpoints": true
     }
   ]
 }

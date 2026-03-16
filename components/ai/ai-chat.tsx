@@ -31,6 +31,8 @@ import {
   Square,
   RotateCcw,
   Brain,
+  Pencil,
+  Share2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -39,7 +41,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { createChat, deleteChat, getUserChats, getChatMessages, updateChatTitle, type Chat } from "@/lib/actions/ai";
+import { createChat, deleteChat, getUserChats, getChatMessages, updateChatTitle, deleteChatMessagesFrom, generateChatShareToken, updateChatVisibility, type Chat } from "@/lib/actions/ai";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AddResourceToChat, type ChatResource as Resource } from "./add-resource-to-chat";
 import { ModelSelector } from "./model-selector";
 import type { UserRole } from "@/lib/types";
@@ -160,6 +163,10 @@ export function AIChat({
   const [creditError, setCreditError] = useState<{ message: string; remainingCredits?: number } | null>(null);
   const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
   
   // Detect mobile device - use state + useEffect to avoid hydration mismatch
   useEffect(() => {
@@ -441,7 +448,7 @@ export function AIChat({
       setChatId(newChatId);
       updateUrlWithChatId(newChatId);
       setChats(prev => [
-        { id: newChatId, userId, title: chatTitle, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+        { id: newChatId, userId, title: chatTitle, isActive: true, visibility: 'private' as const, shareToken: null, createdAt: new Date(), updatedAt: new Date() },
         ...prev,
       ]);
 
@@ -595,6 +602,47 @@ export function AIChat({
     }
   }, [resourceToAdd, handleAddResource, onResourceAdded]);
 
+  // Derive sharing state from current chat
+  const currentChat = chats.find(c => c.id === chatId);
+  const currentShareToken = currentChat?.shareToken ?? null;
+  const currentVisibility = currentChat?.visibility ?? 'private';
+
+  const handleEditMessage = useCallback(async (messageId: string, newText: string) => {
+    if (!chatId || !newText.trim()) return;
+    setEditingMessageId(null);
+    const msgIndex = messages.findIndex(m => m.id === messageId);
+    if (msgIndex === -1) return;
+    setMessages(messages.slice(0, msgIndex));
+    deleteChatMessagesFrom({ chatId, fromMessageId: messageId }).catch(console.error);
+    sendMessage({ text: newText.trim() });
+  }, [chatId, messages, setMessages, sendMessage]);
+
+  const handleGenerateShareLink = async () => {
+    if (!chatId) return;
+    setShareLoading(true);
+    try {
+      const { shareToken } = await generateChatShareToken({ chatId, userId });
+      setChats(prev => prev.map(c => c.id === chatId ? { ...c, visibility: 'link' as const, shareToken } : c));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleRevokeSharing = async () => {
+    if (!chatId) return;
+    setShareLoading(true);
+    try {
+      await updateChatVisibility({ chatId, userId, visibility: 'private' });
+      setChats(prev => prev.map(c => c.id === chatId ? { ...c, visibility: 'private' as const, shareToken: null } : c));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col" suppressHydrationWarning>
       {/* Header */}
@@ -604,6 +652,17 @@ export function AIChat({
           <span className="font-semibold">AI Assistant</span>
         </div>
         <div className="flex items-center gap-1">
+          {chatId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              title="Share Chat"
+              onClick={() => setIsShareModalOpen(true)}
+            >
+              <Share2 className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -748,10 +807,58 @@ export function AIChat({
               <div
                 key={message.id}
                 className={cn(
-                  "flex gap-2 min-w-0",
+                  "flex gap-2 min-w-0 group/msg",
                   message.role === "user" ? "justify-end" : "justify-start"
                 )}
               >
+                {/* Pencil edit button — only for user messages, shown on hover */}
+                {message.role === "user" && chatId && status === "ready" && editingMessageId !== message.id && (
+                  <button
+                    className="self-center opacity-0 group-hover/msg:opacity-100 transition-opacity shrink-0"
+                    title="Edit message"
+                    onClick={() => {
+                      const textContent = message.parts
+                        .filter((p): p is { type: "text"; text: string } => p.type === "text")
+                        .map(p => p.text)
+                        .join("");
+                      setEditingText(textContent);
+                      setEditingMessageId(message.id);
+                    }}
+                  >
+                    <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                  </button>
+                )}
+
+                {editingMessageId === message.id ? (
+                  <div className="w-full max-w-[85%] space-y-2">
+                    <Textarea
+                      value={editingText}
+                      onChange={e => setEditingText(e.target.value)}
+                      autoFocus
+                      rows={3}
+                      className="w-full resize-none"
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && !e.shiftKey && !isMobile) {
+                          e.preventDefault();
+                          if (editingText.trim()) handleEditMessage(message.id, editingText);
+                        }
+                        if (e.key === "Escape") setEditingMessageId(null);
+                      }}
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button size="sm" variant="ghost" onClick={() => setEditingMessageId(null)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={!editingText.trim()}
+                        onClick={() => handleEditMessage(message.id, editingText)}
+                      >
+                        Send
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
                 <div
                   className={cn(
                     "rounded-lg px-3 py-2 sm:px-4 sm:py-2 overflow-hidden",
@@ -1119,6 +1226,7 @@ export function AIChat({
                   )}
                   </div>
                 </div>
+                )} {/* end editing ternary */}
               </div>
             )))}
             {/* Regenerate button — shown after last assistant message when idle */}
@@ -1268,6 +1376,69 @@ export function AIChat({
           </div>
         </form>
       </div>
+
+      {/* Share Dialog */}
+      <Dialog open={isShareModalOpen} onOpenChange={setIsShareModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Share Chat</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            {currentVisibility === 'link' && currentShareToken ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Anyone with this link can view this chat (read-only).
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/share/${currentShareToken}`}
+                    className="flex-1 text-xs border rounded-md px-3 py-2 bg-muted/50 font-mono truncate"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(
+                        `${window.location.origin}/share/${currentShareToken}`
+                      );
+                    }}
+                  >
+                    Copy
+                  </Button>
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={shareLoading}
+                  onClick={handleRevokeSharing}
+                  className="w-full"
+                >
+                  {shareLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Revoke Link"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Generate a read-only public link to share this conversation.
+                </p>
+                <Button
+                  className="w-full gap-2"
+                  disabled={shareLoading}
+                  onClick={handleGenerateShareLink}
+                >
+                  {shareLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Share2 className="h-4 w-4" />
+                  )}
+                  Generate Share Link
+                </Button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

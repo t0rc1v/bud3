@@ -399,6 +399,8 @@ export const chat = pgTable("chat", {
     .references(() => user.id, { onDelete: 'cascade' }),
   title: varchar('title', { length: 255 }).notNull(),
   isActive: boolean('is_active').default(true).notNull(),
+  visibility: varchar('visibility', { length: 20 }).default('private').notNull(),
+  shareToken: uuid('share_token'),
   createdAt,
   updatedAt,
 });

@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { chat, chatMessage, aiMemory, aiAssignment, aiQuiz, aiQuizAttempt, aiFlashcard } from "@/lib/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, gte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export interface Chat {
@@ -10,6 +10,8 @@ export interface Chat {
   userId: string;
   title: string;
   isActive: boolean;
+  visibility: 'private' | 'link';
+  shareToken: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,6 +40,14 @@ export interface AIMemoryItem {
 
 
 
+function toChat(row: typeof chat.$inferSelect): Chat {
+  return {
+    ...row,
+    visibility: (row.visibility as 'private' | 'link') ?? 'private',
+    shareToken: row.shareToken ?? null,
+  };
+}
+
 export async function createChat({
   id,
   userId,
@@ -52,7 +62,7 @@ export async function createChat({
     .values({ ...(id ? { id } : {}), userId, title, isActive: true })
     .returning();
 
-  return result[0];
+  return toChat(result[0]);
 }
 
 export async function getUserChats(userId: string): Promise<Chat[]> {
@@ -62,7 +72,7 @@ export async function getUserChats(userId: string): Promise<Chat[]> {
     .where(and(eq(chat.userId, userId), eq(chat.isActive, true)))
     .orderBy(desc(chat.updatedAt));
 
-  return chats;
+  return chats.map(toChat);
 }
 
 export async function getChatMessages(chatId: string): Promise<ChatMessage[]> {
@@ -136,7 +146,7 @@ export async function updateChatTitle({
     .returning();
 
   revalidatePath("/");
-  return result[0];
+  return toChat(result[0]);
 }
 
 export async function getMemoryItems(userId: string): Promise<AIMemoryItem[]> {
@@ -649,4 +659,110 @@ export async function getAIFlashcardsByUser(userId: string): Promise<AIFlashcard
 // Delete AI Flashcard (soft delete)
 export async function deleteAIFlashcard(id: string): Promise<void> {
   await db.update(aiFlashcard).set({ isActive: false }).where(eq(aiFlashcard.id, id));
+}
+
+// UUID format validation helper
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function deleteChatMessagesFrom({
+  chatId,
+  fromMessageId,
+}: {
+  chatId: string;
+  fromMessageId: string;
+}): Promise<void> {
+  // Find the createdAt timestamp of the target message
+  const target = await db
+    .select({ createdAt: chatMessage.createdAt })
+    .from(chatMessage)
+    .where(and(eq(chatMessage.id, fromMessageId), eq(chatMessage.chatId, chatId)))
+    .limit(1);
+
+  if (target.length === 0) return;
+
+  // Delete all messages in this chat from that timestamp onward
+  await db
+    .delete(chatMessage)
+    .where(and(eq(chatMessage.chatId, chatId), gte(chatMessage.createdAt, target[0].createdAt)));
+}
+
+export async function generateChatShareToken({
+  chatId,
+  userId,
+}: {
+  chatId: string;
+  userId: string;
+}): Promise<{ shareToken: string }> {
+  // Check if token already exists — never regenerate (would break existing links)
+  const existing = await db
+    .select({ shareToken: chat.shareToken })
+    .from(chat)
+    .where(and(eq(chat.id, chatId), eq(chat.userId, userId)))
+    .limit(1);
+
+  if (existing.length > 0 && existing[0].shareToken) {
+    return { shareToken: existing[0].shareToken };
+  }
+
+  const shareToken = crypto.randomUUID();
+  await db
+    .update(chat)
+    .set({ visibility: 'link', shareToken, updatedAt: new Date() })
+    .where(and(eq(chat.id, chatId), eq(chat.userId, userId)));
+
+  return { shareToken };
+}
+
+export async function updateChatVisibility({
+  chatId,
+  userId,
+  visibility,
+}: {
+  chatId: string;
+  userId: string;
+  visibility: 'private' | 'link';
+}): Promise<void> {
+  await db
+    .update(chat)
+    .set({
+      visibility,
+      // Revoking: null out the token so old links stop working
+      shareToken: visibility === 'private' ? null : undefined,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(chat.id, chatId), eq(chat.userId, userId)));
+}
+
+export async function getChatByShareToken(
+  token: string
+): Promise<{ chat: Chat; messages: ChatMessage[] } | null> {
+  if (!UUID_REGEX.test(token)) return null;
+
+  const chatRows = await db
+    .select()
+    .from(chat)
+    .where(and(eq(chat.shareToken, token), eq(chat.visibility, 'link'), eq(chat.isActive, true)))
+    .limit(1);
+
+  if (chatRows.length === 0) return null;
+
+  const foundChat = chatRows[0];
+  const messages = await db
+    .select()
+    .from(chatMessage)
+    .where(eq(chatMessage.chatId, foundChat.id))
+    .orderBy(chatMessage.createdAt);
+
+  return {
+    chat: {
+      ...foundChat,
+      visibility: foundChat.visibility as 'private' | 'link',
+      shareToken: foundChat.shareToken,
+    },
+    messages: messages.map(m => ({
+      ...m,
+      role: m.role as 'user' | 'assistant' | 'tool',
+      metadata: m.metadata as Record<string, unknown> | undefined,
+    })),
+  };
 }

@@ -13,6 +13,8 @@ ALTER TABLE "resource"
 UPDATE "credit_purchase" SET "purchase_type" = 'credits' WHERE "purchase_type" = 'unlock';
 ALTER TYPE "purchase_type" RENAME TO "purchase_type_old";
 CREATE TYPE "purchase_type" AS ENUM ('credits');
+ALTER TABLE "credit_purchase" ALTER COLUMN "purchase_type" DROP DEFAULT;
 ALTER TABLE "credit_purchase"
   ALTER COLUMN "purchase_type" TYPE "purchase_type" USING "purchase_type"::text::"purchase_type";
+ALTER TABLE "credit_purchase" ALTER COLUMN "purchase_type" SET DEFAULT 'credits'::"purchase_type";
 DROP TYPE "purchase_type_old";

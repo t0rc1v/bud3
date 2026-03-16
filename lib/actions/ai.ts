@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { chat, chatMessage, aiMemory, aiAssignment, aiQuiz, aiQuizAttempt, aiFlashcard } from "@/lib/db/schema";
+import { chat, chatMessage, aiMemory, aiAssignment, aiQuiz, aiQuizAttempt, aiFlashcard, aiNotesDocument, aiExam } from "@/lib/db/schema";
 import { eq, and, desc, gte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
@@ -659,6 +659,165 @@ export async function getAIFlashcardsByUser(userId: string): Promise<AIFlashcard
 // Delete AI Flashcard (soft delete)
 export async function deleteAIFlashcard(id: string): Promise<void> {
   await db.update(aiFlashcard).set({ isActive: false }).where(eq(aiFlashcard.id, id));
+}
+
+// AI Notes Document Interfaces
+export interface AINotesDocumentItem {
+  id: string;
+  userId: string;
+  chatId: string | null;
+  title: string;
+  subject: string;
+  topic: string | null;
+  level: string | null;
+  sections: unknown;
+  keyTerms: unknown | null;
+  youtubeVideos: unknown | null;
+  images: unknown | null;
+  summary: string | null;
+  resourceIds: unknown | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Save AI Generated Notes Document
+export async function saveAINotesDocument({
+  userId,
+  chatId,
+  title,
+  subject,
+  topic,
+  level,
+  sections,
+  keyTerms,
+  youtubeVideos,
+  images,
+  summary,
+  resourceIds,
+}: {
+  userId: string;
+  chatId?: string;
+  title: string;
+  subject: string;
+  topic?: string;
+  level?: string;
+  sections: unknown[];
+  keyTerms: unknown[];
+  youtubeVideos: unknown[];
+  images: unknown[];
+  summary?: string;
+  resourceIds: string[];
+}): Promise<AINotesDocumentItem> {
+  const result = await db
+    .insert(aiNotesDocument)
+    .values({
+      userId,
+      chatId: chatId || null,
+      title,
+      subject,
+      topic: topic || null,
+      level: level || null,
+      sections,
+      keyTerms: keyTerms.length > 0 ? keyTerms : null,
+      youtubeVideos: youtubeVideos.length > 0 ? youtubeVideos : null,
+      images: images.length > 0 ? images : null,
+      summary: summary || null,
+      resourceIds: resourceIds.length > 0 ? resourceIds : null,
+      isActive: true,
+    })
+    .returning();
+
+  const saved = result[0];
+  return {
+    ...saved,
+    sections: saved.sections as unknown,
+    keyTerms: saved.keyTerms as unknown,
+    youtubeVideos: saved.youtubeVideos as unknown,
+    images: saved.images as unknown,
+    resourceIds: saved.resourceIds as unknown,
+  };
+}
+
+// AI Exam Interfaces
+export interface AIExamItem {
+  id: string;
+  userId: string;
+  chatId: string | null;
+  title: string;
+  subject: string;
+  level: string;
+  instructions: string;
+  totalMarks: number;
+  timeLimit: number | null;
+  sections: unknown;
+  answerKey: unknown | null;
+  includeAnswerKey: boolean;
+  resourceIds: unknown | null;
+  metadata: unknown | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Save AI Generated Exam
+export async function saveAIExam({
+  userId,
+  chatId,
+  title,
+  subject,
+  level,
+  instructions,
+  totalMarks,
+  timeLimit,
+  sections,
+  answerKey,
+  includeAnswerKey,
+  resourceIds,
+  metadata,
+}: {
+  userId: string;
+  chatId?: string;
+  title: string;
+  subject: string;
+  level: string;
+  instructions: string;
+  totalMarks: number;
+  timeLimit?: number;
+  sections: unknown[];
+  answerKey: unknown;
+  includeAnswerKey: boolean;
+  resourceIds: string[];
+  metadata?: unknown;
+}): Promise<AIExamItem> {
+  const result = await db
+    .insert(aiExam)
+    .values({
+      userId,
+      chatId: chatId || null,
+      title,
+      subject,
+      level,
+      instructions,
+      totalMarks,
+      timeLimit: timeLimit || null,
+      sections,
+      answerKey: answerKey || null,
+      includeAnswerKey,
+      resourceIds: resourceIds.length > 0 ? resourceIds : null,
+      metadata: metadata || null,
+      isActive: true,
+    })
+    .returning();
+
+  const saved = result[0];
+  return {
+    ...saved,
+    sections: saved.sections as unknown,
+    answerKey: saved.answerKey as unknown,
+    resourceIds: saved.resourceIds as unknown,
+    metadata: saved.metadata as unknown,
+  };
 }
 
 // UUID format validation helper

@@ -185,11 +185,25 @@ You have access to the following tools. Use them strategically based on the user
 
 15. create_flashcards - Use this to create interactive flashcard study sets for learners. Generates AT LEAST 15 flashcards with questions/answers on the front and detailed explanations on the back. Use for memorization, vocabulary learning, and quick concept review.
 
+16. create_notes_document - Use this to create a comprehensive, rich study notes document from selected resources, YouTube videos, and images. Produces a beautifully structured document with sections, key terms, embedded media references, and a summary. Best workflow: call youtube_search first to find relevant videos, then call web_search to find supplementary images, then call create_notes_document with those results. Use when:
+   - A learner wants comprehensive study notes on a topic
+   - Generating a reference document combining text, videos, and visuals
+   - Creating a study guide that goes beyond a simple outline
+   MINIMUM: 4 sections (introduction, main content, summary, practice), 8 key terms, rich markdown content (150+ words per section).
+
+17. create_exam - Use this to generate a new original exam by analysing past papers or source material. Produces a structured exam with multiple sections, various question types, and an optional answer key — exported as a printable PDF. Use when:
+   - An admin or teacher wants to generate a new exam based on past-paper patterns
+   - Creating an end-of-term/end-of-year paper
+   - Building a mock exam from topic coverage
+   MINIMUM: 40 total marks, 3 sections, mix of question types (multiple_choice, true_false, short_answer, essay, structured).
+
 IMPORTANT DISTINCTION:
 - Teachers/Admins → create_assignment (creates printable PDF-ready documents, 10+ questions for topic practice)
+- Teachers/Admins → create_exam (generates structured exam papers from past-paper analysis, 40+ marks, answer key)
 - Students/Learners → create_quiz (creates interactive in-app assessments, 30+ questions for exam prep)
 - Study Tools → generate_summary, generate_overview, identify_keywords, generate_study_guide (content analysis and learning aids)
 - Memorization → create_flashcards (15+ cards for quick review and memorization)
+- Rich Study Notes → create_notes_document (comprehensive multi-section document with media, terms, and summary)
 
 When responding:
 - Be concise and educational
@@ -320,6 +334,7 @@ When responding:
               'save_memory', 'fetch_memory', 'get_current_time', 'server_actions',
               'create_assignment', 'create_quiz', 'create_flashcards',
               'generate_summary', 'generate_overview', 'identify_keywords', 'generate_study_guide',
+              'create_notes_document', 'create_exam',
             ],
           };
         }
@@ -1263,6 +1278,206 @@ create_quiz: tool({
             return {
               success: false,
               error: `Failed to create flashcards: ${error instanceof Error ? error.message : String(error)}`,
+            };
+          }
+        },
+      }),
+      create_notes_document: tool({
+        description: 'Creates a comprehensive, richly structured study notes document with sections, key terms, embedded YouTube video references, image references, and a summary. For best results, call youtube_search first to find relevant videos, then web_search for images, then pass those results into this tool. Minimum 4 sections and 8 key terms required.',
+        inputSchema: z.object({
+          title: z.string().describe('Title of the notes document (e.g., "Comprehensive Notes on Photosynthesis")'),
+          subject: z.string().describe('Subject area (e.g., "Biology", "History")'),
+          topic: z.string().optional().describe('Specific topic within the subject'),
+          level: z.string().optional().describe('Academic level (e.g., "Form 3", "University", "A-Level")'),
+          sections: z.array(z.object({
+            heading: z.string().describe('Section heading'),
+            content: z.string().describe('Rich markdown content for this section — minimum 150 words with explanations, examples, and detail'),
+            type: z.enum(['introduction', 'main', 'summary', 'practice']).describe('Section type'),
+          })).min(4).describe('Document sections — minimum 4 sections covering introduction, main content, summary, and practice'),
+          keyTerms: z.array(z.object({
+            term: z.string().describe('Key term or concept'),
+            definition: z.string().describe('Clear, concise definition'),
+          })).min(8).describe('Key terms glossary — minimum 8 terms'),
+          youtubeVideos: z.array(z.object({
+            title: z.string().describe('Video title'),
+            url: z.string().describe('YouTube video URL'),
+            description: z.string().describe('Brief description of what the video covers'),
+          })).optional().describe('YouTube videos found via youtube_search to embed as references'),
+          images: z.array(z.object({
+            url: z.string().describe('Image URL'),
+            caption: z.string().describe('Image caption or description'),
+            alt: z.string().describe('Alt text for accessibility'),
+          })).optional().describe('Supplementary images from web_search'),
+          summary: z.string().describe('3–5 sentence overview of the entire document'),
+          resourceIds: z.array(z.string()).optional().describe('LMS resource IDs used as source material'),
+        }),
+        execute: async ({ title, subject, topic, level, sections, keyTerms, youtubeVideos = [], images = [], summary, resourceIds = [] }) => {
+          try {
+            const { saveAINotesDocument } = await import('@/lib/actions/ai');
+            const saved = await saveAINotesDocument({
+              userId: dbUserId,
+              chatId,
+              title,
+              subject,
+              topic,
+              level,
+              sections,
+              keyTerms,
+              youtubeVideos,
+              images,
+              summary,
+              resourceIds,
+            });
+
+            return {
+              success: true,
+              format: 'notes_document',
+              notesDocumentId: saved.id,
+              metadata: {
+                title,
+                subject,
+                topic: topic || null,
+                level: level || null,
+                sectionCount: sections.length,
+                keyTermCount: keyTerms.length,
+                hasVideos: youtubeVideos.length > 0,
+                hasImages: images.length > 0,
+                createdAt: saved.createdAt.toISOString(),
+              },
+              document: {
+                title,
+                subject,
+                topic: topic || null,
+                level: level || null,
+                summary,
+                sections,
+                keyTerms,
+                youtubeVideos,
+                images,
+              },
+              exportOptions: {
+                canExportPDF: true,
+                canPrint: true,
+              },
+            };
+          } catch (error) {
+            return {
+              success: false,
+              error: `Failed to create notes document: ${error instanceof Error ? error.message : String(error)}`,
+            };
+          }
+        },
+      }),
+      create_exam: tool({
+        description: 'Generates a new original exam by analysing past papers or source material. Creates a structured exam with sections, various question types (multiple choice, true/false, short answer, essay, structured, fill in blank), and an optional answer key — formatted for printing/PDF export. Minimum 40 total marks across 3+ sections.',
+        inputSchema: z.object({
+          title: z.string().describe('Exam title (e.g., "End of Year Biology Examination 2026")'),
+          subject: z.string().describe('Subject area'),
+          level: z.string().describe('Academic level (e.g., "Form 4", "KCSE", "A-Level")'),
+          instructions: z.string().describe('General exam instructions for students'),
+          totalMarks: z.number().min(40).describe('Total marks for the exam — minimum 40'),
+          timeLimit: z.number().optional().describe('Time limit in minutes (optional)'),
+          sections: z.array(z.object({
+            sectionTitle: z.string().describe('Section title (e.g., "Section A: Multiple Choice")'),
+            sectionInstructions: z.string().describe('Instructions specific to this section'),
+            marks: z.number().describe('Total marks for this section'),
+            questions: z.array(z.object({
+              id: z.string().describe('Unique question ID (e.g., "q1", "q2")'),
+              type: z.enum(['multiple_choice', 'true_false', 'short_answer', 'essay', 'structured', 'fill_in_blank']).describe('Question type'),
+              text: z.string().describe('Question text'),
+              options: z.array(z.string()).optional().describe('Answer options for multiple choice (A, B, C, D)'),
+              marks: z.number().describe('Marks for this question'),
+              correctAnswer: z.string().describe('The correct answer'),
+              explanation: z.string().optional().describe('Explanation for the answer key'),
+            })).describe('Questions in this section'),
+          })).min(3).describe('Exam sections — minimum 3 sections'),
+          includeAnswerKey: z.boolean().optional().default(true).describe('Whether to include an answer key'),
+          resourceIds: z.array(z.string()).optional().describe('LMS resource IDs of past papers used as source'),
+          patternAnalysis: z.string().optional().describe("AI's analysis of patterns from source material"),
+          difficultyDistribution: z.object({
+            easy: z.number().describe('Percentage of easy questions'),
+            medium: z.number().describe('Percentage of medium questions'),
+            hard: z.number().describe('Percentage of hard questions'),
+          }).optional().describe('Difficulty distribution percentages'),
+        }),
+        execute: async ({ title, subject, level, instructions, totalMarks, timeLimit, sections, includeAnswerKey = true, resourceIds = [], patternAnalysis, difficultyDistribution }) => {
+          try {
+            // Build flat answer key from sections
+            const answerKey = sections.flatMap(section =>
+              section.questions.map(q => ({
+                questionId: q.id,
+                sectionTitle: section.sectionTitle,
+                correctAnswer: q.correctAnswer,
+                marks: q.marks,
+                explanation: q.explanation || null,
+              }))
+            );
+
+            // Strip correct answers from questions for the exam view
+            const examSections = sections.map(section => ({
+              ...section,
+              questions: section.questions.map(({ correctAnswer: _ca, explanation: _ex, ...rest }) => rest),
+            }));
+
+            const metadata = {
+              patternAnalysis: patternAnalysis || null,
+              difficultyDistribution: difficultyDistribution || null,
+            };
+
+            const { saveAIExam } = await import('@/lib/actions/ai');
+            const saved = await saveAIExam({
+              userId: dbUserId,
+              chatId,
+              title,
+              subject,
+              level,
+              instructions,
+              totalMarks,
+              timeLimit,
+              sections: examSections,
+              answerKey,
+              includeAnswerKey,
+              resourceIds,
+              metadata,
+            });
+
+            const questionCount = sections.reduce((acc, s) => acc + s.questions.length, 0);
+
+            return {
+              success: true,
+              format: 'exam',
+              examId: saved.id,
+              metadata: {
+                title,
+                subject,
+                level,
+                totalMarks,
+                timeLimit: timeLimit || null,
+                sectionCount: sections.length,
+                questionCount,
+                includeAnswerKey,
+                patternAnalysis: patternAnalysis || null,
+                createdAt: saved.createdAt.toISOString(),
+              },
+              exam: {
+                title,
+                subject,
+                level,
+                instructions,
+                totalMarks,
+                timeLimit: timeLimit || null,
+                sections: examSections,
+              },
+              answerKey: includeAnswerKey ? answerKey : null,
+              exportOptions: {
+                canExportPDF: true,
+                canPrint: true,
+              },
+            };
+          } catch (error) {
+            return {
+              success: false,
+              error: `Failed to create exam: ${error instanceof Error ? error.message : String(error)}`,
             };
           }
         },

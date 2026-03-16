@@ -701,6 +701,57 @@ export const aiFlashcardRelations = relations(aiFlashcard, ({ one }) => ({
   }),
 }));
 
+// AI Notes Document Table — comprehensive study documents
+export const aiNotesDocument = pgTable("ai_notes_document", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  chatId: uuid('chat_id').references(() => chat.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  subject: varchar('subject', { length: 100 }).notNull(),
+  topic: varchar('topic', { length: 255 }),
+  level: varchar('level', { length: 100 }),
+  sections: jsonb('sections').notNull(),       // [{heading, content (markdown), type}]
+  keyTerms: jsonb('key_terms'),                // [{term, definition}]
+  youtubeVideos: jsonb('youtube_videos'),      // [{title, url, description}]
+  images: jsonb('images'),                     // [{url, caption, alt}]
+  summary: text('summary'),
+  resourceIds: jsonb('resource_ids'),          // string[]
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+});
+
+// AI Exam Table — generated exams from past-paper analysis
+export const aiExam = pgTable("ai_exam", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  chatId: uuid('chat_id').references(() => chat.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  subject: varchar('subject', { length: 100 }).notNull(),
+  level: varchar('level', { length: 100 }).notNull(),
+  instructions: text('instructions').notNull(),
+  totalMarks: integer('total_marks').notNull(),
+  timeLimit: integer('time_limit'),            // minutes, nullable
+  sections: jsonb('sections').notNull(),       // [{sectionTitle, sectionInstructions, marks, questions[]}]
+  answerKey: jsonb('answer_key'),              // [{questionId, sectionTitle, correctAnswer, marks, explanation}]
+  includeAnswerKey: boolean('include_answer_key').default(true).notNull(),
+  resourceIds: jsonb('resource_ids'),          // string[]
+  metadata: jsonb('metadata'),                 // {patternAnalysis, difficultyDistribution}
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+});
+
+export const aiNotesDocumentRelations = relations(aiNotesDocument, ({ one }) => ({
+  user: one(user, { fields: [aiNotesDocument.userId], references: [user.id] }),
+  chat: one(chat, { fields: [aiNotesDocument.chatId], references: [chat.id] }),
+}));
+
+export const aiExamRelations = relations(aiExam, ({ one }) => ({
+  user: one(user, { fields: [aiExam.userId], references: [user.id] }),
+  chat: one(chat, { fields: [aiExam.chatId], references: [chat.id] }),
+}));
+
 export const auditLogRelations = relations(auditLog, ({ one }) => ({
   actor: one(user, {
     fields: [auditLog.actorId],

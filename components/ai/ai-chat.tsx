@@ -49,6 +49,8 @@ import type { UserRole } from "@/lib/types";
 import { AssignmentModalTrigger } from "./assignment-modal";
 import { QuizModalTrigger } from "./quiz-modal";
 import { FlashcardModalTrigger } from "./flashcard-modal";
+import { NotesDocumentModalTrigger } from "./notes-document-modal";
+import { ExamModalTrigger } from "./exam-modal";
 import { MarkdownRenderer } from "./markdown-renderer";
 import {
   Tool,
@@ -1139,6 +1141,60 @@ export function AIChat({
                         );
                       }
                       
+                      // Create Notes Document Tool
+                      if (toolType === "tool-create_notes_document") {
+                        const outputWrapper = output as { type?: string; value?: { success?: boolean; format?: string; notesDocumentId?: string; metadata?: unknown; document?: unknown; exportOptions?: unknown; error?: string } } | undefined;
+                        const notesOutput = outputWrapper?.value ?? output;
+
+                        if (notesOutput?.success) {
+                          return (
+                            <div key={i} className="mt-2 w-full min-w-0">
+                              <NotesDocumentModalTrigger data={notesOutput as unknown as React.ComponentProps<typeof NotesDocumentModalTrigger>['data']} />
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <Tool key={i} defaultOpen={false} className="mt-2 min-w-0">
+                            <ToolHeader toolType={toolType} state={state} />
+                            <ToolContent>
+                              <ToolInput input={input} />
+                              <ToolOutput
+                                errorText={notesOutput?.error}
+                                output={notesOutput?.success ? "Notes document created successfully" : undefined}
+                              />
+                            </ToolContent>
+                          </Tool>
+                        );
+                      }
+
+                      // Create Exam Tool
+                      if (toolType === "tool-create_exam") {
+                        const outputWrapper = output as { type?: string; value?: { success?: boolean; format?: string; examId?: string; metadata?: unknown; exam?: unknown; answerKey?: unknown; exportOptions?: unknown; error?: string } } | undefined;
+                        const examOutput = outputWrapper?.value ?? output;
+
+                        if (examOutput?.success) {
+                          return (
+                            <div key={i} className="mt-2 w-full min-w-0">
+                              <ExamModalTrigger data={examOutput as unknown as React.ComponentProps<typeof ExamModalTrigger>['data']} />
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <Tool key={i} defaultOpen={false} className="mt-2 min-w-0">
+                            <ToolHeader toolType={toolType} state={state} />
+                            <ToolContent>
+                              <ToolInput input={input} />
+                              <ToolOutput
+                                errorText={examOutput?.error}
+                                output={examOutput?.success ? "Exam created successfully" : undefined}
+                              />
+                            </ToolContent>
+                          </Tool>
+                        );
+                      }
+
                       // Server Actions — show approval UI for mutations
                       if (toolType === "tool-server_actions" && state === "approval-requested") {
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any

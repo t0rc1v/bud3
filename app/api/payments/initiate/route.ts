@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { z } from "zod";
 import {
   initiateSTKPush,
   isValidPhoneNumber,
@@ -9,6 +10,11 @@ import {
 import { createCreditPurchase, updateCreditPurchaseStatus } from "@/lib/actions/credits";
 import { getUserByClerkId } from "@/lib/actions/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
+
+const initiatePaymentSchema = z.object({
+  phoneNumber: z.string().min(1, "Phone number is required").regex(/^(?:\+?254|0)\d{9}$/, "Invalid Kenyan phone number"),
+  amount: z.number().finite().positive("Amount must be positive"),
+});
 
 export async function POST(req: Request) {
   try {
@@ -43,25 +49,17 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { phoneNumber, amount } = body;
+    const parsed = initiatePaymentSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message || "Invalid request body" },
+        { status: 400 }
+      );
+    }
+    const { phoneNumber, amount } = parsed.data;
     const type = "credits" as const;
 
-    // Validate inputs
-    if (!phoneNumber || !amount) {
-      return NextResponse.json(
-        { error: "Phone number and amount are required" },
-        { status: 400 }
-      );
-    }
-
-    if (typeof amount !== "number" || !isFinite(amount)) {
-      return NextResponse.json(
-        { error: "Amount must be a valid number" },
-        { status: 400 }
-      );
-    }
-
-    // Validate amount
+    // Validate amount against pricing rules
     if (!CREDIT_PRICING.isValidAmount(amount)) {
       return NextResponse.json(
         { error: `Minimum purchase amount is Ksh ${CREDIT_PRICING.minimumPurchaseKes}` },
@@ -69,7 +67,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Validate phone number
+    // Validate phone number format
     if (!isValidPhoneNumber(phoneNumber)) {
       return NextResponse.json(
         { error: "Invalid phone number. Please provide a valid Kenyan phone number" },

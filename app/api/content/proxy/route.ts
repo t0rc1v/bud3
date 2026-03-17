@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { resource, user } from "@/lib/db/schema";
+import { canAccessContent } from "@/lib/actions/admin";
 
 /**
  * GET /api/content/proxy?resourceId={id}
@@ -65,6 +66,29 @@ export async function GET(req: Request) {
       return NextResponse.json(
         { error: "Resource not found" },
         { status: 404 }
+      );
+    }
+
+    // Check resource is published and active
+    if (resourceData.status !== "published" || !resourceData.isActive) {
+      return NextResponse.json(
+        { error: "Resource not available" },
+        { status: 403 }
+      );
+    }
+
+    // Check access using ownership hierarchy
+    const hasAccess = await canAccessContent(
+      resourceData.ownerId || "",
+      (resourceData.ownerRole as "admin" | "regular" | "super_admin") || "admin",
+      resourceData.visibility || "public",
+      userData.id,
+      userData.role as "admin" | "regular" | "super_admin"
+    );
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have access to this resource" },
+        { status: 403 }
       );
     }
 

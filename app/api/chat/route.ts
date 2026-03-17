@@ -1,5 +1,6 @@
 import { streamText, UIMessage, convertToModelMessages, stepCountIs, smoothStream } from 'ai';
 import { auth } from '@clerk/nextjs/server';
+import { z } from 'zod';
 import { getModel, getModelById, getAvailableModels } from '@/lib/ai/providers';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { getUserByClerkId } from '@/lib/actions/auth';
@@ -7,6 +8,22 @@ import { getTokenCache } from '@/lib/ai/token-cache';
 import { compactContext, getContextStats } from '@/lib/ai/context-compaction';
 import { buildToolSet, LOCAL_TOOL_NAMES } from '@/lib/ai/tools/index';
 import type { ToolContext } from '@/lib/ai/tools/types';
+
+const chatRequestSchema = z.object({
+  messages: z.array(z.object({
+    id: z.string(),
+    role: z.enum(['user', 'assistant', 'system']),
+    content: z.string().optional(),
+    parts: z.array(z.any()).optional(),
+  })).min(1, "At least one message is required"),
+  chatId: z.string().optional(),
+  modelId: z.string().optional(),
+  tutorMode: z.enum(['socratic', 'guided', 'practice']).optional(),
+  tutorSessionId: z.string().optional(),
+  subject: z.string().optional(),
+  topic: z.string().optional(),
+  language: z.string().optional(),
+});
 
 // Suppress unused-import warning — getTokenCache may be used at runtime
 void getTokenCache;
@@ -46,20 +63,20 @@ export async function POST(req: Request) {
   }
 
   // Parallelize user lookup and body parse
-  const [user, body] = await Promise.all([
+  const [user, rawBody] = await Promise.all([
     getUserByClerkId(clerkId),
-    req.json() as Promise<{
-      messages: UIMessage[];
-      chatId?: string;
-      modelId?: string;
-      tutorMode?: 'socratic' | 'guided' | 'practice';
-      tutorSessionId?: string;
-      subject?: string;
-      topic?: string;
-      language?: string;
-    }>,
+    req.json(),
   ]);
-  const { messages, chatId, modelId, tutorMode, tutorSessionId, subject: tutorSubject, topic: tutorTopic, language } = body;
+  const parsed = chatRequestSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return new Response(
+      JSON.stringify({ error: parsed.error.issues[0]?.message || 'Invalid request body' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+  const body = parsed.data;
+  const { messages: rawMessages, chatId, modelId, tutorMode, tutorSessionId, subject: tutorSubject, topic: tutorTopic, language } = body;
+  const messages = rawMessages as UIMessage[];
 
   if (!user) {
     return new Response('User not found', { status: 404 });

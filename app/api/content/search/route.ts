@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { resource, topic, subject, level } from "@/lib/db/schema";
 import { sql, eq, and } from "drizzle-orm";
 import { getUserByClerkId } from "@/lib/actions/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 /**
  * Full-text search over resources using Postgres to_tsvector.
@@ -15,6 +16,15 @@ export async function GET(req: Request) {
     const { userId: clerkId } = await auth();
     if (!clerkId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Rate limit: 60 search requests per minute per user
+    const rl = checkRateLimit(`search:${clerkId}`, 60, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many search requests. Please slow down." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+      );
     }
 
     const dbUser = await getUserByClerkId(clerkId);
@@ -71,6 +81,47 @@ export async function GET(req: Request) {
       )
       .orderBy(sql`rank DESC`)
       .limit(limit);
+
+    // Fuzzy fallback via pg_trgm similarity when full-text returns no results
+    if (results.length === 0) {
+      try {
+        const roleFilter = isAdmin
+          ? eq(resource.isActive, true)
+          : and(
+              eq(resource.status, "published"),
+              eq(resource.isActive, true),
+              sql`${resource.visibility} IN ('public', 'admin_and_regulars', 'regular_only')`
+            );
+
+        const fuzzyResults = await db
+          .select({
+            id: resource.id,
+            title: resource.title,
+            description: resource.description,
+            type: resource.type,
+            topicTitle: topic.title,
+            subjectName: subject.name,
+            levelTitle: level.title,
+            rank: sql<number>`similarity(${resource.title}, ${sanitized})`,
+          })
+          .from(resource)
+          .leftJoin(topic, eq(resource.topicId, topic.id))
+          .leftJoin(subject, eq(topic.subjectId, subject.id))
+          .leftJoin(level, eq(subject.levelId, level.id))
+          .where(
+            and(
+              sql`similarity(${resource.title}, ${sanitized}) > 0.1`,
+              roleFilter
+            )
+          )
+          .orderBy(sql`similarity(${resource.title}, ${sanitized}) DESC`)
+          .limit(limit);
+
+        return NextResponse.json({ results: fuzzyResults, fuzzy: true });
+      } catch {
+        // pg_trgm extension may not be available — return empty
+      }
+    }
 
     return NextResponse.json({ results });
   } catch (error) {

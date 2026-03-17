@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { z } from "zod";
 import { giftCredits } from "@/lib/actions/credits";
 import { checkUserPermission } from "@/lib/actions/admin-permissions";
 import { getUserByClerkId } from "@/lib/actions/auth";
 import { FinancePermissions } from "@/lib/permissions";
 import { checkRateLimit } from "@/lib/rate-limit";
+
+const giftCreditsSchema = z.object({
+  email: z.string().email("Invalid email format").regex(/\.[a-zA-Z]{2,}$/, "Invalid email TLD"),
+  amount: z.number().positive("Amount must be greater than 0"),
+  reason: z.string().min(1, "Reason is required"),
+  expirationDays: z.number().int().min(1).max(365).nullable().optional(),
+});
 
 export async function POST(req: Request) {
   try {
@@ -49,40 +57,14 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { email, amount, reason, expirationDays } = body;
-
-    // Validate inputs
-    if (!email || !amount || !reason) {
+    const parsed = giftCreditsSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Email, amount, and reason are required" },
+        { error: parsed.error.issues[0]?.message || "Invalid request body" },
         { status: 400 }
       );
     }
-
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { error: "Invalid email format" },
-        { status: 400 }
-      );
-    }
-
-    if (amount <= 0) {
-      return NextResponse.json(
-        { error: "Amount must be greater than 0" },
-        { status: 400 }
-      );
-    }
-
-    // Validate expirationDays if provided
-    if (expirationDays !== undefined && expirationDays !== null) {
-      if (typeof expirationDays !== 'number' || expirationDays < 1 || expirationDays > 365) {
-        return NextResponse.json(
-          { error: "Expiration days must be between 1 and 365, or null for no expiration" },
-          { status: 400 }
-        );
-      }
-    }
+    const { email, amount, reason, expirationDays } = parsed.data;
 
     // Execute gift with database user ID
     const result = await giftCredits(user.id, email, amount, reason, expirationDays);

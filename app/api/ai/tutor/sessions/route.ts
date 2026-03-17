@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getUserByClerkId } from "@/lib/actions/auth";
 import { createTutorSession, getTutorSessionsByUser } from "@/lib/actions/tutor";
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function GET() {
   const { userId: clerkId } = await auth();
@@ -16,6 +17,15 @@ export async function GET() {
 export async function POST(req: Request) {
   const { userId: clerkId } = await auth();
   if (!clerkId) return new Response("Unauthorized", { status: 401 });
+
+  const rl = checkRateLimit(`ai-tutor:${clerkId}`, 20, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many session requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    );
+  }
+
   const user = await getUserByClerkId(clerkId);
   if (!user) return new Response("User not found", { status: 404 });
 

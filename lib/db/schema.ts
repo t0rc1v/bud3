@@ -114,7 +114,10 @@ export const resource = pgTable("resource", {
   isActive: boolean('is_active').default(true).notNull(),
   createdAt,
   updatedAt,
-});
+}, (table) => ({
+  topicIdx: index("resource_topic_id_idx").on(table.topicId),
+  ownerIdx: index("resource_owner_id_idx").on(table.ownerId),
+}));
 
 export const adminRegulars = pgTable("admin_regulars", {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -403,7 +406,9 @@ export const chat = pgTable("chat", {
   shareToken: uuid('share_token'),
   createdAt,
   updatedAt,
-});
+}, (table) => ({
+  userIdx: index("chat_user_id_idx").on(table.userId),
+}));
 
 export const chatMessage = pgTable("chat_message", {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -415,7 +420,9 @@ export const chatMessage = pgTable("chat_message", {
   metadata: jsonb('metadata'), // for tool calls, attachments, etc.
   createdAt,
   updatedAt,
-});
+}, (table) => ({
+  chatIdx: index("chat_message_chat_id_idx").on(table.chatId),
+}));
 
 export const aiMemory = pgTable("ai_memory", {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -1085,4 +1092,43 @@ export const parentReport = pgTable("parent_report", {
 export const parentReportRelations = relations(parentReport, ({ one }) => ({
   student: one(user, { fields: [parentReport.studentId], references: [user.id] }),
   generator: one(user, { fields: [parentReport.generatedBy], references: [user.id] }),
+}));
+
+// ==========================================
+// USER STREAKS
+// ==========================================
+
+export const userStreak = pgTable("user_streak", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => user.id, { onDelete: "cascade" }).unique(),
+  currentStreak: integer("current_streak").default(0).notNull(),
+  longestStreak: integer("longest_streak").default(0).notNull(),
+  lastActiveDate: timestamp("last_active_date", { withTimezone: true }),
+  createdAt,
+  updatedAt,
+});
+
+export const userStreakRelations = relations(userStreak, ({ one }) => ({
+  user: one(user, { fields: [userStreak.userId], references: [user.id] }),
+}));
+
+// ==========================================
+// NOTIFICATIONS
+// ==========================================
+
+export const notification = pgTable("notification", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  type: varchar("type", { length: 50 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body"),
+  isRead: boolean("is_read").default(false).notNull(),
+  metadata: jsonb("metadata"),
+  createdAt,
+}, (table) => [
+  index("notification_user_read_idx").on(table.userId, table.isRead),
+]);
+
+export const notificationRelations = relations(notification, ({ one }) => ({
+  user: one(user, { fields: [notification.userId], references: [user.id] }),
 }));

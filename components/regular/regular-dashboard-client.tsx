@@ -59,6 +59,18 @@ import { EditResourceForm } from "@/components/forms/edit-resource-form";
 import { ResourceViewer } from "@/components/resources/resource-viewer";
 import { deleteLevelWithSession, deleteSubjectWithSession, deleteTopicWithSession, deleteResource, getResourceById, getRegularSuperAdminId, getSuperAdminAdminIds } from "@/lib/actions/admin";
 import { recordResourceView } from "@/lib/actions/credits";
+import { getUserStreak, updateStreak } from "@/lib/actions/streaks";
+
+function getStreakBadges(currentStreak: number) {
+  const badges = [
+    { label: "3-Day Streak", threshold: 3 },
+    { label: "Week Warrior", threshold: 7 },
+    { label: "Two-Week Champion", threshold: 14 },
+    { label: "Month Master", threshold: 30 },
+    { label: "100-Day Legend", threshold: 100 },
+  ];
+  return badges.filter(b => currentStreak >= b.threshold);
+}
 import { BookmarksTab } from "@/components/regular/bookmarks-tab";
 import type {
   LevelWithFullHierarchy,
@@ -142,12 +154,16 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
     status: string;
   } | null>(null);
 
+  // Streak state
+  const [streak, setStreak] = useState<{ currentStreak: number; longestStreak: number } | null>(null);
+
   useEffect(() => {
     fetch("/api/learner/progress/summary").then((r) => r.ok ? r.json() : null).then((d) => {
       if (d?.summary) setProgressSummary(d.summary);
       if (d?.lastAccessed !== undefined) setLastAccessedResource(d.lastAccessed);
     }).catch(() => {});
-  }, []);
+    getUserStreak(userId).then(s => setStreak(s)).catch(() => {});
+  }, [userId]);
 
   // Separate content by owner role and owner ID using useMemo
   // My Content: only content owned by the current user
@@ -425,6 +441,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
     setSelectedResource(resourceWithRelations);
     // Fire-and-forget: track view + mark as started
     recordResourceView(userId, resource.id).catch(() => {});
+    updateStreak(userId).then(s => { if (s) setStreak(s); }).catch(() => {});
     fetch("/api/learner/progress", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -514,6 +531,26 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
                 <div>
                   <p className="text-sm font-semibold">{progressSummary.completed} completed</p>
                   <p className="text-xs text-muted-foreground">{progressSummary.started} in progress</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {streak && streak.currentStreak > 0 && (
+            <Card className="flex-shrink-0">
+              <CardContent className="py-3 px-4 flex items-center gap-3">
+                <span className="text-xl">🔥</span>
+                <div>
+                  <p className="text-sm font-semibold">{streak.currentStreak}-day streak</p>
+                  <p className="text-xs text-muted-foreground">Best: {streak.longestStreak} days</p>
+                  {getStreakBadges(streak.currentStreak).length > 0 && (
+                    <div className="flex gap-1 mt-1">
+                      {getStreakBadges(streak.currentStreak).map(b => (
+                        <Badge key={b.threshold} variant="secondary" className="text-[10px] px-1.5 py-0">
+                          {b.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

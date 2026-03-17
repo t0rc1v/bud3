@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, FileText, Video, Headphones, Image as ImageIcon, Check, User, Shield, GraduationCap, ChevronDown, ChevronRight, List, FolderTree } from "lucide-react";
+import { Paperclip, Plus, FileText, Video, Headphones, Image as ImageIcon, Check, User, Shield, GraduationCap, ChevronDown, ChevronRight, List, FolderTree } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getResourcesForUser, getResourcesForUserWithHierarchy } from "@/lib/actions/admin";
 import type { Resource } from "@/lib/types";
@@ -372,10 +372,23 @@ export function AddResourceToChat({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" onClick={handleOpen}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Resources
-        </Button>
+        <button
+          onClick={handleOpen}
+          className={cn(
+            "relative flex items-center justify-center shrink-0 h-7 w-7 rounded-lg text-xs font-medium transition-colors",
+            selectedCount > 0
+              ? "bg-primary/10 text-primary hover:bg-primary/20"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent"
+          )}
+          title={selectedCount > 0 ? `${selectedCount} resource${selectedCount > 1 ? 's' : ''} attached` : "Attach resources"}
+        >
+          <Paperclip className="h-3.5 w-3.5" />
+          {selectedCount > 0 && (
+            <span className="absolute -top-1 -right-1 flex items-center justify-center h-3.5 min-w-[0.875rem] rounded-full bg-primary text-primary-foreground text-[9px] font-bold leading-none px-0.5">
+              {selectedCount}
+            </span>
+          )}
+        </button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl h-[85vh] p-0 overflow-hidden flex flex-col">
         <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0 border-b">

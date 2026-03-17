@@ -1465,6 +1465,13 @@ export async function createResource(input: CreateResourceInput): Promise<void> 
       visibility: input.visibility,
       uploadFeePaid: feeResult.effectiveFee,
     });
+
+    // Pre-populate text extraction cache for PDFs (fire-and-forget)
+    if (input.type === "notes") {
+      import("@/lib/ai/extract-text")
+        .then(({ extractResourceText }) => extractResourceText(newResource!.id))
+        .catch((err) => console.error("[createResource] Background text extraction failed:", err));
+    }
   }
 
   revalidatePath("/admin");
@@ -1882,5 +1889,95 @@ export async function getSuperAdminScopedStats(superAdminId: string): Promise<Sy
     totalSubjects: subjects.length,
     totalTopics: topics.length,
     totalResources: resources.length,
+  };
+}
+
+/**
+ * Returns resources accessible to a user, grouped by subject > topic hierarchy.
+ */
+export async function getResourcesForUserWithHierarchy(
+  userId: string,
+  userRole: UserRole
+): Promise<{
+  subjects: Array<{
+    id: string;
+    name: string;
+    topics: Array<{
+      id: string;
+      title: string;
+      resources: Array<{
+        id: string;
+        title: string;
+        description: string;
+        url: string;
+        type: "notes" | "video" | "audio" | "image";
+        ownerId: string;
+        ownerRole: string;
+      }>;
+    }>;
+  }>;
+}> {
+  const resources = await getResourcesForUser(userId, userRole);
+
+  // Collect unique topic/subject IDs
+  const topicIds = [...new Set(resources.map((r) => r.topicId))];
+  const subjectIds = [...new Set(resources.map((r) => r.subjectId))];
+
+  const [topicRows, subjectRows] = await Promise.all([
+    topicIds.length
+      ? db.select().from(topic).where(inArray(topic.id, topicIds))
+      : Promise.resolve([]),
+    subjectIds.length
+      ? db.select().from(subject).where(inArray(subject.id, subjectIds))
+      : Promise.resolve([]),
+  ]);
+
+  const topicMap = new Map(topicRows.map((t) => [t.id, t]));
+  const subjectMap = new Map(subjectRows.map((s) => [s.id, s]));
+
+  // Build hierarchy: subject -> topic -> resources
+  const subjectGroups = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      topicGroups: Map<string, { id: string; title: string; resources: typeof resources }>;
+    }
+  >();
+
+  for (const r of resources) {
+    const subj = subjectMap.get(r.subjectId);
+    const top = topicMap.get(r.topicId);
+    if (!subj || !top) continue;
+
+    if (!subjectGroups.has(subj.id)) {
+      subjectGroups.set(subj.id, { id: subj.id, name: subj.name, topicGroups: new Map() });
+    }
+    const sg = subjectGroups.get(subj.id)!;
+
+    if (!sg.topicGroups.has(top.id)) {
+      sg.topicGroups.set(top.id, { id: top.id, title: top.title, resources: [] });
+    }
+    sg.topicGroups.get(top.id)!.resources.push(r);
+  }
+
+  return {
+    subjects: Array.from(subjectGroups.values()).map((sg) => ({
+      id: sg.id,
+      name: sg.name,
+      topics: Array.from(sg.topicGroups.values()).map((tg) => ({
+        id: tg.id,
+        title: tg.title,
+        resources: tg.resources.map((r) => ({
+          id: r.id,
+          title: r.title,
+          description: r.description,
+          url: r.url,
+          type: r.type,
+          ownerId: r.ownerId,
+          ownerRole: r.ownerRole,
+        })),
+      })),
+    })),
   };
 }

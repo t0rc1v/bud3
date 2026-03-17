@@ -427,13 +427,35 @@ export function AIChat({
     const unsentResources = attachedResources.filter(
       (resource) => !sentResourceIdsRef.current.has(resource.id)
     );
-    
-    const fileParts = unsentResources.map((resource) => ({
-      type: "file" as const,
-      url: resource.url,
-      mediaType: getMediaType(resource.type),
-      filename: resource.title,
-    }));
+
+    // Smart batch: if >3 non-image resources, send as references instead of raw files
+    // so the AI can use read_resource_content to access them on-demand
+    const imageResources = unsentResources.filter((r) => r.type === "image");
+    const nonImageResources = unsentResources.filter((r) => r.type !== "image");
+    const useSmartBatch = nonImageResources.length > 3;
+
+    let fileParts: Array<{ type: "file"; url: string; mediaType: string; filename: string }>;
+    let resourceRefText = "";
+
+    if (useSmartBatch) {
+      // Images still go as FileUIPart (models handle them well visually)
+      fileParts = imageResources.map((resource) => ({
+        type: "file" as const,
+        url: resource.url,
+        mediaType: getMediaType(resource.type),
+        filename: resource.title,
+      }));
+      // Non-image resources sent as text references with IDs
+      resourceRefText = "\n\n[Attached Resources - use read_resource_content tool to access content]\n" +
+        nonImageResources.map((r) => `- ${r.title} (${r.type}, ID: ${r.id})`).join("\n");
+    } else {
+      fileParts = unsentResources.map((resource) => ({
+        type: "file" as const,
+        url: resource.url,
+        mediaType: getMediaType(resource.type),
+        filename: resource.title,
+      }));
+    }
 
     // If no chat exists, create one optimistically and send the message
     if (!chatId) {
@@ -441,7 +463,7 @@ export function AIChat({
       const chatTitle = generateChatTitle(input, unsentResources);
 
       // Store pending message for the useEffect to send after re-render
-      pendingMessageRef.current = { text: userMessage, files: fileParts };
+      pendingMessageRef.current = { text: userMessage + resourceRefText, files: fileParts };
       unsentResources.forEach(r => sentResourceIdsRef.current.add(r.id));
 
       // Optimistically update state + URL immediately (no server round-trip)
@@ -462,8 +484,8 @@ export function AIChat({
       // Message is sent by the useEffect once chatId state propagates
     } else {
       // Chat exists, send message immediately
-      sendMessage({ 
-        text: userMessage,
+      sendMessage({
+        text: userMessage + resourceRefText,
         files: fileParts,
       });
       

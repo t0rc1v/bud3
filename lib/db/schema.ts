@@ -849,3 +849,240 @@ export const resourceRatingRelations = relations(resourceRating, ({ one }) => ({
   user: one(user, { fields: [resourceRating.userId], references: [user.id] }),
   resource: one(resource, { fields: [resourceRating.resourceId], references: [resource.id] }),
 }));
+
+// ============ PHASE 1: AUTO-GRADING ============
+
+export const submissionStatusEnum = pgEnum('submission_status', [
+  'submitted', 'grading', 'graded', 'reviewed', 'published',
+]);
+
+export const gradeByEnum = pgEnum('grade_by', ['ai', 'teacher']);
+export const gradeStatusEnum = pgEnum('grade_status', ['draft', 'published']);
+
+export const aiSubmission = pgTable("ai_submission", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  examId: uuid('exam_id').references(() => aiExam.id, { onDelete: 'set null' }),
+  assignmentId: uuid('assignment_id').references(() => aiAssignment.id, { onDelete: 'set null' }),
+  type: varchar('type', { length: 20 }).notNull(), // 'exam' | 'assignment' | 'quiz'
+  answers: jsonb('answers').notNull(),
+  fileUrl: text('file_url'),
+  status: submissionStatusEnum('status').notNull().default('submitted'),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+}, (table) => ({
+  userStatusIdx: index("ai_submission_user_status_idx").on(table.userId, table.status),
+  examIdx: index("ai_submission_exam_idx").on(table.examId),
+  assignmentIdx: index("ai_submission_assignment_idx").on(table.assignmentId),
+}));
+
+export const aiGrade = pgTable("ai_grade", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  submissionId: uuid('submission_id').notNull().references(() => aiSubmission.id, { onDelete: 'cascade' }).unique(),
+  gradedBy: gradeByEnum('graded_by').notNull(),
+  teacherId: uuid('teacher_id').references(() => user.id, { onDelete: 'set null' }),
+  totalScore: integer('total_score').notNull(),
+  maxScore: integer('max_score').notNull(),
+  percentage: integer('percentage').notNull(),
+  passed: boolean('passed').notNull(),
+  perQuestionFeedback: jsonb('per_question_feedback').notNull(),
+  overallFeedback: text('overall_feedback'),
+  rubric: jsonb('rubric'),
+  aiConfidence: integer('ai_confidence'),
+  teacherOverrides: jsonb('teacher_overrides'),
+  status: gradeStatusEnum('status').notNull().default('draft'),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+});
+
+export const aiSubmissionRelations = relations(aiSubmission, ({ one }) => ({
+  user: one(user, { fields: [aiSubmission.userId], references: [user.id] }),
+  exam: one(aiExam, { fields: [aiSubmission.examId], references: [aiExam.id] }),
+  assignment: one(aiAssignment, { fields: [aiSubmission.assignmentId], references: [aiAssignment.id] }),
+  grade: one(aiGrade),
+}));
+
+export const aiGradeRelations = relations(aiGrade, ({ one }) => ({
+  submission: one(aiSubmission, { fields: [aiGrade.submissionId], references: [aiSubmission.id] }),
+  teacher: one(user, { fields: [aiGrade.teacherId], references: [user.id] }),
+}));
+
+// ============ PHASE 2: ADAPTIVE LEARNING ============
+
+export const studyPlanStatusEnum = pgEnum('study_plan_status', ['active', 'completed', 'paused']);
+
+export const studyPlan = pgTable("study_plan", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  subject: varchar('subject', { length: 100 }).notNull(),
+  level: varchar('level', { length: 100 }),
+  status: studyPlanStatusEnum('status').notNull().default('active'),
+  goals: jsonb('goals'),
+  schedule: jsonb('schedule'),
+  weeklyHoursTarget: integer('weekly_hours_target'),
+  startDate: timestamp('start_date', { withTimezone: true }).notNull().defaultNow(),
+  endDate: timestamp('end_date', { withTimezone: true }),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+});
+
+export const studyPlanProgress = pgTable("study_plan_progress", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  planId: uuid('plan_id').notNull().references(() => studyPlan.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  date: timestamp('date', { withTimezone: true }).notNull().defaultNow(),
+  activitiesCompleted: jsonb('activities_completed'),
+  timeSpentMinutes: integer('time_spent_minutes'),
+  notes: text('notes'),
+  createdAt,
+});
+
+export const flashcardRatingEnum = pgEnum('flashcard_rating', ['again', 'hard', 'good', 'easy']);
+
+export const flashcardReview = pgTable("flashcard_review", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  flashcardSetId: uuid('flashcard_set_id').notNull().references(() => aiFlashcard.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  cardId: varchar('card_id', { length: 100 }).notNull(),
+  rating: flashcardRatingEnum('rating').notNull(),
+  interval: integer('interval').notNull(), // days until next review
+  easeFactor: integer('ease_factor').notNull(), // stored as integer (×1000, e.g. 2500 = 2.5)
+  nextReviewDate: timestamp('next_review_date', { withTimezone: true }).notNull(),
+  reviewCount: integer('review_count').notNull().default(1),
+  createdAt,
+}, (table) => ({
+  userNextReviewIdx: index("fr_user_next_review_idx").on(table.userId, table.nextReviewDate),
+}));
+
+export const weaknessProfile = pgTable("weakness_profile", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  topicId: uuid('topic_id').references(() => topic.id, { onDelete: 'set null' }),
+  subject: varchar('subject', { length: 100 }).notNull(),
+  weaknessScore: integer('weakness_score').notNull(), // 0-100, higher = weaker
+  evidenceData: jsonb('evidence_data'),
+  lastAssessedAt: timestamp('last_assessed_at', { withTimezone: true }).notNull().defaultNow(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+}, (table) => ({
+  userWeaknessIdx: index("wp_user_weakness_idx").on(table.userId, table.weaknessScore),
+}));
+
+export const studyPlanRelations = relations(studyPlan, ({ one, many }) => ({
+  user: one(user, { fields: [studyPlan.userId], references: [user.id] }),
+  progress: many(studyPlanProgress),
+}));
+
+export const studyPlanProgressRelations = relations(studyPlanProgress, ({ one }) => ({
+  plan: one(studyPlan, { fields: [studyPlanProgress.planId], references: [studyPlan.id] }),
+  user: one(user, { fields: [studyPlanProgress.userId], references: [user.id] }),
+}));
+
+export const flashcardReviewRelations = relations(flashcardReview, ({ one }) => ({
+  flashcardSet: one(aiFlashcard, { fields: [flashcardReview.flashcardSetId], references: [aiFlashcard.id] }),
+  user: one(user, { fields: [flashcardReview.userId], references: [user.id] }),
+}));
+
+export const weaknessProfileRelations = relations(weaknessProfile, ({ one }) => ({
+  user: one(user, { fields: [weaknessProfile.userId], references: [user.id] }),
+  topic: one(topic, { fields: [weaknessProfile.topicId], references: [topic.id] }),
+}));
+
+// ============ PHASE 3: AI TUTOR ============
+
+export const tutorModeEnum = pgEnum('tutor_mode', ['socratic', 'guided', 'practice']);
+export const tutorSessionStatusEnum = pgEnum('tutor_session_status', ['active', 'completed']);
+
+export const tutorSession = pgTable("tutor_session", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  chatId: uuid('chat_id').notNull().references(() => chat.id, { onDelete: 'cascade' }),
+  subject: varchar('subject', { length: 100 }).notNull(),
+  topic: varchar('topic', { length: 255 }).notNull(),
+  level: varchar('level', { length: 100 }),
+  mode: tutorModeEnum('mode').notNull().default('socratic'),
+  misconceptions: jsonb('misconceptions'),
+  conceptsMastered: jsonb('concepts_mastered'),
+  sessionStats: jsonb('session_stats'),
+  status: tutorSessionStatusEnum('status').notNull().default('active'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+});
+
+export const tutorSessionRelations = relations(tutorSession, ({ one }) => ({
+  user: one(user, { fields: [tutorSession.userId], references: [user.id] }),
+  chat: one(chat, { fields: [tutorSession.chatId], references: [chat.id] }),
+}));
+
+// ============ PHASE 4: CURRICULUM IMPORT ============
+
+export const curriculumImportStatusEnum = pgEnum('curriculum_import_status', [
+  'uploading', 'extracting', 'processing', 'review', 'approved', 'applied', 'failed',
+]);
+
+export const curriculumImport = pgTable("curriculum_import", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  sourceType: varchar('source_type', { length: 20 }).notNull(), // 'syllabus' | 'past_paper' | 'notes'
+  sourceResourceId: uuid('source_resource_id').references(() => resource.id, { onDelete: 'set null' }),
+  sourceUrl: text('source_url'),
+  extractedContent: jsonb('extracted_content'),
+  proposedStructure: jsonb('proposed_structure'),
+  status: curriculumImportStatusEnum('status').notNull().default('uploading'),
+  appliedEntities: jsonb('applied_entities'),
+  errorMessage: text('error_message'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+  updatedAt,
+});
+
+export const curriculumImportRelations = relations(curriculumImport, ({ one }) => ({
+  user: one(user, { fields: [curriculumImport.userId], references: [user.id] }),
+  sourceResource: one(resource, { fields: [curriculumImport.sourceResourceId], references: [resource.id] }),
+}));
+
+// ============ PHASE 6: QUALITY CHECK ============
+
+export const aiQualityCheck = pgTable("ai_quality_check", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  submissionId: uuid('submission_id').notNull().references(() => aiSubmission.id, { onDelete: 'cascade' }),
+  originalityScore: integer('originality_score'),
+  similarityResults: jsonb('similarity_results'),
+  qualityFeedback: jsonb('quality_feedback'),
+  flagged: boolean('flagged').default(false).notNull(),
+  flagReason: text('flag_reason'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+});
+
+export const aiQualityCheckRelations = relations(aiQualityCheck, ({ one }) => ({
+  submission: one(aiSubmission, { fields: [aiQualityCheck.submissionId], references: [aiSubmission.id] }),
+}));
+
+// ============ PHASE 10: PARENT REPORTS ============
+
+export const parentReport = pgTable("parent_report", {
+  id: uuid('id').defaultRandom().primaryKey(),
+  studentId: uuid('student_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  generatedBy: uuid('generated_by').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  reportType: varchar('report_type', { length: 20 }).notNull(), // 'weekly' | 'monthly' | 'custom'
+  period: jsonb('period').notNull(), // { startDate, endDate }
+  content: jsonb('content').notNull(),
+  emailSent: boolean('email_sent').default(false).notNull(),
+  emailSentAt: timestamp('email_sent_at', { withTimezone: true }),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt,
+});
+
+export const parentReportRelations = relations(parentReport, ({ one }) => ({
+  student: one(user, { fields: [parentReport.studentId], references: [user.id] }),
+  generator: one(user, { fields: [parentReport.generatedBy], references: [user.id] }),
+}));

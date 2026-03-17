@@ -252,13 +252,30 @@ export function SidebarContentTree({
   const filteredLevels = useMemo(() => {
     if (!searchQuery) return currentTabLevels;
     const query = searchQuery.toLowerCase();
-    return currentTabLevels.filter(g => 
-      g.title.toLowerCase().includes(query) ||
-      g.subjects.some(s => 
-        s.name.toLowerCase().includes(query) ||
-        s.topics.some(t => t.title.toLowerCase().includes(query))
-      )
-    );
+    return currentTabLevels
+      .map(g => {
+        const levelMatch = g.title.toLowerCase().includes(query);
+        if (levelMatch) return g;
+        const filteredSubjects = g.subjects
+          .map(s => {
+            const subjectMatch = s.name.toLowerCase().includes(query);
+            if (subjectMatch) return s;
+            const filteredTopics = s.topics
+              .map(t => {
+                const topicMatch = t.title.toLowerCase().includes(query);
+                if (topicMatch) return t;
+                const filteredResources = t.resources.filter(r =>
+                  r.title.toLowerCase().includes(query)
+                );
+                return filteredResources.length > 0 ? { ...t, resources: filteredResources } : null;
+              })
+              .filter(Boolean) as typeof s.topics;
+            return filteredTopics.length > 0 ? { ...s, topics: filteredTopics } : null;
+          })
+          .filter(Boolean) as typeof g.subjects;
+        return filteredSubjects.length > 0 ? { ...g, subjects: filteredSubjects } : null;
+      })
+      .filter(Boolean) as typeof currentTabLevels;
   }, [currentTabLevels, searchQuery]);
 
   // Expansion handlers
@@ -617,8 +634,16 @@ export function SidebarContentTree({
               <div className="text-center py-4 px-2">
                 <FolderOpen className="h-6 w-6 mx-auto mb-1 text-muted-foreground opacity-50" />
                 <p className="text-xs text-muted-foreground">
-                  {searchQuery ? "No results" : "No content"}
+                  {searchQuery ? "No results found" : "No content"}
                 </p>
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="mt-2 text-xs text-primary hover:underline"
+                  >
+                    Clear search
+                  </button>
+                )}
               </div>
             ) : (
               <div className="space-y-0.5">

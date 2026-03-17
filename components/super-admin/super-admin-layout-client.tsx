@@ -5,19 +5,26 @@ import { SidebarContentTree } from "@/components/content/sidebar-content-tree";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { PanelLeft, PanelRight, MessageSquare, Crown, Gift, Users, LayoutDashboard, BarChart2, ChevronDown } from "lucide-react";
+import { PanelLeft, PanelRight, MessageSquare, Crown, Gift, Users, LayoutDashboard, BarChart2, ChevronDown, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AIChat, type Resource as ChatResource } from "@/components/ai/ai-chat";
+import dynamic from "next/dynamic";
+import type { Resource as ChatResource } from "@/components/ai/ai-chat";
+const AIChat = dynamic(() => import("@/components/ai/ai-chat").then(m => ({ default: m.AIChat })), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center h-full"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>,
+});
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { UserButtonWrapper } from "@/components/auth/user-button-wrapper";
 import { CreditModal, CreditBadge } from "@/components/credits/credit-modal";
 import type { Resource } from "@/lib/types";
 import type { LevelWithFullHierarchy } from "@/lib/types";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { NotificationBell } from "@/components/shared/notification-bell";
 
 interface SuperAdminLayoutClientProps {
   children: ReactNode;
@@ -73,6 +80,14 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
     
     setResourceToAddToChat(chatResource);
   }, [rightSidebarOpen]);
+
+  useKeyboardShortcuts({
+    onToggleLeftSidebar: () => setLeftSidebarOpen(prev => !prev),
+    onToggleRightSidebar: () => setRightSidebarOpen(prev => !prev),
+    onClosePanel: () => {
+      if (rightSidebarOpen) setRightSidebarOpen(false);
+    },
+  });
 
   const showMobile = isClient && isMobile;
 
@@ -202,9 +217,10 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
           <div suppressHydrationWarning>
             <CreditModal trigger={<CreditBadge className="cursor-pointer" />} />
           </div>
+          <NotificationBell />
           {isClient && <ThemeToggle />}
               {isClient && <UserButtonWrapper />}
-          
+
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="h-9 w-9">
@@ -245,7 +261,7 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
       <div
         className={cn(
           "flex-shrink-0 border-r bg-sidebar transition-all duration-300 ease-in-out flex flex-col",
-          !isClient ? "w-0 overflow-hidden" : leftSidebarOpen ? "w-72" : "w-0 overflow-hidden"
+          leftSidebarOpen ? "w-72 max-md:hidden" : "w-0 overflow-hidden max-md:hidden"
         )}
       >
         <div className="flex h-14 items-center gap-2.5 border-b px-4">
@@ -405,12 +421,13 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
                 </TooltipContent>
               </Tooltip>
 
+              <NotificationBell />
               {isClient && <ThemeToggle />}
               {isClient && <UserButtonWrapper />}
             </div>
           </div>
         </TooltipProvider>
-        
+
         <main className="flex-1 overflow-auto p-6">
           {children}
         </main>
@@ -419,7 +436,7 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
       <div
         className={cn(
           "flex-shrink-0 border-l bg-background transition-all duration-300 ease-in-out flex flex-col",
-          !isClient ? "w-0 overflow-hidden" : rightSidebarOpen ? "w-96" : "w-0 overflow-hidden"
+          rightSidebarOpen ? "w-96 max-md:hidden" : "w-0 overflow-hidden max-md:hidden"
         )}
       >
         <AIChat 

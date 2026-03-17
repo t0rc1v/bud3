@@ -37,6 +37,7 @@ import {
   Languages,
   BookOpen,
   Target,
+  MoreHorizontal,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -50,6 +51,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AddResourceToChat, type ChatResource as Resource } from "./add-resource-to-chat";
 import { ModelSelector } from "./model-selector";
 import type { UserRole } from "@/lib/types";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { SUPPORTED_LANGUAGES } from "@/lib/ai/language";
 import {
   Tooltip,
@@ -171,7 +173,7 @@ export function AIChat({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [textareaRows, setTextareaRows] = useState(1);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobileHook = useIsMobile();
   const [mounted, setMounted] = useState(false);
   const [creditError, setCreditError] = useState<{ message: string; remainingCredits?: number } | null>(null);
   const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
@@ -183,20 +185,10 @@ export function AIChat({
   const [tutorMode, setTutorMode] = useState<'off' | 'socratic' | 'guided' | 'practice'>('off');
   const [language, setLanguage] = useState('en');
 
-  // Detect mobile device - use state + useEffect to avoid hydration mismatch
+  const isMobile = mounted && isMobileHook;
+
   useEffect(() => {
     setMounted(true);
-    const checkMobile = () => {
-      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
-    };
-    setIsMobile(checkMobile());
-    
-    const handleResize = () => {
-      setIsMobile(checkMobile());
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
   }, []);
    
   // Store pending message to send after chat is created
@@ -1489,129 +1481,175 @@ export function AIChat({
                 {/* Divider */}
                 <div className="w-px h-4 bg-border mx-0.5 shrink-0" />
 
-                {/* Tutor Mode Toggle */}
-                <TooltipProvider delayDuration={300}>
+                {isMobile ? (
+                  /* Mobile: overflow menu for Tutor + Language */
                   <DropdownMenu>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            className={cn(
-                              "flex items-center justify-center shrink-0 h-7 w-7 rounded-lg text-xs font-medium transition-colors",
-                              tutorMode !== 'off'
-                                ? "bg-primary/10 text-primary hover:bg-primary/20"
-                                : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                            )}
-                          >
-                            <GraduationCap className="h-3.5 w-3.5" />
-                          </button>
-                        </DropdownMenuTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs">
-                        {tutorMode !== 'off'
-                          ? `Tutor: ${tutorMode === 'socratic' ? 'Socratic' : tutorMode === 'guided' ? 'Guided' : 'Practice'}`
-                          : 'Tutor Mode'}
-                      </TooltipContent>
-                    </Tooltip>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className={cn(
+                          "flex items-center justify-center shrink-0 h-7 w-7 rounded-lg text-xs font-medium transition-colors",
+                          (tutorMode !== 'off' || language !== 'en')
+                            ? "bg-primary/10 text-primary hover:bg-primary/20"
+                            : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                        )}
+                      >
+                        <MoreHorizontal className="h-3.5 w-3.5" />
+                      </button>
+                    </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-56">
-                      <DropdownMenuItem
-                        onClick={() => setTutorMode('off')}
-                        className="flex items-start gap-2 py-2 cursor-pointer"
-                      >
-                        <MessageSquare className={cn("h-4 w-4 mt-0.5 shrink-0", tutorMode === 'off' && "text-primary")} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-medium">Standard Chat</span>
-                            {tutorMode === 'off' && <div className="h-1.5 w-1.5 rounded-full bg-primary" />}
-                          </div>
-                          <p className="text-xs text-muted-foreground">Direct answers and explanations</p>
-                        </div>
+                      <DropdownMenuItem className="text-xs font-semibold text-muted-foreground" disabled>Tutor Mode</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setTutorMode('off')} className="cursor-pointer">
+                        <MessageSquare className={cn("h-4 w-4 mr-2", tutorMode === 'off' && "text-primary")} />
+                        Standard Chat {tutorMode === 'off' && <div className="h-1.5 w-1.5 rounded-full bg-primary ml-auto" />}
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setTutorMode('socratic')}
-                        className="flex items-start gap-2 py-2 cursor-pointer"
-                      >
-                        <Brain className={cn("h-4 w-4 mt-0.5 shrink-0", tutorMode === 'socratic' && "text-violet-600 dark:text-violet-400")} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-medium">Socratic</span>
-                            {tutorMode === 'socratic' && <div className="h-1.5 w-1.5 rounded-full bg-violet-500" />}
-                          </div>
-                          <p className="text-xs text-muted-foreground">Guides you with probing questions</p>
-                        </div>
+                      <DropdownMenuItem onClick={() => setTutorMode('socratic')} className="cursor-pointer">
+                        <Brain className={cn("h-4 w-4 mr-2", tutorMode === 'socratic' && "text-violet-500")} />
+                        Socratic {tutorMode === 'socratic' && <div className="h-1.5 w-1.5 rounded-full bg-violet-500 ml-auto" />}
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setTutorMode('guided')}
-                        className="flex items-start gap-2 py-2 cursor-pointer"
-                      >
-                        <BookOpen className={cn("h-4 w-4 mt-0.5 shrink-0", tutorMode === 'guided' && "text-blue-600 dark:text-blue-400")} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-medium">Guided</span>
-                            {tutorMode === 'guided' && <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />}
-                          </div>
-                          <p className="text-xs text-muted-foreground">Step-by-step instruction with checks</p>
-                        </div>
+                      <DropdownMenuItem onClick={() => setTutorMode('guided')} className="cursor-pointer">
+                        <BookOpen className={cn("h-4 w-4 mr-2", tutorMode === 'guided' && "text-blue-500")} />
+                        Guided {tutorMode === 'guided' && <div className="h-1.5 w-1.5 rounded-full bg-blue-500 ml-auto" />}
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setTutorMode('practice')}
-                        className="flex items-start gap-2 py-2 cursor-pointer"
-                      >
-                        <Target className={cn("h-4 w-4 mt-0.5 shrink-0", tutorMode === 'practice' && "text-emerald-600 dark:text-emerald-400")} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-medium">Practice</span>
-                            {tutorMode === 'practice' && <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
-                          </div>
-                          <p className="text-xs text-muted-foreground">Problem generation with feedback</p>
-                        </div>
+                      <DropdownMenuItem onClick={() => setTutorMode('practice')} className="cursor-pointer">
+                        <Target className={cn("h-4 w-4 mr-2", tutorMode === 'practice' && "text-emerald-500")} />
+                        Practice {tutorMode === 'practice' && <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 ml-auto" />}
                       </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TooltipProvider>
-
-                {/* Language Selector */}
-                <TooltipProvider delayDuration={300}>
-                  <DropdownMenu>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            className={cn(
-                              "flex items-center justify-center shrink-0 h-7 w-7 rounded-lg text-xs font-medium transition-colors",
-                              language !== 'en'
-                                ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20"
-                                : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                            )}
-                          >
-                            <Languages className="h-3.5 w-3.5" />
-                          </button>
-                        </DropdownMenuTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs">
-                        {language !== 'en'
-                          ? `Language: ${SUPPORTED_LANGUAGES[language]?.name ?? language}`
-                          : 'Response Language'}
-                      </TooltipContent>
-                    </Tooltip>
-                    <DropdownMenuContent align="start" className="w-52 max-h-[280px] overflow-y-auto">
-                      {Object.entries(SUPPORTED_LANGUAGES).map(([code, lang]) => (
-                        <DropdownMenuItem
-                          key={code}
-                          onClick={() => setLanguage(code)}
-                          className="flex items-center gap-2 py-1.5 cursor-pointer"
-                        >
-                          <div className={cn(
-                            "h-1.5 w-1.5 rounded-full shrink-0",
-                            code === language ? "bg-primary" : "bg-transparent"
-                          )} />
-                          <span className="text-sm flex-1">{lang.name}</span>
-                          <span className="text-xs text-muted-foreground">{lang.nativeName}</span>
+                      <DropdownMenuItem className="text-xs font-semibold text-muted-foreground mt-1" disabled>Language</DropdownMenuItem>
+                      {Object.entries(SUPPORTED_LANGUAGES).slice(0, 8).map(([code, lang]) => (
+                        <DropdownMenuItem key={code} onClick={() => setLanguage(code)} className="cursor-pointer">
+                          <div className={cn("h-1.5 w-1.5 rounded-full shrink-0 mr-2", code === language ? "bg-primary" : "bg-transparent")} />
+                          {lang.name}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                </TooltipProvider>
+                ) : (
+                  <>
+                    {/* Tutor Mode Toggle */}
+                    <TooltipProvider delayDuration={300}>
+                      <DropdownMenu>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                className={cn(
+                                  "flex items-center justify-center shrink-0 h-7 w-7 rounded-lg text-xs font-medium transition-colors",
+                                  tutorMode !== 'off'
+                                    ? "bg-primary/10 text-primary hover:bg-primary/20"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                                )}
+                              >
+                                <GraduationCap className="h-3.5 w-3.5" />
+                              </button>
+                            </DropdownMenuTrigger>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">
+                            {tutorMode !== 'off'
+                              ? `Tutor: ${tutorMode === 'socratic' ? 'Socratic' : tutorMode === 'guided' ? 'Guided' : 'Practice'}`
+                              : 'Tutor Mode'}
+                          </TooltipContent>
+                        </Tooltip>
+                        <DropdownMenuContent align="start" className="w-56">
+                          <DropdownMenuItem
+                            onClick={() => setTutorMode('off')}
+                            className="flex items-start gap-2 py-2 cursor-pointer"
+                          >
+                            <MessageSquare className={cn("h-4 w-4 mt-0.5 shrink-0", tutorMode === 'off' && "text-primary")} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-medium">Standard Chat</span>
+                                {tutorMode === 'off' && <div className="h-1.5 w-1.5 rounded-full bg-primary" />}
+                              </div>
+                              <p className="text-xs text-muted-foreground">Direct answers and explanations</p>
+                            </div>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setTutorMode('socratic')}
+                            className="flex items-start gap-2 py-2 cursor-pointer"
+                          >
+                            <Brain className={cn("h-4 w-4 mt-0.5 shrink-0", tutorMode === 'socratic' && "text-violet-600 dark:text-violet-400")} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-medium">Socratic</span>
+                                {tutorMode === 'socratic' && <div className="h-1.5 w-1.5 rounded-full bg-violet-500" />}
+                              </div>
+                              <p className="text-xs text-muted-foreground">Guides you with probing questions</p>
+                            </div>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setTutorMode('guided')}
+                            className="flex items-start gap-2 py-2 cursor-pointer"
+                          >
+                            <BookOpen className={cn("h-4 w-4 mt-0.5 shrink-0", tutorMode === 'guided' && "text-blue-600 dark:text-blue-400")} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-medium">Guided</span>
+                                {tutorMode === 'guided' && <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />}
+                              </div>
+                              <p className="text-xs text-muted-foreground">Step-by-step instruction with checks</p>
+                            </div>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setTutorMode('practice')}
+                            className="flex items-start gap-2 py-2 cursor-pointer"
+                          >
+                            <Target className={cn("h-4 w-4 mt-0.5 shrink-0", tutorMode === 'practice' && "text-emerald-600 dark:text-emerald-400")} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-medium">Practice</span>
+                                {tutorMode === 'practice' && <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
+                              </div>
+                              <p className="text-xs text-muted-foreground">Problem generation with feedback</p>
+                            </div>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TooltipProvider>
+
+                    {/* Language Selector */}
+                    <TooltipProvider delayDuration={300}>
+                      <DropdownMenu>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                className={cn(
+                                  "flex items-center justify-center shrink-0 h-7 w-7 rounded-lg text-xs font-medium transition-colors",
+                                  language !== 'en'
+                                    ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                                )}
+                              >
+                                <Languages className="h-3.5 w-3.5" />
+                              </button>
+                            </DropdownMenuTrigger>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">
+                            {language !== 'en'
+                              ? `Language: ${SUPPORTED_LANGUAGES[language]?.name ?? language}`
+                              : 'Response Language'}
+                          </TooltipContent>
+                        </Tooltip>
+                        <DropdownMenuContent align="start" className="w-52 max-h-[280px] overflow-y-auto">
+                          {Object.entries(SUPPORTED_LANGUAGES).map(([code, lang]) => (
+                            <DropdownMenuItem
+                              key={code}
+                              onClick={() => setLanguage(code)}
+                              className="flex items-center gap-2 py-1.5 cursor-pointer"
+                            >
+                              <div className={cn(
+                                "h-1.5 w-1.5 rounded-full shrink-0",
+                                code === language ? "bg-primary" : "bg-transparent"
+                              )} />
+                              <span className="text-sm flex-1">{lang.name}</span>
+                              <span className="text-xs text-muted-foreground">{lang.nativeName}</span>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TooltipProvider>
+                  </>
+                )}
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 {status !== "ready" ? (

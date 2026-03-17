@@ -11,6 +11,7 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -193,11 +194,12 @@ export function ImageViewer({ url, title, thumbnailUrl }: ImageViewerProps) {
             </DialogTrigger>
             <DialogContent className="max-w-[90vw] max-h-[90vh] p-0">
               <div className="relative w-full h-[80vh]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={url}
                   alt={title}
-                  className="w-full h-full object-contain"
+                  fill
+                  className="object-contain"
+                  unoptimized={url.startsWith("blob:") || url.startsWith("data:")}
                 />
               </div>
             </DialogContent>

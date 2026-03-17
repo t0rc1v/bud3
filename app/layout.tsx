@@ -7,6 +7,7 @@ import { extractRouterConfig } from "uploadthing/server";
 import { ourFileRouter } from "@/app/api/uploadthing/core";
 import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/components/providers/theme-provider';
+import { ServiceWorkerRegister } from '@/components/shared/service-worker-register';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -23,13 +24,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Bud3',
   description: 'AI-powered educational platform',
+  manifest: '/manifest.json',
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   interactiveWidget: 'resizes-content',
 }
 
@@ -48,6 +48,7 @@ export default function RootLayout({
             />
             {children}
             <Toaster />
+            <ServiceWorkerRegister />
           </ThemeProvider>
         </body>
       </html>

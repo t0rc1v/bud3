@@ -1,5 +1,6 @@
 "use server";
 
+import { cache } from "react";
 import { db, pool } from "@/lib/db";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { level, subject, topic, resource, adminRegulars, user, superAdminAdmins, superAdminRegulars, userCredit, creditTransaction } from "@/lib/db/schema";
@@ -41,13 +42,13 @@ import type {
  * Get the admin IDs for a regular user (supports multiple admins via old table)
  * Note: This is kept for backward compatibility, but new logic uses superAdminRegulars
  */
-export async function getRegularAdminIds(regularId: string): Promise<string[]> {
+export const getRegularAdminIds = cache(async function getRegularAdminIds(regularId: string): Promise<string[]> {
   const adminRegularsList = await db
     .select()
     .from(adminRegulars)
     .where(eq(adminRegulars.regularId, regularId));
   return adminRegularsList.map(ar => ar.adminId);
-}
+});
 
 /**
  * Get the super-admin ID for a regular user (new hierarchy)
@@ -112,8 +113,10 @@ export async function buildContentVisibilityFilter(
 ): Promise<ReturnType<typeof or> | undefined> {
   if (userRole === "super_admin") {
     // Super-admin sees own + their admins' + their regulars' content
-    const superAdminAdminIds = await getSuperAdminAdminIds(userId);
-    const superAdminRegularIds = await getSuperAdminRegularIds(userId);
+    const [superAdminAdminIds, superAdminRegularIds] = await Promise.all([
+      getSuperAdminAdminIds(userId),
+      getSuperAdminRegularIds(userId),
+    ]);
     
     const conditions = [
       eq(level.ownerId, userId),
@@ -302,7 +305,7 @@ export async function canModifyContent(
 // LEVEL ACTIONS WITH OWNERSHIP
 // ==========================================
 
-export async function getLevelsForUser(
+export const getLevelsForUser = cache(async function getLevelsForUser(
   userId: string,
   userRole: UserRole
 ): Promise<LevelWithFullHierarchy[]> {
@@ -364,7 +367,7 @@ export async function getLevelsForUser(
   }));
 
   return levels as unknown as LevelWithFullHierarchy[];
-}
+});
 
 export async function getLevelByIdWithAccessCheck(
   id: string,
@@ -1062,7 +1065,7 @@ export async function getLevels(): Promise<LevelWithSubjects[]> {
   return levels as unknown as LevelWithSubjects[];
 }
 
-export async function getLevelsFullHierarchy(options?: { publishedOnly?: boolean }): Promise<LevelWithFullHierarchy[]> {
+export const getLevelsFullHierarchy = cache(async function getLevelsFullHierarchy(options?: { publishedOnly?: boolean }): Promise<LevelWithFullHierarchy[]> {
   const levelsData = await db
     .select()
     .from(level)
@@ -1115,7 +1118,7 @@ export async function getLevelsFullHierarchy(options?: { publishedOnly?: boolean
   }));
   
   return levels as unknown as LevelWithFullHierarchy[];
-}
+});
 
 export async function getLevelById(id: string): Promise<LevelWithSubjects | null> {
   const levelData = await db
@@ -1525,18 +1528,19 @@ export async function deleteResource(id: string): Promise<void> {
 export async function bulkDeleteResources(ids: string[]): Promise<{ deleted: number; errors: string[] }> {
   if (ids.length === 0) return { deleted: 0, errors: [] };
 
+  const results = await Promise.allSettled(ids.map(id => deleteResource(id)));
+
   let deleted = 0;
   const errors: string[] = [];
 
-  for (const id of ids) {
-    try {
-      await deleteResource(id);
+  results.forEach((result, i) => {
+    if (result.status === "fulfilled") {
       deleted++;
-    } catch (err) {
-      errors.push(id);
-      console.error(`Failed to delete resource ${id}:`, err);
+    } else {
+      errors.push(ids[i]);
+      console.error(`Failed to delete resource ${ids[i]}:`, result.reason);
     }
-  }
+  });
 
   return { deleted, errors };
 }
@@ -1557,24 +1561,26 @@ export interface MyLearnerWithDetails {
   regular: User | null;
 }
 
-export async function getMyLearners(adminId: string): Promise<MyLearnerWithDetails[]> {
+export async function getMyLearners(adminId: string, { limit = 50, offset = 0 }: { limit?: number; offset?: number } = {}): Promise<MyLearnerWithDetails[]> {
   const regularsData = await db
     .select()
     .from(adminRegulars)
     .where(eq(adminRegulars.adminId, adminId))
-    .orderBy(desc(adminRegulars.createdAt));
-  
+    .orderBy(desc(adminRegulars.createdAt))
+    .limit(limit)
+    .offset(offset);
+
   // Fetch regular users separately
   const regularIds = regularsData.map(r => r.regularId);
   const usersData = regularIds.length > 0
     ? await db.select().from(user).where(inArray(user.id, regularIds))
     : [];
-  
+
   const regulars = regularsData.map(r => ({
     ...r,
     regular: usersData.find(u => u.id === r.regularId) || null,
   }));
-  
+
   return regulars as MyLearnerWithDetails[];
 }
 
@@ -1820,11 +1826,13 @@ export async function getMyLearnersPaginated(
   };
 }
 
-export async function getAllUsers(): Promise<User[]> {
+export async function getAllUsers({ limit = 200, offset = 0 }: { limit?: number; offset?: number } = {}): Promise<User[]> {
   const users = await db
     .select()
     .from(user)
-    .orderBy(desc(user.createdAt));
+    .orderBy(desc(user.createdAt))
+    .limit(limit)
+    .offset(offset);
   return users;
 }
 

@@ -13,6 +13,7 @@ import { drizzle } from "drizzle-orm/neon-serverless";
 import { revalidatePath } from "next/cache";
 import { CREDIT_PRICING, DEFAULT_CREDIT_CONFIG } from "@/lib/mpesa";
 import { sendCreditGiftEmail } from "@/lib/email";
+import { createNotification } from "@/lib/actions/notifications";
 
 // ============== USER CREDIT MANAGEMENT ==============
 
@@ -210,38 +211,27 @@ export async function getUserCreditDetails(userId: string) {
   const now = new Date();
   const warningDate = new Date();
   warningDate.setDate(warningDate.getDate() + DEFAULT_CREDIT_CONFIG.EXPIRATION_WARNING_DAYS);
-  
-  // Get all transactions
-  const allTransactions = await db
-    .select()
-    .from(creditTransaction)
-    .where(eq(creditTransaction.userId, userId))
-    .orderBy(desc(creditTransaction.createdAt));
-  
-  // Calculate expired credits
-  const expiredTransactions = allTransactions.filter(
-    t => t.expiresAt && t.expiresAt < now && t.amount > 0
-  );
-  const expiredCredits = expiredTransactions.reduce((sum, t) => sum + t.amount, 0);
-  
-  // Calculate expiring soon credits
-  const expiringSoonTransactions = allTransactions.filter(
-    t => t.expiresAt && t.expiresAt >= now && t.expiresAt <= warningDate && t.amount > 0
-  );
-  const expiringSoonCredits = expiringSoonTransactions.reduce((sum, t) => sum + t.amount, 0);
-  
-  // Calculate active balance
-  const activeBalance = await getActiveCreditBalance(userId);
-  
-  // Get total balance from userCredit record
-  const creditRecord = await getOrCreateUserCredit(userId);
-  
+
+  // Single SQL query for expired/expiring-soon aggregates + parallelize balance/credit record
+  const [aggregates, activeBalance, creditRecord] = await Promise.all([
+    db
+      .select({
+        expiredCredits: sql<number>`COALESCE(SUM(CASE WHEN ${creditTransaction.expiresAt} < ${now} AND ${creditTransaction.amount} > 0 THEN ${creditTransaction.amount} END), 0)`,
+        expiringSoonCredits: sql<number>`COALESCE(SUM(CASE WHEN ${creditTransaction.expiresAt} >= ${now} AND ${creditTransaction.expiresAt} <= ${warningDate} AND ${creditTransaction.amount} > 0 THEN ${creditTransaction.amount} END), 0)`,
+        expiringSoonCount: sql<number>`COUNT(CASE WHEN ${creditTransaction.expiresAt} >= ${now} AND ${creditTransaction.expiresAt} <= ${warningDate} AND ${creditTransaction.amount} > 0 THEN 1 END)`,
+      })
+      .from(creditTransaction)
+      .where(eq(creditTransaction.userId, userId)),
+    getActiveCreditBalance(userId),
+    getOrCreateUserCredit(userId),
+  ]);
+
   return {
     activeBalance,
     totalBalance: creditRecord.balance,
-    expiredCredits,
-    expiringSoonCredits,
-    expiringSoonCount: expiringSoonTransactions.length,
+    expiredCredits: Number(aggregates[0]?.expiredCredits ?? 0),
+    expiringSoonCredits: Number(aggregates[0]?.expiringSoonCredits ?? 0),
+    expiringSoonCount: Number(aggregates[0]?.expiringSoonCount ?? 0),
   };
 }
 
@@ -404,12 +394,14 @@ export async function getCreditPurchaseByMpesaReceipt(mpesaReceiptNumber: string
 }
 
 
-export async function getUserCreditPurchases(userId: string) {
+export async function getUserCreditPurchases(userId: string, { limit = 20, offset = 0 }: { limit?: number; offset?: number } = {}) {
   return db
     .select()
     .from(creditPurchase)
     .where(eq(creditPurchase.userId, userId))
-    .orderBy(desc(creditPurchase.createdAt));
+    .orderBy(desc(creditPurchase.createdAt))
+    .limit(limit)
+    .offset(offset);
 }
 
 // ============== TRANSACTION HISTORY ==============
@@ -624,6 +616,15 @@ export async function giftCredits(
     // Don't throw - email failure shouldn't break the gift operation
   }
 
+  // Send in-app notification to recipient
+  createNotification({
+    userId: targetUser.id,
+    type: "credit_gift",
+    title: "Credits Received",
+    body: `You received ${amount} credits from ${senderName}. Reason: ${reason}`,
+    metadata: { amount, senderName, reason },
+  }).catch(() => {});
+
   revalidatePath("/admin/rewards");
 
   return {
@@ -744,8 +745,8 @@ export async function getUserResourceViews(userId: string, limit = 50) {
  */
 export async function countDistinctResourceViews(userId: string): Promise<number> {
   const result = await db
-    .selectDistinct({ resourceId: resourceView.resourceId })
+    .select({ count: sql<number>`COUNT(DISTINCT ${resourceView.resourceId})` })
     .from(resourceView)
     .where(eq(resourceView.userId, userId));
-  return result.length;
+  return Number(result[0]?.count ?? 0);
 }

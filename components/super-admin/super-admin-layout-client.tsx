@@ -5,7 +5,7 @@ import { SidebarContentTree } from "@/components/content/sidebar-content-tree";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { PanelLeft, PanelRight, MessageSquare, Crown, Gift, Users, LayoutDashboard, BarChart2, ChevronDown, Loader2 } from "lucide-react";
+import { PanelLeft, PanelRight, MessageSquare, Crown, Gift, Users, LayoutDashboard, BarChart2, ChevronDown, Loader2, Bell, Flame } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -57,6 +57,8 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
     "/super-admin/rewards": "Gift Credits & Unlocks",
     "/super-admin/manage-admins": "Manage Admins",
     "/super-admin/regulars": "Manage Regulars",
+    "/super-admin/notifications": "Send Notifications",
+    "/super-admin/streaks": "Streak Leaderboard",
   });
 
   const handleResourceSelect = useCallback((resource: Resource) => {
@@ -198,6 +200,30 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
                     >
                       <Users className="h-4 w-4" />
                       Manage Regulars
+                    </Link>
+                    <Link
+                      href="/super-admin/notifications"
+                      className={cn(
+                        "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                        pathname === "/super-admin/notifications"
+                          ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                          : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                      )}
+                    >
+                      <Bell className="h-4 w-4" />
+                      Notifications
+                    </Link>
+                    <Link
+                      href="/super-admin/streaks"
+                      className={cn(
+                        "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                        pathname === "/super-admin/streaks"
+                          ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                          : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                      )}
+                    >
+                      <Flame className="h-4 w-4" />
+                      Streaks
                     </Link>
                   </nav>
                 )}
@@ -363,11 +389,35 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
                 <Users className="h-4 w-4" />
                 Manage Regulars
               </Link>
+              <Link
+                href="/super-admin/notifications"
+                className={cn(
+                  "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                  pathname === "/super-admin/notifications"
+                    ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                )}
+              >
+                <Bell className="h-4 w-4" />
+                Notifications
+              </Link>
+              <Link
+                href="/super-admin/streaks"
+                className={cn(
+                  "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                  pathname === "/super-admin/streaks"
+                    ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                )}
+              >
+                <Flame className="h-4 w-4" />
+                Streaks
+              </Link>
             </nav>
           )}
         </div>
       </div>
-      
+
       <div className="flex flex-1 flex-col overflow-hidden">
         <TooltipProvider>
           <div className="flex h-14 items-center justify-between border-b bg-background px-4">

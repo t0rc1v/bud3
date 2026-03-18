@@ -1,6 +1,7 @@
 /**
- * Marks previously-applied migrations as complete in the Drizzle tracking table,
- * then applies any pending migrations.
+ * Resets the Drizzle migration tracking table to match the current journal.
+ * Use after squashing migrations: clears old entries and marks all current
+ * journal entries as applied (since the DB already has the tables).
  *
  * Run with: npx tsx scripts/mark-migrations-applied.ts
  */
@@ -14,7 +15,6 @@ dotenv.config();
 const sql = neon(process.env.DATABASE_URL!);
 
 async function main() {
-  // Ensure the Drizzle migrations schema + table exist
   await sql`CREATE SCHEMA IF NOT EXISTS drizzle`;
   await sql`
     CREATE TABLE IF NOT EXISTS drizzle."__drizzle_migrations" (
@@ -31,31 +31,24 @@ async function main() {
     )
   );
 
-  // Only mark migrations that were already applied to the DB before drizzle-kit tracking was set up.
-  // Leave the latest migration (0002) untracked so db:migrate will apply it.
-  const alreadyApplied = ["0000_perfect_wolfpack", "0001_keen_micromacro"];
-
-  for (const entry of journal.entries) {
-    const tag = entry.tag;
-    if (!alreadyApplied.includes(tag)) {
-      console.log(`Skipping (not yet applied): ${tag}`);
-      continue;
-    }
-    const existing = await sql`
-      SELECT id FROM drizzle."__drizzle_migrations" WHERE hash = ${tag}
-    `;
-    if (existing.length === 0) {
-      console.log(`Marking migration as applied: ${tag}`);
-      await sql`
-        INSERT INTO drizzle."__drizzle_migrations" (hash, created_at)
-        VALUES (${tag}, ${entry.when})
-      `;
-    } else {
-      console.log(`Already tracked: ${tag}`);
-    }
+  // Clear old migration tracking entries (from pre-squash migrations)
+  const oldRows = await sql`SELECT hash FROM drizzle."__drizzle_migrations"` as Array<Record<string, unknown>>;
+  if (oldRows.length > 0) {
+    const hashes = oldRows.map((r) => String(r.hash));
+    console.log(`Clearing ${oldRows.length} old migration entries: ${hashes.join(", ")}`);
+    await sql`DELETE FROM drizzle."__drizzle_migrations"`;
   }
 
-  console.log("Done. Run pnpm db:migrate to apply pending migrations.");
+  // Mark all current journal entries as applied (DB already has the schema)
+  for (const entry of journal.entries) {
+    console.log(`Marking as applied: ${entry.tag}`);
+    await sql`
+      INSERT INTO drizzle."__drizzle_migrations" (hash, created_at)
+      VALUES (${entry.tag}, ${entry.when})
+    `;
+  }
+
+  console.log("Done. Migration tracking is now in sync with the journal.");
 }
 
 main().catch((e) => {

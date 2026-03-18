@@ -5,64 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1771414666815,
-      "tag": "0000_perfect_wolfpack",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1772773529077,
-      "tag": "0001_keen_micromacro",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1773156957045,
-      "tag": "0002_glamorous_tiger_shark",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1773500000000,
-      "tag": "0003_remove_unlock_system",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1773600000000,
-      "tag": "0004_chat_sharing",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1773678574976,
-      "tag": "0005_condemned_warpath",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1773878400000,
-      "tag": "0006_resource_text_search",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1773725803974,
-      "tag": "0007_easy_alex_wilder",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1773744390039,
-      "tag": "0008_lowly_ironclad",
+      "when": 1773808026222,
+      "tag": "0000_omniscient_darkhawk",
       "breakpoints": true
     }
   ]

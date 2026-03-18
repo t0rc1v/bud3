@@ -499,8 +499,8 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
       </div>
 
 
-      {/* Resume card + progress summary */}
-      {(lastAccessedResource || progressSummary) && (
+      {/* Resume card + progress summary + streak */}
+      {(lastAccessedResource || progressSummary || streak) && (
         <div className="flex flex-col sm:flex-row gap-3">
           {lastAccessedResource && (
             <Card
@@ -535,15 +535,35 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
               </CardContent>
             </Card>
           )}
-          {streak && streak.currentStreak > 0 && (
-            <Card className="flex-shrink-0">
+          {streak && (
+            <Card className={cn(
+              "flex-shrink-0 transition-all",
+              streak.currentStreak >= 7 && "border-orange-300 dark:border-orange-700 bg-orange-50/50 dark:bg-orange-950/20"
+            )}>
               <CardContent className="py-3 px-4 flex items-center gap-3">
-                <span className="text-xl">🔥</span>
-                <div>
-                  <p className="text-sm font-semibold">{streak.currentStreak}-day streak</p>
-                  <p className="text-xs text-muted-foreground">Best: {streak.longestStreak} days</p>
+                <div className={cn(
+                  "flex items-center justify-center h-10 w-10 rounded-full flex-shrink-0",
+                  streak.currentStreak > 0
+                    ? "bg-orange-100 dark:bg-orange-900/40"
+                    : "bg-muted"
+                )}>
+                  <span className="text-xl">{streak.currentStreak > 0 ? "🔥" : "💤"}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold">
+                    {streak.currentStreak > 0
+                      ? `${streak.currentStreak}-day streak`
+                      : "No active streak"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {streak.currentStreak > 0
+                      ? `Best: ${streak.longestStreak} days`
+                      : streak.longestStreak > 0
+                        ? `Previous best: ${streak.longestStreak} days — open a resource to start!`
+                        : "Open a resource to start your streak!"}
+                  </p>
                   {getStreakBadges(streak.currentStreak).length > 0 && (
-                    <div className="flex gap-1 mt-1">
+                    <div className="flex flex-wrap gap-1 mt-1">
                       {getStreakBadges(streak.currentStreak).map(b => (
                         <Badge key={b.threshold} variant="secondary" className="text-[10px] px-1.5 py-0">
                           {b.label}
@@ -552,6 +572,14 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
                     </div>
                   )}
                 </div>
+                {streak.currentStreak > 0 && (
+                  <div className="flex flex-col items-center flex-shrink-0">
+                    <span className="text-2xl font-bold tabular-nums text-orange-600 dark:text-orange-400">
+                      {streak.currentStreak}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide">days</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

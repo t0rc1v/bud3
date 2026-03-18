@@ -1,4 +1,4 @@
-const CACHE_NAME = "bud3-v1";
+const CACHE_NAME = "bud3-v2";
 const STATIC_ASSETS = ["/", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
@@ -21,8 +21,9 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET and API/auth requests
+  // Skip non-GET, cross-origin, and API/auth requests
   if (request.method !== "GET") return;
+  if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return;
   if (url.pathname.startsWith("/sign-")) return;
 

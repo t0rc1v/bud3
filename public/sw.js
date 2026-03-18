@@ -1,4 +1,4 @@
-const CACHE_NAME = "bud3-v2";
+const CACHE_NAME = "bud3-v3";
 const STATIC_ASSETS = ["/", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
@@ -27,20 +27,19 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/")) return;
   if (url.pathname.startsWith("/sign-")) return;
 
-  // Cache-first for static assets
+  // Network-first for static assets (avoids stale JS after rebuilds)
   if (
     url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?)$/) ||
     url.pathname.startsWith("/_next/static/")
   ) {
     event.respondWith(
-      caches.match(request).then((cached) =>
-        cached ||
-        fetch(request).then((response) => {
+      fetch(request)
+        .then((response) => {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           return response;
         })
-      )
+        .catch(() => caches.match(request))
     );
     return;
   }

@@ -736,6 +736,8 @@ export async function promoteUserToAdminByEmail(
 
     revalidatePath("/super-admin/manage-admins");
     revalidatePath("/super-admin", "layout");
+    revalidatePath("/admin", "layout");
+    revalidatePath("/regular", "layout");
     return {
       success: true,
       user: {

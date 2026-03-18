@@ -1624,6 +1624,7 @@ export async function addMyLearner(
 
   revalidatePath("/admin/regulars");
   revalidatePath("/admin", "layout");
+  revalidatePath("/regular", "layout");
 }
 
 export async function removeMyLearner(adminId: string, regularId: string): Promise<void> {
@@ -1726,6 +1727,7 @@ export async function bulkAddMyLearners(
   
   revalidatePath("/admin/regulars");
   revalidatePath("/admin", "layout");
+  revalidatePath("/regular", "layout");
   return result;
 }
 

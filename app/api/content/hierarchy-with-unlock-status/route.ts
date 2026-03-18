@@ -1,84 +1,81 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getLevelsFullHierarchy } from "@/lib/actions/admin";
+import {
+  getLevelsFullHierarchy,
+  getRegularAdminIds,
+  getRegularSuperAdminId,
+  getAdminSuperAdminId,
+  getSuperAdminAdminIds,
+  getSuperAdminRegularIds,
+} from "@/lib/actions/admin";
 import { getUserByClerkId } from "@/lib/actions/auth";
-import { getRegularAdminIds } from "@/lib/actions/admin";
 import type { LevelWithFullHierarchy, SubjectWithTopics, TopicWithResources, Resource } from "@/lib/types";
 import type { UserRole } from "@/lib/types";
 
 /**
- * Check if user can access content based on ownership rules:
- * - Super-admin content: visible to all (view-only for non-owners)
- * - Admin content: visible to the admin + their regulars only (not other admins)
- * - Regular content: visible to themselves only
- * - Regular users with multiple admins: can view content from ALL their admins
+ * Build the set of owner IDs whose content this user is allowed to see.
+ *
+ * Ownership rules:
+ * - Super-admin: own + their owned admins + their owned regulars
+ * - Admin: own + their super-admin's content
+ * - Regular: own + direct admins (adminRegulars) + their super-admin + super-admin's admins
+ */
+async function buildAllowedOwnerIds(
+  userId: string,
+  userRole: UserRole
+): Promise<Set<string>> {
+  const allowed = new Set<string>([userId]);
+
+  if (userRole === "super_admin") {
+    const [ownedAdminIds, ownedRegularIds] = await Promise.all([
+      getSuperAdminAdminIds(userId),
+      getSuperAdminRegularIds(userId),
+    ]);
+    ownedAdminIds.forEach((id) => allowed.add(id));
+    ownedRegularIds.forEach((id) => allowed.add(id));
+  } else if (userRole === "admin") {
+    const superAdminId = await getAdminSuperAdminId(userId);
+    if (superAdminId) allowed.add(superAdminId);
+  } else if (userRole === "regular") {
+    // Direct admin relationships (adminRegulars table)
+    const adminIds = await getRegularAdminIds(userId);
+    adminIds.forEach((id) => allowed.add(id));
+
+    // Super-admin hierarchy (superAdminRegulars table)
+    const superAdminId = await getRegularSuperAdminId(userId);
+    if (superAdminId) {
+      allowed.add(superAdminId);
+      const superAdminAdminIds = await getSuperAdminAdminIds(superAdminId);
+      superAdminAdminIds.forEach((id) => allowed.add(id));
+    }
+  }
+
+  return allowed;
+}
+
+/**
+ * Check if user can access content based on ownership + visibility rules.
  */
 function canAccessContent(
   contentOwnerId: string | null,
-  contentOwnerRole: UserRole,
   contentVisibility: string,
-  userId: string,
   userRole: UserRole,
-  userAdminIds: string[]
+  allowedOwnerIds: Set<string>
 ): boolean {
-  // Super-admin can access everything
-  if (userRole === "super_admin") return true;
+  // Public content is visible to all authenticated users
+  if (contentVisibility === "public") return true;
 
-  // Owner can always access their own content
-  if (contentOwnerId === userId) return true;
+  // Content must have an owner to be accessible
+  if (!contentOwnerId) return false;
 
-  // Super-admin content is viewable by everyone
-  if (contentOwnerRole === "super_admin") return true;
+  // Content owner must be in the user's allowed set
+  if (!allowedOwnerIds.has(contentOwnerId)) return false;
 
-  // Check based on content owner role
-  if (contentOwnerRole === "admin") {
-    // Admin content: only visible to admin + their regulars
-    if (userRole === "admin") {
-      // Admins can only see their own content, not other admins'
-      return contentOwnerId === userId;
-    }
-    if (userRole === "regular") {
-      // Regular can see if they belong to this admin
-      return contentOwnerId !== null && userAdminIds.includes(contentOwnerId);
-    }
-    return false;
-  }
+  // Additional visibility restrictions within the ownership set
+  if (contentVisibility === "admin_only" && userRole === "regular") return false;
+  if (contentVisibility === "regular_only" && userRole === "admin") return false;
 
-  if (contentOwnerRole === "regular") {
-    // Regular content: only visible to themselves
-    return contentOwnerId === userId;
-  }
-
-  // For content without a clear owner role, check visibility settings
-  // BUT still enforce that admins can only see their own content
-  switch (contentVisibility) {
-    case "public":
-      return true;
-    case "admin_only":
-      // For admin_only visibility, only the owner admin should see it
-      // NOT other admins
-      if (userRole === "admin") {
-        return contentOwnerId === userId;
-      }
-      return userRole === "super_admin" as UserRole;
-    case "admin_and_regulars":
-      if (userRole === "admin") {
-        // Admins can only see their own admin_and_regulars content
-        return contentOwnerId === userId;
-      }
-      if (userRole === "regular" && contentOwnerId !== null) {
-        return contentOwnerId === userId || userAdminIds.includes(contentOwnerId);
-      }
-      return userRole === "super_admin" as UserRole;
-    case "regular_only":
-      if (userRole === "regular" && contentOwnerId !== null) {
-        return contentOwnerId === userId || userAdminIds.includes(contentOwnerId);
-      }
-      return false;
-    default:
-      // Default: if ownerRole is not set, only allow if user is the owner
-      return contentOwnerId === userId;
-  }
+  return true;
 }
 
 /**
@@ -86,19 +83,11 @@ function canAccessContent(
  */
 function filterResources(
   resources: Resource[],
-  userId: string,
   userRole: UserRole,
-  userAdminIds: string[]
+  allowedOwnerIds: Set<string>
 ): Resource[] {
   return resources.filter((resource) =>
-    canAccessContent(
-      resource.ownerId,
-      resource.ownerRole,
-      resource.visibility,
-      userId,
-      userRole,
-      userAdminIds
-    )
+    canAccessContent(resource.ownerId, resource.visibility, userRole, allowedOwnerIds)
   );
 }
 
@@ -107,24 +96,16 @@ function filterResources(
  */
 function filterTopics(
   topics: TopicWithResources[],
-  userId: string,
   userRole: UserRole,
-  userAdminIds: string[]
+  allowedOwnerIds: Set<string>
 ): TopicWithResources[] {
   return topics
     .filter((topic) =>
-      canAccessContent(
-        topic.ownerId,
-        topic.ownerRole,
-        topic.visibility,
-        userId,
-        userRole,
-        userAdminIds
-      )
+      canAccessContent(topic.ownerId, topic.visibility, userRole, allowedOwnerIds)
     )
     .map((topic) => ({
       ...topic,
-      resources: filterResources(topic.resources || [], userId, userRole, userAdminIds),
+      resources: filterResources(topic.resources || [], userRole, allowedOwnerIds),
     }));
 }
 
@@ -133,24 +114,16 @@ function filterTopics(
  */
 function filterSubjects(
   subjects: SubjectWithTopics[],
-  userId: string,
   userRole: UserRole,
-  userAdminIds: string[]
+  allowedOwnerIds: Set<string>
 ): SubjectWithTopics[] {
   return subjects
     .filter((subject) =>
-      canAccessContent(
-        subject.ownerId,
-        subject.ownerRole,
-        subject.visibility,
-        userId,
-        userRole,
-        userAdminIds
-      )
+      canAccessContent(subject.ownerId, subject.visibility, userRole, allowedOwnerIds)
     )
     .map((subject) => ({
       ...subject,
-      topics: filterTopics(subject.topics || [], userId, userRole, userAdminIds),
+      topics: filterTopics(subject.topics || [], userRole, allowedOwnerIds),
     }));
 }
 
@@ -159,24 +132,16 @@ function filterSubjects(
  */
 function filterLevels(
   levels: LevelWithFullHierarchy[],
-  userId: string,
   userRole: UserRole,
-  userAdminIds: string[]
+  allowedOwnerIds: Set<string>
 ): LevelWithFullHierarchy[] {
   return levels
     .filter((level) =>
-      canAccessContent(
-        level.ownerId,
-        level.ownerRole,
-        level.visibility,
-        userId,
-        userRole,
-        userAdminIds
-      )
+      canAccessContent(level.ownerId, level.visibility, userRole, allowedOwnerIds)
     )
     .map((level) => ({
       ...level,
-      subjects: filterSubjects(level.subjects || [], userId, userRole, userAdminIds),
+      subjects: filterSubjects(level.subjects || [], userRole, allowedOwnerIds),
     }));
 }
 
@@ -208,14 +173,14 @@ export async function GET(req: Request) {
     const userRole = user.role as UserRole;
     const userDbId = user.id;
 
-    // Get admin IDs for regular users (supports multiple admins)
-    const userAdminIds = userRole === "regular" ? await getRegularAdminIds(userDbId) : [];
+    // Build the set of owner IDs whose content this user can see
+    const allowedOwnerIds = await buildAllowedOwnerIds(userDbId, userRole);
 
     // Learners see only published resources; admins/super-admins see all
     const levels = await getLevelsFullHierarchy({ publishedOnly: userRole === "regular" });
 
     // Filter levels based on ownership
-    const filteredLevels = filterLevels(levels, userDbId, userRole, userAdminIds);
+    const filteredLevels = filterLevels(levels, userRole, allowedOwnerIds);
 
     const levelsWithStatus = filteredLevels.map((level) => ({
       id: level.id,

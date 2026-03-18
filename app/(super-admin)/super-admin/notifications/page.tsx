@@ -8,14 +8,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 type Audience = "all" | "regulars" | "admins";
 
-const audienceOptions: { value: Audience; label: string; description: string; icon: React.ElementType }[] = [
-  { value: "all", label: "All Users", description: "Send to every user on the platform", icon: Users },
-  { value: "regulars", label: "Learners Only", description: "Send to all regular/learner accounts", icon: GraduationCap },
-  { value: "admins", label: "Admins Only", description: "Send to all admin accounts", icon: Shield },
+const audienceOptions: { value: Audience; label: string; icon: React.ElementType }[] = [
+  { value: "all", label: "All Users", icon: Users },
+  { value: "regulars", label: "Learners", icon: GraduationCap },
+  { value: "admins", label: "Admins", icon: Shield },
 ];
 
 export default function NotificationsPage() {
@@ -55,6 +55,7 @@ export default function NotificationsPage() {
 
       toast.success(`Notification sent to ${data.sent} user${data.sent !== 1 ? "s" : ""}`);
       setLastResult({ sent: data.sent });
+      window.dispatchEvent(new CustomEvent("notifications:refresh"));
       setTitle("");
       setBody("");
     } catch {
@@ -76,40 +77,67 @@ export default function NotificationsPage() {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-[1fr_320px]">
-        {/* Compose form */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Compose Notification</CardTitle>
-            <CardDescription>This will appear in each user&apos;s notification bell</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                placeholder="e.g. New content available!"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                maxLength={255}
-              />
-              <p className="text-xs text-muted-foreground">{title.length}/255</p>
+      {/* Full-width compose card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Compose Notification</CardTitle>
+          <CardDescription>This will appear in each user&apos;s notification bell</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Audience selector - compact inline */}
+          <div className="space-y-2">
+            <Label>Audience</Label>
+            <div className="flex gap-2">
+              {audienceOptions.map((opt) => {
+                const Icon = opt.icon;
+                const isSelected = audience === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setAudience(opt.value)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-all",
+                      isSelected
+                        ? "border-primary bg-primary/10 text-primary ring-1 ring-primary"
+                        : "border-border bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="body">Body (optional)</Label>
-              <Textarea
-                id="body"
-                placeholder="Add more details about the notification..."
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                maxLength={2000}
-                rows={4}
-              />
-              <p className="text-xs text-muted-foreground">{body.length}/2000</p>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="title">Title</Label>
+            <Input
+              id="title"
+              placeholder="e.g. New content available!"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={255}
+            />
+            <p className="text-xs text-muted-foreground">{title.length}/255</p>
+          </div>
 
-            <Button onClick={handleSend} disabled={isSending || !title.trim()} className="w-full">
+          <div className="space-y-2">
+            <Label htmlFor="body">Body (optional)</Label>
+            <Textarea
+              id="body"
+              placeholder="Add more details about the notification..."
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              maxLength={2000}
+              rows={4}
+            />
+            <p className="text-xs text-muted-foreground">{body.length}/2000</p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button onClick={handleSend} disabled={isSending || !title.trim()}>
               {isSending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -124,46 +152,13 @@ export default function NotificationsPage() {
             </Button>
 
             {lastResult && (
-              <p className="text-sm text-center text-green-600 dark:text-green-400">
-                Successfully sent to {lastResult.sent} user{lastResult.sent !== 1 ? "s" : ""}
+              <p className="text-sm text-green-600 dark:text-green-400">
+                Sent to {lastResult.sent} user{lastResult.sent !== 1 ? "s" : ""}
               </p>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Audience selector */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Audience
-          </h3>
-          {audienceOptions.map((opt) => {
-            const Icon = opt.icon;
-            const isSelected = audience === opt.value;
-            return (
-              <Card
-                key={opt.value}
-                className={`cursor-pointer transition-all ${
-                  isSelected ? "ring-2 ring-primary" : "hover:bg-muted/40"
-                }`}
-                onClick={() => setAudience(opt.value)}
-              >
-                <CardContent className="py-3 px-4 flex items-start gap-3">
-                  <div className={`mt-0.5 rounded-md p-1.5 ${isSelected ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium">{opt.label}</p>
-                      {isSelected && <Badge variant="secondary" className="text-[10px]">Selected</Badge>}
-                    </div>
-                    <p className="text-xs text-muted-foreground">{opt.description}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

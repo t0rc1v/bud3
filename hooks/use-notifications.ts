@@ -60,7 +60,14 @@ export function useNotifications(pollingInterval = 30_000) {
   useEffect(() => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, pollingInterval);
-    return () => clearInterval(interval);
+
+    const handleRefresh = () => fetchNotifications();
+    window.addEventListener("notifications:refresh", handleRefresh);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("notifications:refresh", handleRefresh);
+    };
   }, [fetchNotifications, pollingInterval]);
 
   return { notifications, unreadCount, markRead, markAllRead, refresh: fetchNotifications };

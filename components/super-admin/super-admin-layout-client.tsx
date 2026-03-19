@@ -239,7 +239,7 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
           leftSidebarOpen ? "w-72 max-md:hidden" : "w-0 overflow-hidden max-md:hidden"
         )}
       >
-        <div className="flex h-14 items-center gap-2.5 border-b px-4">
+        <Link href="/" className="flex h-14 items-center gap-2.5 border-b px-4">
           <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <Crown className="h-4 w-4" />
           </div>
@@ -247,9 +247,9 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
             "font-semibold tracking-tight transition-all duration-200",
             leftSidebarOpen ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
           )}>
-            BudLMS
+            BudLM
           </span>
-        </div>
+        </Link>
         <div className="flex-1 overflow-auto">
           <SidebarContentTree
             initialLevels={initialLevels}

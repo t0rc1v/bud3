@@ -24,7 +24,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Bud3',
   description: 'AI-powered educational platform',
-  manifest: '/manifest.json',
 }
 
 export const viewport: Viewport = {

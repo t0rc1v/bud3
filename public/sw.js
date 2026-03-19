@@ -1,5 +1,5 @@
-const CACHE_NAME = "bud3-v3";
-const STATIC_ASSETS = ["/", "/manifest.json"];
+const CACHE_NAME = "budlm-v4";
+const STATIC_ASSETS = ["/", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

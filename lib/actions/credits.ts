@@ -163,28 +163,6 @@ export async function addCredits(
 // ============== ACTIVE CREDIT MANAGEMENT ==============
 
 /**
- * Get all non-expired credit transactions for a user
- * Returns transactions where expiresAt is null (never expires) or in the future
- */
-export async function getUserActiveTransactions(userId: string) {
-  const now = new Date();
-
-  return db
-    .select()
-    .from(creditTransaction)
-    .where(
-      and(
-        eq(creditTransaction.userId, userId),
-        or(
-          isNull(creditTransaction.expiresAt),
-          gt(creditTransaction.expiresAt, now)
-        )
-      )
-    )
-    .orderBy(asc(creditTransaction.createdAt));
-}
-
-/**
  * Get the active credit balance (excluding expired credits)
  */
 export async function getActiveCreditBalance(userId: string): Promise<number> {
@@ -724,29 +702,3 @@ export async function recordResourceView(
   }
 }
 
-/**
- * Get the set of resource IDs that a learner has viewed (most recent first).
- */
-export async function getUserResourceViews(userId: string, limit = 50) {
-  return db
-    .select({
-      resourceId: resourceView.resourceId,
-      viewedAt: resourceView.viewedAt,
-      durationSeconds: resourceView.durationSeconds,
-    })
-    .from(resourceView)
-    .where(eq(resourceView.userId, userId))
-    .orderBy(resourceView.viewedAt)
-    .limit(limit);
-}
-
-/**
- * Count distinct resources viewed by a learner.
- */
-export async function countDistinctResourceViews(userId: string): Promise<number> {
-  const result = await db
-    .select({ count: sql<number>`COUNT(DISTINCT ${resourceView.resourceId})` })
-    .from(resourceView)
-    .where(eq(resourceView.userId, userId));
-  return Number(result[0]?.count ?? 0);
-}

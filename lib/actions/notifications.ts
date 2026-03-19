@@ -33,16 +33,6 @@ export async function getUnreadNotifications(userId: string, limit = 20) {
     .limit(limit);
 }
 
-export async function getNotifications(userId: string, { limit = 30, offset = 0 }: { limit?: number; offset?: number } = {}) {
-  return db
-    .select()
-    .from(notification)
-    .where(eq(notification.userId, userId))
-    .orderBy(desc(notification.createdAt))
-    .limit(limit)
-    .offset(offset);
-}
-
 export async function markNotificationRead(notificationId: string, userId: string) {
   const [updated] = await db
     .update(notification)
@@ -57,12 +47,4 @@ export async function markAllNotificationsRead(userId: string) {
     .update(notification)
     .set({ isRead: true })
     .where(and(eq(notification.userId, userId), eq(notification.isRead, false)));
-}
-
-export async function getUnreadCount(userId: string): Promise<number> {
-  const result = await db
-    .select()
-    .from(notification)
-    .where(and(eq(notification.userId, userId), eq(notification.isRead, false)));
-  return result.length;
 }

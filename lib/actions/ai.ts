@@ -366,39 +366,6 @@ export async function saveAIAssignment({
   };
 }
 
-// Get AI Assignment by ID
-export async function getAIAssignmentById(id: string): Promise<AIAssignmentItem | null> {
-  const result = await db
-    .select()
-    .from(aiAssignment)
-    .where(and(eq(aiAssignment.id, id), eq(aiAssignment.isActive, true)))
-    .limit(1);
-
-  if (result.length === 0) return null;
-
-  const item = result[0];
-  return {
-    ...item,
-    questions: item.questions as unknown,
-    answerKey: item.answerKey as unknown,
-  };
-}
-
-// Get AI Assignments by User
-export async function getAIAssignmentsByUser(userId: string): Promise<AIAssignmentItem[]> {
-  const items = await db
-    .select()
-    .from(aiAssignment)
-    .where(and(eq(aiAssignment.userId, userId), eq(aiAssignment.isActive, true)))
-    .orderBy(desc(aiAssignment.createdAt));
-
-  return items.map(item => ({
-    ...item,
-    questions: item.questions as unknown,
-    answerKey: item.answerKey as unknown,
-  }));
-}
-
 // Save AI Generated Quiz
 export async function saveAIQuiz({
   userId,
@@ -474,22 +441,6 @@ export async function getAIQuizById(id: string): Promise<AIQuizItem | null> {
   };
 }
 
-// Get AI Quizzes by User
-export async function getAIQuizzesByUser(userId: string): Promise<AIQuizItem[]> {
-  const items = await db
-    .select()
-    .from(aiQuiz)
-    .where(and(eq(aiQuiz.userId, userId), eq(aiQuiz.isActive, true)))
-    .orderBy(desc(aiQuiz.createdAt));
-
-  return items.map(item => ({
-    ...item,
-    settings: item.settings as unknown,
-    questions: item.questions as unknown,
-    validation: item.validation as unknown,
-  }));
-}
-
 // Save Quiz Attempt
 export async function saveQuizAttempt({
   quizId,
@@ -544,16 +495,6 @@ export async function getQuizAttemptsByQuiz(quizId: string, userId: string): Pro
     ...attempt,
     answers: attempt.answers as unknown,
   }));
-}
-
-// Delete AI Assignment (soft delete)
-export async function deleteAIAssignment(id: string): Promise<void> {
-  await db.update(aiAssignment).set({ isActive: false }).where(eq(aiAssignment.id, id));
-}
-
-// Delete AI Quiz (soft delete)
-export async function deleteAIQuiz(id: string): Promise<void> {
-  await db.update(aiQuiz).set({ isActive: false }).where(eq(aiQuiz.id, id));
 }
 
 // AI Flashcard Interfaces
@@ -621,44 +562,6 @@ export async function saveAIFlashcards({
     cards: saved.cards as unknown,
     settings: saved.settings as unknown,
   };
-}
-
-// Get AI Flashcard by ID
-export async function getAIFlashcardById(id: string): Promise<AIFlashcardItem | null> {
-  const result = await db
-    .select()
-    .from(aiFlashcard)
-    .where(and(eq(aiFlashcard.id, id), eq(aiFlashcard.isActive, true)))
-    .limit(1);
-
-  if (result.length === 0) return null;
-
-  const item = result[0];
-  return {
-    ...item,
-    cards: item.cards as unknown,
-    settings: item.settings as unknown,
-  };
-}
-
-// Get AI Flashcards by User
-export async function getAIFlashcardsByUser(userId: string): Promise<AIFlashcardItem[]> {
-  const items = await db
-    .select()
-    .from(aiFlashcard)
-    .where(and(eq(aiFlashcard.userId, userId), eq(aiFlashcard.isActive, true)))
-    .orderBy(desc(aiFlashcard.createdAt));
-
-  return items.map(item => ({
-    ...item,
-    cards: item.cards as unknown,
-    settings: item.settings as unknown,
-  }));
-}
-
-// Delete AI Flashcard (soft delete)
-export async function deleteAIFlashcard(id: string): Promise<void> {
-  await db.update(aiFlashcard).set({ isActive: false }).where(eq(aiFlashcard.id, id));
 }
 
 // AI Notes Document Interfaces

@@ -369,42 +369,6 @@ export const getLevelsForUser = cache(async function getLevelsForUser(
   return levels as unknown as LevelWithFullHierarchy[];
 });
 
-export async function getLevelByIdWithAccessCheck(
-  id: string,
-  userId: string,
-  userRole: UserRole
-): Promise<LevelWithSubjects | null> {
-  const levelData = await db
-    .select()
-    .from(level)
-    .where(eq(level.id, id))
-    .limit(1)
-    .then(res => res[0] || null);
-
-  if (!levelData) return null;
-
-  const subjectsData = await db
-    .select()
-    .from(subject)
-    .where(eq(subject.levelId, id))
-    .orderBy(asc(subject.name));
-
-  const hasAccess = await canAccessContent(
-    levelData.ownerId || "",
-    levelData.ownerRole,
-    levelData.visibility,
-    userId,
-    userRole
-  );
-
-  const levelWithSubjects = {
-    ...levelData,
-    subjects: subjectsData,
-  };
-
-  return hasAccess ? (levelWithSubjects as unknown as LevelWithSubjects) : null;
-}
-
 export async function createLevel(input: CreateLevelInput): Promise<Level> {
   const existingTitle = await db
     .select({ id: level.id })
@@ -1120,42 +1084,6 @@ export const getLevelsFullHierarchy = cache(async function getLevelsFullHierarch
   return levels as unknown as LevelWithFullHierarchy[];
 });
 
-export async function getLevelById(id: string): Promise<LevelWithSubjects | null> {
-  const levelData = await db
-    .select()
-    .from(level)
-    .where(eq(level.id, id))
-    .limit(1)
-    .then(res => res[0] || null);
-  
-  if (!levelData) return null;
-  
-  const subjectsData = await db
-    .select()
-    .from(subject)
-    .where(eq(subject.levelId, id))
-    .orderBy(asc(subject.name));
-  
-  const subjectIds = subjectsData.map(s => s.id);
-  const topicsData = subjectIds.length > 0
-    ? await db
-        .select()
-        .from(topic)
-        .where(inArray(topic.subjectId, subjectIds))
-        .orderBy(asc(topic.order))
-    : [];
-  
-  const result = {
-    ...levelData,
-    subjects: subjectsData.map(s => ({
-      ...s,
-      topics: topicsData.filter(t => t.subjectId === s.id),
-    })),
-  };
-  
-  return result as unknown as LevelWithSubjects;
-}
-
 // Keep other existing exports for backward compatibility
 export async function getSubjects(): Promise<SubjectWithTopicsAndLevel[]> {
   const subjectsData = await db
@@ -1184,30 +1112,6 @@ export async function getSubjects(): Promise<SubjectWithTopicsAndLevel[]> {
   return subjects as SubjectWithTopicsAndLevel[];
 }
 
-export async function getSubjectById(id: string): Promise<SubjectWithTopicsAndLevel | null> {
-  const subjectData = await db
-    .select()
-    .from(subject)
-    .where(eq(subject.id, id))
-    .limit(1)
-    .then(res => res[0] || null);
-  
-  if (!subjectData) return null;
-  
-  const [topicsData, levelData] = await Promise.all([
-    db.select().from(topic).where(eq(topic.subjectId, id)).orderBy(asc(topic.order)),
-    subjectData.levelId 
-      ? db.select().from(level).where(eq(level.id, subjectData.levelId)).limit(1).then(res => res[0] || null)
-      : Promise.resolve(null),
-  ]);
-  
-  return {
-    ...subjectData,
-    topics: topicsData,
-    level: levelData,
-  } as SubjectWithTopicsAndLevel;
-}
-
 export async function getTopics(): Promise<TopicWithResourcesAndSubject[]> {
   const topicsData = await db
     .select()
@@ -1233,30 +1137,6 @@ export async function getTopics(): Promise<TopicWithResourcesAndSubject[]> {
   }));
   
   return topics as unknown as TopicWithResourcesAndSubject[];
-}
-
-export async function getTopicById(id: string): Promise<TopicWithResourcesAndSubject | null> {
-  const topicData = await db
-    .select()
-    .from(topic)
-    .where(eq(topic.id, id))
-    .limit(1)
-    .then(res => res[0] || null);
-  
-  if (!topicData) return null;
-  
-  const [resourcesData, subjectData] = await Promise.all([
-    db.select().from(resource).where(eq(resource.topicId, id)).orderBy(desc(resource.createdAt)),
-    topicData.subjectId
-      ? db.select().from(subject).where(eq(subject.id, topicData.subjectId)).limit(1).then(res => res[0] || null)
-      : Promise.resolve(null),
-  ]);
-  
-  return {
-    ...topicData,
-    resources: resourcesData,
-    subject: subjectData,
-  } as unknown as TopicWithResourcesAndSubject;
 }
 
 export async function getResources(): Promise<ResourceWithRelations[]> {
@@ -1847,33 +1727,6 @@ export interface SystemStats {
   totalSubjects: number;
   totalTopics: number;
   totalResources: number;
-}
-
-export async function getSystemStats(): Promise<SystemStats> {
-  const [
-    users,
-    levels,
-    subjects,
-    topics,
-    resources,
-  ] = await Promise.all([
-    db.select().from(user),
-    db.select().from(level),
-    db.select().from(subject),
-    db.select().from(topic),
-    db.select().from(resource),
-  ]);
-
-  return {
-    totalUsers: users.length,
-    totalRegulars: users.filter(u => u.role === "regular").length,
-    totalAdmins: users.filter(u => u.role === "admin").length,
-    totalSuperAdmins: users.filter(u => u.role === "super_admin").length,
-    totalLevels: levels.length,
-    totalSubjects: subjects.length,
-    totalTopics: topics.length,
-    totalResources: resources.length,
-  };
 }
 
 export async function getSuperAdminScopedStats(superAdminId: string): Promise<SystemStats> {

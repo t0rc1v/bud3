@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Coins } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import type { ModelConfig, CapabilityTier } from "@/lib/ai/models";
+import { CHAT_TIER_COSTS } from "@/lib/ai/credit-costs";
 
 const TIER_STYLES: Record<CapabilityTier, string> = {
   fast:     'bg-green-500/15 text-green-700 dark:text-green-400',
@@ -97,7 +98,14 @@ export function ModelSelector({ selectedModelId, onModelChange }: ModelSelectorP
                       {m.tier}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">{m.description}</p>
+                  <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                    {m.description}
+                    {CHAT_TIER_COSTS[m.tier] > 1 && (
+                      <span className="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-medium whitespace-nowrap">
+                        <Coins className="h-3 w-3" />{CHAT_TIER_COSTS[m.tier]}
+                      </span>
+                    )}
+                  </p>
                 </div>
               </DropdownMenuItem>
             ))}

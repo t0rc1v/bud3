@@ -620,10 +620,12 @@ export async function giftCredits(
 
 export async function checkAndDeductCreditsForAIResponse(
   userId: string,
-  chatId?: string
+  chatId?: string,
+  modelId?: string
 ): Promise<{ success: boolean; error?: string; remainingCredits?: number }> {
   try {
-    const creditsPerResponse = DEFAULT_CREDIT_CONFIG.creditsPerAIResponse;
+    const { getChatCreditCost } = await import('@/lib/ai/credit-costs');
+    const creditsPerResponse = getChatCreditCost(modelId);
     
     // Check if user has enough active credits
     const hasEnough = await hasEnoughCredits(userId, creditsPerResponse);

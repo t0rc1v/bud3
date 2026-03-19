@@ -92,7 +92,8 @@ export async function POST(req: Request) {
     );
     const creditCheck = await checkAndDeductCreditsForAIResponse(
       dbUserId,
-      chatId
+      chatId,
+      modelId
     );
 
     if (!creditCheck.success) {

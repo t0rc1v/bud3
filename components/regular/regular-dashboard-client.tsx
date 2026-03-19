@@ -101,12 +101,14 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
   
   // State for super-admin's admin IDs
   const [superAdminAdminIds, setSuperAdminAdminIds] = useState<string[]>([]);
-  
+  const [hasSuperAdmin, setHasSuperAdmin] = useState(false);
+
   // Fetch super-admin's admins
   useEffect(() => {
     const fetchSuperAdminAdmins = async () => {
       const superAdminId = await getRegularSuperAdminId(userId);
       if (superAdminId) {
+        setHasSuperAdmin(true);
         const adminIds = await getSuperAdminAdminIds(superAdminId);
         setSuperAdminAdminIds(adminIds);
       }
@@ -624,29 +626,42 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
           </CardContent>
         </Card>
         
-        <Card 
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-md",
-            activeTab === "institution" && "ring-2 ring-primary ring-offset-2"
-          )}
-          onClick={() => setActiveTab("institution")}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-primary" />
-              Institution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{superAdminLevels.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {superAdminSubjects.length} subjects, {superAdminResources.length} resources
-            </p>
-            <p className="text-xs text-foreground mt-1">
-              {activeTab === "institution" ? "Currently viewing" : "Click to view"}
-            </p>
-          </CardContent>
-        </Card>
+        {hasSuperAdmin ? (
+          <Card
+            className={cn(
+              "cursor-pointer transition-all hover:shadow-md",
+              activeTab === "institution" && "ring-2 ring-primary ring-offset-2"
+            )}
+            onClick={() => setActiveTab("institution")}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                Institution
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{superAdminLevels.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {superAdminSubjects.length} subjects, {superAdminResources.length} resources
+              </p>
+              <p className="text-xs text-foreground mt-1">
+                {activeTab === "institution" ? "Currently viewing" : "Click to view"}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="opacity-60">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Institution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                No institution
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {superAdminAdminIds.length > 0 ? (
           <Card 
@@ -698,10 +713,10 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
             <span className="text-xs sm:text-sm whitespace-nowrap leading-none">Admin(s)</span>
             {superAdminAdminIds.length > 0 && <Badge variant="secondary" className="ml-0.5 sm:ml-1 bg-primary text-primary-foreground text-xs hidden sm:inline h-5 min-w-0 px-1.5">{adminStats.levels}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="institution" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2">
+          <TabsTrigger value="institution" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2" disabled={!hasSuperAdmin}>
             <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span className="text-xs sm:text-sm whitespace-nowrap leading-none">Institution</span>
-            <Badge variant="secondary" className="ml-0.5 sm:ml-1 bg-primary text-primary-foreground text-xs hidden sm:inline h-5 min-w-0 px-1.5">{superAdminLevels.length}</Badge>
+            {hasSuperAdmin && <Badge variant="secondary" className="ml-0.5 sm:ml-1 bg-primary text-primary-foreground text-xs hidden sm:inline h-5 min-w-0 px-1.5">{superAdminLevels.length}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="bookmarks" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2">
             <Bookmark className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />

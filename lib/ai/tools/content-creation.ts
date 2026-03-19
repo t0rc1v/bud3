@@ -190,17 +190,21 @@ export function createQuizTool(ctx: ToolContext) {
             options: z
               .array(
                 z.object({
-                  id: z.string().describe('Option identifier'),
+                  id: z.string().describe('Option identifier (e.g. "a", "b", "c", "d")'),
                   text: z.string().describe('Option text'),
                   isCorrect: z
                     .boolean()
-                    .describe('Whether this is the correct answer'),
+                    .describe('REQUIRED boolean — set to true for the correct option, false for all others'),
                 })
               )
-              .describe('Answer options'),
+              .describe(
+                'REQUIRED for multiple_choice: exactly 4 objects {id, text, isCorrect} — isCorrect MUST be a BOOLEAN (true/false, NOT a string). Exactly ONE option must have isCorrect: true, the other three isCorrect: false. ' +
+                'REQUIRED for true_false: exactly 2 objects [{id:"a",text:"True",isCorrect:true/false},{id:"b",text:"False",isCorrect:true/false}] — isCorrect is a BOOLEAN, exactly one true. ' +
+                'For short_answer and fill_in_blank: MUST be an EMPTY array [].'
+              ),
             correctAnswer: z
               .any()
-              .describe('The correct answer value (for validation)'),
+              .describe('The correct answer value — for multiple_choice/true_false this must match the text of the option where isCorrect is true; for short_answer/fill_in_blank this is the expected answer string'),
             marks: z.number().describe('Points for this question'),
             explanation: z
               .string()

@@ -1,6 +1,11 @@
 /**
  * System prompt variants for AI Tutor Mode.
  * Each mode instructs the AI to behave differently.
+ *
+ * Attempt/streak thresholds are enforced server-side via the update_tutor_progress
+ * tool, which returns flags like hintRecommended, levelUpRecommended, and
+ * miniLessonRecommended. The prompts instruct the AI to call the tool and act on
+ * the returned flags rather than counting turns itself.
  */
 
 export function buildSocraticPrompt(subject: string, topic: string, level?: string): string {
@@ -13,7 +18,7 @@ RULES:
 - Track misconceptions and note when concepts are mastered.
 - Use analogies and real-world examples to make abstract concepts concrete.
 - Celebrate progress and breakthroughs.
-- If the student is stuck after 3 attempts, provide a hint (not the answer).
+- After each student attempt, call update_tutor_progress with action "attempt". If the response includes hintRecommended: true, provide a hint (not the answer). When moving to a new question, call it with "new_question".
 - Reference platform resources when available.
 
 FORMAT:
@@ -45,10 +50,11 @@ RULES:
 - Generate practice problems one at a time.
 - Wait for the student's answer before providing the next problem.
 - Give immediate feedback: correct/incorrect with explanation.
+- After evaluating each answer, call update_tutor_progress with action "correct" or "incorrect". Check the returned flags:
+  - levelUpRecommended: true → suggest moving to a harder level.
+  - miniLessonRecommended: true → provide a mini-lesson on that concept type before continuing.
 - Gradually increase difficulty as the student demonstrates mastery.
 - Track which types of problems the student gets wrong.
-- After 5 correct in a row, suggest moving to a harder level.
-- After 3 wrong, provide a mini-lesson on that concept type.
 
 FORMAT:
 - Present one problem at a time.

@@ -6,8 +6,10 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { getUserByClerkId } from '@/lib/actions/auth';
 import { getTokenCache } from '@/lib/ai/token-cache';
 import { compactContext, getContextStats } from '@/lib/ai/context-compaction';
-import { buildToolSet, LOCAL_TOOL_NAMES } from '@/lib/ai/tools/index';
+import { buildToolSet, buildToolSetWithRouter, LOCAL_TOOL_NAMES } from '@/lib/ai/tools/index';
 import type { ToolContext } from '@/lib/ai/tools/types';
+import { createAgentPrepareStep } from '@/lib/ai/agents/prepare-step';
+import { getAgentsForRole } from '@/lib/ai/agents/registry';
 
 const chatRequestSchema = z.object({
   messages: z.array(z.object({
@@ -191,78 +193,13 @@ You help regular users, students, and admins with their questions about educatio
 
 Current date and time: ${currentDateTime}
 
-You have access to the following tools. Use them strategically based on the user's needs:
-
-1. web_search - Use this for general web searches to find current information, articles, news, or facts. Best for general knowledge questions, current events, or research topics. Consider the current date when searching for time-sensitive information.
-2. youtube_search - Use this ONLY when the user specifically asks for video content, tutorials, or educational videos. Do not use for general information searches.
-3. research_materials - Use this when the user is looking for educational resources, lesson materials, or teaching content across multiple formats (videos, articles, PDFs). Best for "find resources for teaching X" or "lesson plan materials".
-4. fetch_memory - Use this to retrieve saved memories from the database. Use when the user asks about something they previously saved (e.g. "what did I save about...", "show my notes on...", "remember when I...").
-5. save_memory - Use this to save important information to memory for future reference. Save things like: student results, lesson plans, important notes, preferences, or any data the user might want to recall later. Always confirm what you're saving with the user and include timestamps when relevant.
-6. server_actions - Use this to call specific backend functions that are exposed to you. This allows you to perform system operations like managing regular users, levels, or resources when the user requests them.
-7. web_browse - Use this when the user provides a specific URL and asks you to read, summarize, or analyze its content. Works with web pages, PDFs, and documents.
-8. get_current_time - Use this to get the current date and time. Use when the user asks about scheduling, deadlines, or time-sensitive calculations.
- 9. create_assignment - Use this to create assignments, homeworks, quizzes, or continuous assessment tests for ADMINS. This generates a PRINTABLE DOCUMENT that displays in a MODAL COMPONENT with built-in 'Export to PDF' and 'Print' buttons. The user can view, print, and export directly from the modal - DO NOT offer to manually provide content in other formats or offer alternative export methods. Use this when:
-   - Admins want to create paper-based assessments
-   - Creating worksheets for classroom distribution
-   - Preparing homework that students complete offline
-   - Making continuous assessment tests (CATs)
-   - Generating printable exams with answer keys
-   IMPORTANT: For practice questions at the end of a topic or sub-topic, generate AT LEAST 10 questions to ensure comprehensive concept coverage.
-
-  10. create_quiz - Use this to create interactive quizzes for REGULAR USERS. This generates an INTERACTIVE QUIZ that displays in a MODAL COMPONENT with built-in 'Export to PDF' and 'Print' buttons for viewing/printing the quiz content and answer key. Students can take the quiz DIRECTLY IN THE APP. The user can view, print, and export directly from the modal - DO NOT offer to manually provide content in other formats or offer alternative export methods. Use this when:
-       - Students want to take online assessments
-       - Creating practice tests for self-study
-       - Building interactive learning activities
-       - Making formative assessments with immediate feedback
-       - Allowing students to retake quizzes for practice
-       CRITICAL REQUIREMENT: You MUST generate EXACTLY 30 questions for comprehensive exam coverage. This is a hard requirement - no exceptions.
-       - Count your questions carefully before calling the tool
-       - If you only have 10-15 questions in mind, expand by creating variations on the same concepts
-       - Mix question types: multiple choice, true/false, short answer, fill in blank
-       - Cover all aspects of the topic thoroughly - don't stop at basic coverage
-       - Example: If the topic is "Photosynthesis", generate questions about: light reactions, Calvin cycle, factors affecting rate, chemical equation, plant structures involved, comparison with respiration, etc. - enough to reach 30 questions total
-
-11. generate_summary - Use this to create a comprehensive summary that captures the full context of a conversation, document, or topic. Use when the user asks for summaries, recaps, or wants to condense information while preserving key details.
-
-12. generate_overview - Use this to generate a comprehensive overview of a subject or topic. Creates structured content with introduction, main sections, and conclusion. Use for topic introductions or subject reviews.
-
-13. identify_keywords - Use this to extract and identify key terms, concepts, and vocabulary from content. Each keyword includes the term, definition, and multiple examples. Use for vocabulary building and concept mapping.
-
-14. generate_study_guide - Use this to create a comprehensive study guide with multiple sections including overview, key concepts, important terms, practice problems, and review points. Use for exam preparation and structured learning.
-
-15. create_flashcards - Use this to create interactive flashcard study sets for learners. Generates AT LEAST 15 flashcards with questions/answers on the front and detailed explanations on the back. Use for memorization, vocabulary learning, and quick concept review.
-
-16. create_notes_document - Use this to create a comprehensive, rich study notes document from selected resources, YouTube videos, and images. Produces a beautifully structured document with sections, key terms, embedded media references, and a summary. Best workflow: call youtube_search first to find relevant videos, then call web_search to find supplementary images, then call create_notes_document with those results. Use when:
-   - A learner wants comprehensive study notes on a topic
-   - Generating a reference document combining text, videos, and visuals
-   - Creating a study guide that goes beyond a simple outline
-   MINIMUM: 4 sections (introduction, main content, summary, practice), 8 key terms, rich markdown content (150+ words per section).
-
-17. create_exam - Use this to generate a new original exam by analysing past papers or source material. Produces a structured exam with multiple sections, various question types, and an optional answer key — exported as a printable PDF. Use when:
-   - An admin or teacher wants to generate a new exam based on past-paper patterns
-   - Creating an end-of-term/end-of-year paper
-   - Building a mock exam from topic coverage
-   MINIMUM: 40 total marks, 3 sections, mix of question types (multiple_choice, true_false, short_answer, essay, structured).
-
-18. read_resource_content - Use this to read the full text content of a specific platform resource by its ID. Extracts text from PDFs server-side. Supports pagination for large documents via startOffset/maxCharacters. Use when:
-   - A user asks you to summarize, analyze, or create study material from an attached resource
-   - You need to read the content of a specific resource referenced in the conversation
-   - You need to paginate through a large document (check hasMore flag)
-
-19. search_resource_content - Use this to search across all platform resources the user can access. Returns matching resources with excerpts. Use when:
-   - The user asks to "find resources about X" within the platform
-   - You need to locate resources on a specific topic before reading them
-   - Building study materials from multiple resources on a topic
-   After searching, use read_resource_content on specific results to get full content.
-
-IMPORTANT DISTINCTION:
-- Teachers/Admins → create_assignment (creates printable PDF-ready documents, 10+ questions for topic practice)
-- Teachers/Admins → create_exam (generates structured exam papers from past-paper analysis, 40+ marks, answer key)
-- Students/Learners → create_quiz (creates interactive in-app assessments, 30+ questions for exam prep)
-- Study Tools → generate_summary, generate_overview, identify_keywords, generate_study_guide (content analysis and learning aids)
-- Memorization → create_flashcards (15+ cards for quick review and memorization)
-- Rich Study Notes → create_notes_document (comprehensive multi-section document with media, terms, and summary)
-- Resource Content → read_resource_content (read full text of a platform resource by ID), search_resource_content (search across platform resources)
+## Tool Usage Rules
+- Admins/Teachers: use create_assignment (printable, 10+ questions) or create_exam (structured exam, 40+ marks, 3+ sections) for assessments.
+- Students/Learners: use create_quiz (interactive in-app, EXACTLY 30 questions — no exceptions).
+- youtube_search: ONLY for explicit video requests — never for general information.
+- fetch_memory before web_search when the user asks about previously saved info.
+- For study notes: youtube_search → web_search → create_notes_document workflow.
+- For platform content: search_resource_content → read_resource_content workflow.
 
 When responding:
 - Be concise and educational
@@ -384,22 +321,65 @@ When responding:
     tutorSessionId,
   };
 
-  const tools = buildToolSet(ctx);
+  const agentRoutingEnabled = process.env.AGENT_ROUTING === 'true';
+  const tools = agentRoutingEnabled
+    ? buildToolSetWithRouter(ctx)
+    : buildToolSet(ctx);
 
-  // ── Stream ────────────────────────────────────────────────────
-  const result = streamText({
-    model: activeModel,
-    system: systemPrompt,
-    messages: await convertToModelMessages(processedMessages),
-    abortSignal: req.signal,
-    maxOutputTokens: 8192,
-    stopWhen: stepCountIs(15),
-    experimental_transform: smoothStream({ delayInMs: 15 }),
-    providerOptions: {
-      anthropic: { cacheControl: { type: 'ephemeral' } },
-    },
-    // Skip expensive search tools for simple conversational queries
-    prepareStep: async ({ stepNumber, messages: stepMessages }) => {
+  // ── Build system prompt or router prompt ────────────────────
+  let activeSystemPrompt = systemPrompt;
+  let activePrepareStep;
+
+  if (agentRoutingEnabled) {
+    // Router system prompt: short, lists agent options
+    const availableAgents = getAgentsForRole(ctx.user.role);
+    const agentList = availableAgents
+      .map((a) => `- **${a.name}** (\`${a.id}\`): ${a.description}`)
+      .join('\n');
+
+    const routerSystemPrompt = `You are a helpful AI assistant for an educational platform called Bud.
+Current date and time: ${currentDateTime}
+
+You route user requests to specialist agents using the delegate_to_agent tool.
+
+## Available Agents
+${agentList}
+
+## Instructions
+1. Analyze the user's message to determine which specialist agent can best handle it.
+2. Call delegate_to_agent with the appropriate agent ID and a clear task description.
+3. Include all relevant context from the user's message in the task.
+4. For simple greetings or questions you can answer directly (like "hello" or "what time is it"), respond without delegating.
+5. If the request spans multiple domains or doesn't fit any agent, delegate to \`general\`.
+6. You also have access to save_memory, fetch_memory, get_current_time, server_actions, and translate_content at all times.
+
+${memoryItems.length > 0 ? `\nYou have saved memories:\n${memoryItems.map((item: MemoryItem) => `- ${item.title} (${item.category || 'uncategorized'}): ${item.description || 'No description'}`).join('\n')}\nUse fetch_memory to retrieve full details when relevant.` : ''}`;
+
+    activeSystemPrompt = routerSystemPrompt;
+
+    // Append tutor mode and language to router prompt too
+    if (tutorMode && tutorSubject && tutorTopic) {
+      const { buildSocraticPrompt, buildGuidedPrompt, buildPracticePrompt } = await import('@/lib/ai/tutor-prompts');
+      const tutorPrompt =
+        tutorMode === 'socratic' ? buildSocraticPrompt(tutorSubject, tutorTopic) :
+        tutorMode === 'guided' ? buildGuidedPrompt(tutorSubject, tutorTopic) :
+        buildPracticePrompt(tutorSubject, tutorTopic);
+      activeSystemPrompt += '\n\n' + tutorPrompt;
+    }
+    if (language && language !== 'en') {
+      const { buildLanguageInstruction } = await import('@/lib/ai/language');
+      activeSystemPrompt += buildLanguageInstruction(language);
+    }
+
+    const allToolNames = Object.keys(tools);
+    activePrepareStep = createAgentPrepareStep(
+      systemPrompt,
+      allToolNames,
+      [...LOCAL_TOOL_NAMES]
+    );
+  } else {
+    // Original prepareStep: skip expensive search tools for simple queries
+    activePrepareStep = async ({ stepNumber, messages: stepMessages }: { stepNumber: number; messages: Array<{ role: string; content: unknown }> }) => {
       if (stepNumber === 0) {
         const lastMsg = stepMessages.at(-1);
         let lastText = '';
@@ -422,7 +402,22 @@ When responding:
         }
       }
       return undefined;
+    };
+  }
+
+  // ── Stream ────────────────────────────────────────────────────
+  const result = streamText({
+    model: activeModel,
+    system: activeSystemPrompt,
+    messages: await convertToModelMessages(processedMessages),
+    abortSignal: req.signal,
+    maxOutputTokens: 8192,
+    stopWhen: stepCountIs(15),
+    experimental_transform: smoothStream({ delayInMs: 15 }),
+    providerOptions: {
+      anthropic: { cacheControl: { type: 'ephemeral' } },
     },
+    prepareStep: activePrepareStep,
     onError: (error) => {
       console.error('[Chat Stream Error]', error);
     },

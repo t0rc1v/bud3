@@ -48,8 +48,14 @@ import { createRetakeQuizTool } from './retake';
 // Phase 11: Exam Prediction + Class Analytics
 import { predictExamTopicsTool } from './exam-prediction';
 import { queryClassAnalyticsTool } from './class-analytics';
+import { wrapToolWithRetry } from './with-retry';
+// Tutor state tracking
+import { updateTutorProgressTool } from './tutor-state';
 
 export type { ToolContext } from './types';
+
+// Agent routing
+import { buildDelegateToAgentTool } from '../agents/router';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyTool = Tool<any, any>;
@@ -105,6 +111,7 @@ export function buildToolSet(ctx: ToolContext) {
     tools.get_study_plan = getStudyPlanTool(ctx);
     tools.analyze_weaknesses = analyzeWeaknessesChatTool(ctx);
     tools.create_retake_quiz = createRetakeQuizTool(ctx);
+    tools.update_tutor_progress = updateTutorProgressTool(ctx);
   }
 
   // ── Admin (teacher) tools ─────────────────────────────────────
@@ -133,7 +140,103 @@ export function buildToolSet(ctx: ToolContext) {
     tools.query_class_analytics = queryClassAnalyticsTool(ctx);
   }
 
+  // ── Wrap safe-to-retry tools with automatic retry ───────────
+  // Includes reads/queries (idempotent) AND creation tools (failed creates
+  // produce no side effects, so retrying on transient errors is safe).
+  const RETRYABLE_TOOLS = new Set([
+    // Reads & queries
+    'web_search', 'youtube_search', 'research_materials', 'web_browse',
+    'read_resource_content', 'search_resource_content', 'fetch_memory',
+    'get_current_time', 'get_recommendations', 'get_due_flashcards',
+    'get_study_plan', 'analyze_weaknesses', 'translate_content',
+    'query_student_performance', 'query_topic_analytics',
+    'query_class_analytics', 'get_class_roster', 'review_grades',
+    'predict_exam_topics',
+    // Creation tools — a failed call created nothing, safe to retry
+    'create_quiz', 'create_assignment', 'create_exam',
+    'create_flashcards', 'create_notes_document', 'create_study_plan',
+    'create_retake_quiz',
+    // Generation tools — pure text generation, no side effects
+    'generate_summary', 'generate_overview', 'identify_keywords',
+    'generate_study_guide', 'generate_parent_report', 'generate_lesson_plan',
+    // Grading & quality — analysis only, no DB writes on failure
+    'grade_submission', 'check_submission_quality',
+    // Curriculum import — failed imports don't persist partial data
+    'import_syllabus', 'import_past_paper', 'import_notes',
+  ]);
+
+  for (const name of Object.keys(tools)) {
+    if (RETRYABLE_TOOLS.has(name)) {
+      tools[name] = wrapToolWithRetry(tools[name]);
+    }
+  }
+
   return tools;
+}
+
+/**
+ * Build the full tool set with the delegate_to_agent router tool included.
+ * Used when AGENT_ROUTING is enabled.
+ */
+export function buildToolSetWithRouter(ctx: ToolContext) {
+  const tools = buildToolSet(ctx);
+  tools.delegate_to_agent = buildDelegateToAgentTool(ctx.user.role);
+  return tools;
+}
+
+/**
+ * Group tool names by agent domain (matches registry.ts definitions).
+ * Useful for understanding which tools belong to which agent.
+ */
+export function buildToolGroups(): Record<string, string[]> {
+  return {
+    always_available: [
+      'save_memory',
+      'fetch_memory',
+      'get_current_time',
+      'server_actions',
+      'translate_content',
+      'delegate_to_agent',
+    ],
+    researcher: ['web_search', 'youtube_search', 'research_materials', 'web_browse'],
+    content_creator: [
+      'create_quiz',
+      'create_assignment',
+      'create_exam',
+      'create_flashcards',
+      'create_notes_document',
+    ],
+    content_analyst: [
+      'generate_summary',
+      'generate_overview',
+      'identify_keywords',
+      'generate_study_guide',
+      'read_resource_content',
+      'search_resource_content',
+    ],
+    study_coach: [
+      'create_study_plan',
+      'get_study_plan',
+      'analyze_weaknesses',
+      'get_due_flashcards',
+      'create_retake_quiz',
+      'get_recommendations',
+      'update_tutor_progress',
+    ],
+    teacher_assistant: [
+      'grade_submission',
+      'review_grades',
+      'query_student_performance',
+      'generate_parent_report',
+      'query_topic_analytics',
+      'generate_lesson_plan',
+      'get_class_roster',
+      'check_submission_quality',
+      'predict_exam_topics',
+      'query_class_analytics',
+    ],
+    curriculum_builder: ['import_syllabus', 'import_past_paper', 'import_notes'],
+  };
 }
 
 /**
@@ -163,6 +266,7 @@ export const LOCAL_TOOL_NAMES = [
   'get_study_plan',
   'analyze_weaknesses',
   'create_retake_quiz',
+  'update_tutor_progress',
   'grade_submission',
   'review_grades',
   'import_syllabus',

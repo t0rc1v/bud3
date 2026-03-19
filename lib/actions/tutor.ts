@@ -70,6 +70,71 @@ export async function getTutorSessionById(sessionId: string) {
   return session || null;
 }
 
+export async function getTutorSessionByChatId(chatId: string) {
+  const [session] = await db
+    .select()
+    .from(tutorSession)
+    .where(and(eq(tutorSession.chatId, chatId), eq(tutorSession.status, "active")));
+  return session || null;
+}
+
+export async function updateTutorProgress(
+  sessionId: string,
+  action: "correct" | "incorrect" | "attempt" | "new_question"
+) {
+  const session = await getTutorSessionById(sessionId);
+  if (!session) return null;
+
+  const stats = (session.sessionStats as Record<string, number>) || {};
+  let currentQuestionAttempts = stats.currentQuestionAttempts ?? 0;
+  let correctStreak = stats.correctStreak ?? 0;
+  let wrongStreak = stats.wrongStreak ?? 0;
+  let totalQuestions = stats.questionsAsked ?? 0;
+  let totalCorrect = stats.correctAnswers ?? 0;
+
+  switch (action) {
+    case "correct":
+      totalCorrect++;
+      correctStreak++;
+      wrongStreak = 0;
+      currentQuestionAttempts = 0;
+      totalQuestions++;
+      break;
+    case "incorrect":
+      wrongStreak++;
+      correctStreak = 0;
+      totalQuestions++;
+      break;
+    case "attempt":
+      currentQuestionAttempts++;
+      break;
+    case "new_question":
+      currentQuestionAttempts = 0;
+      break;
+  }
+
+  const updatedStats = {
+    questionsAsked: totalQuestions,
+    correctAnswers: totalCorrect,
+    currentQuestionAttempts,
+    correctStreak,
+    wrongStreak,
+  };
+
+  await updateTutorSession(sessionId, { sessionStats: updatedStats });
+
+  return {
+    currentQuestionAttempts,
+    correctStreak,
+    wrongStreak,
+    totalQuestions,
+    totalCorrect,
+    hintRecommended: currentQuestionAttempts >= 3,
+    levelUpRecommended: correctStreak >= 5,
+    miniLessonRecommended: wrongStreak >= 3,
+  };
+}
+
 export async function getTutorSessionStats(userId: string) {
   const [stats] = await db
     .select({

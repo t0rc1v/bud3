@@ -30,13 +30,28 @@ export async function POST(req: Request) {
   if (!user) return new Response("User not found", { status: 404 });
 
   const body = await req.json();
-  const { chatId, subject, topic, level, mode } = body;
+  const { chatId: providedChatId, subject, topic, level, mode } = body;
 
-  if (!chatId || !subject || !topic || !mode) {
+  if (!subject || !topic || !mode) {
     return NextResponse.json(
-      { error: "chatId, subject, topic, and mode are required" },
+      { error: "subject, topic, and mode are required" },
       { status: 400 }
     );
+  }
+
+  // Auto-create a chat if chatId not provided
+  let chatId = providedChatId;
+  if (!chatId) {
+    const { db } = await import("@/lib/db");
+    const { chat } = await import("@/lib/db/schema");
+    const [newChat] = await db
+      .insert(chat)
+      .values({
+        userId: user.id,
+        title: `Tutor: ${subject} — ${topic}`,
+      })
+      .returning();
+    chatId = newChat.id;
   }
 
   const session = await createTutorSession({

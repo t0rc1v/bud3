@@ -5,11 +5,11 @@ import { SidebarContentTree } from "@/components/content/sidebar-content-tree";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { PanelLeft, PanelRight, MessageSquare, LayoutDashboard, GraduationCap, ChevronDown, Loader2 } from "lucide-react";
+import { PanelLeft, PanelRight, MessageSquare, LayoutDashboard, GraduationCap, ChevronDown, Loader2, Layers, Calendar, Lightbulb, FileCheck, MessageCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
@@ -49,6 +49,7 @@ export function RegularLayoutClient({ children, userId, dbUserId, userRole, init
   // State for resource actions from file tree
   const [resourceToAddToChat, setResourceToAddToChat] = useState<ChatResource | null>(null);
   const [toolsOpen, setToolsOpen] = useState(true);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     // After hydration, set isClient to true to allow mobile detection
@@ -56,10 +57,22 @@ export function RegularLayoutClient({ children, userId, dbUserId, userRole, init
     return () => clearTimeout(timeoutId);
   }, []);
 
+  // Auto-open chat sidebar when tutor session params are present
+  useEffect(() => {
+    if (searchParams.get("tutorPrompt") || searchParams.get("tutorMode")) {
+      if (!rightSidebarOpen) setRightSidebarOpen(true);
+    }
+  }, [searchParams, rightSidebarOpen]);
+
   const title = userRole === "admin" ? "Institution Admin" : "Student";
   const pathname = usePathname();
   const pageTitle = getPageTitle(pathname, {
     "/regular": "Dashboard",
+    "/regular/flashcards": "Flashcards",
+    "/regular/study-plans": "Study Plans",
+    "/regular/insights": "Insights",
+    "/regular/submissions": "Submissions",
+    "/regular/tutor": "AI Tutor",
   });
 
   // Handle resource selection from sidebar
@@ -138,11 +151,11 @@ export function RegularLayoutClient({ children, userId, dbUserId, userRole, init
                 </div>
                 {/* Regular User Navigation */}
                 {userRole === "regular" && (
-                  <div className="border-t p-4">
-                    <Separator className="mb-3" />
+                  <div className="border-t p-4 max-h-[50%] flex flex-col">
+                    <Separator className="mb-3 flex-shrink-0" />
                     <button
                       onClick={() => setToolsOpen(!toolsOpen)}
-                      className="mb-2 flex w-full items-center justify-between px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                      className="mb-2 flex-shrink-0 flex w-full items-center justify-between px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
                     >
                       <span className="flex items-center gap-2">
                         <GraduationCap className="h-3.5 w-3.5" />
@@ -151,19 +164,29 @@ export function RegularLayoutClient({ children, userId, dbUserId, userRole, init
                       <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", toolsOpen && "rotate-180")} />
                     </button>
                     {toolsOpen && (
-                      <nav className="space-y-1">
-                        <Link
-                          href="/regular"
-                          className={cn(
-                            "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                            pathname === "/regular"
-                              ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                              : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                          )}
-                        >
-                          <LayoutDashboard className="h-4 w-4" />
-                          Dashboard
-                        </Link>
+                      <nav className="space-y-1 overflow-y-auto">
+                        {[
+                          { href: "/regular", label: "Dashboard", icon: LayoutDashboard },
+                          { href: "/regular/flashcards", label: "Flashcards", icon: Layers },
+                          { href: "/regular/study-plans", label: "Study Plans", icon: Calendar },
+                          { href: "/regular/insights", label: "Insights", icon: Lightbulb },
+                          { href: "/regular/submissions", label: "Submissions", icon: FileCheck },
+                          { href: "/regular/tutor", label: "AI Tutor", icon: MessageCircle },
+                        ].map(({ href, label, icon: Icon }) => (
+                          <Link
+                            key={href}
+                            href={href}
+                            className={cn(
+                              "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                              pathname === href
+                                ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                                : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                            )}
+                          >
+                            <Icon className="h-4 w-4" />
+                            {label}
+                          </Link>
+                        ))}
                       </nav>
                     )}
                   </div>
@@ -260,8 +283,8 @@ export function RegularLayoutClient({ children, userId, dbUserId, userRole, init
         
         {/* Regular User Navigation */}
         {userRole === "regular" && (
-          <div className="border-t p-4">
-            <div className={cn("mb-3 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
+          <div className="border-t p-4 max-h-[50%] flex flex-col">
+            <div className={cn("flex-shrink-0 mb-3 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
               <Separator className="mb-3" />
               <button
                 onClick={() => setToolsOpen(!toolsOpen)}
@@ -275,19 +298,29 @@ export function RegularLayoutClient({ children, userId, dbUserId, userRole, init
               </button>
             </div>
             {toolsOpen && (
-              <nav className={cn("space-y-1 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
-                <Link
-                  href="/regular"
-                  className={cn(
-                    "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                    pathname === "/regular"
-                      ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                      : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                  )}
-                >
-                  <LayoutDashboard className="h-4 w-4" />
-                  Dashboard
-                </Link>
+              <nav className={cn("space-y-1 overflow-y-auto transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
+                {[
+                  { href: "/regular", label: "Dashboard", icon: LayoutDashboard },
+                  { href: "/regular/flashcards", label: "Flashcards", icon: Layers },
+                  { href: "/regular/study-plans", label: "Study Plans", icon: Calendar },
+                  { href: "/regular/insights", label: "Insights", icon: Lightbulb },
+                  { href: "/regular/submissions", label: "Submissions", icon: FileCheck },
+                  { href: "/regular/tutor", label: "AI Tutor", icon: MessageCircle },
+                ].map(({ href, label, icon: Icon }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={cn(
+                      "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                      pathname === href
+                        ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                        : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </Link>
+                ))}
               </nav>
             )}
           </div>

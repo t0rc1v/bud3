@@ -187,9 +187,20 @@ export function AIChat({
 
   const isMobile = mounted && isMobileHook;
 
+  // Track whether auto-prompt from URL has been sent
+  const autoPromptSentRef = useRef(false);
+
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Read tutorMode and autoPrompt from URL params (e.g., from tutor session creation)
+  useEffect(() => {
+    const urlTutorMode = searchParams.get("tutorMode");
+    if (urlTutorMode && ['socratic', 'guided', 'practice'].includes(urlTutorMode)) {
+      setTutorMode(urlTutorMode as 'socratic' | 'guided' | 'practice');
+    }
+  }, [searchParams]);
    
   // Store pending message to send after chat is created
   const pendingMessageRef = useRef<{ text: string; files: Array<{ type: "file"; url: string; mediaType: string; filename: string }> } | null>(null);
@@ -373,6 +384,24 @@ export function AIChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatIdToLoad, isOpen]); // Re-run when chatIdToLoad or isOpen changes
 
+  // Auto-send tutor prompt from URL params (e.g., after creating a tutor session)
+  useEffect(() => {
+    const tutorPrompt = searchParams.get("tutorPrompt");
+    if (!tutorPrompt || autoPromptSentRef.current || !chatId || status !== "ready") return;
+    if (!isLoadingChats && messages.length === 0) {
+      autoPromptSentRef.current = true;
+      // Small delay to let chat fully initialize
+      setTimeout(() => {
+        sendMessage({ text: decodeURIComponent(tutorPrompt), files: [] });
+        // Clean up URL params
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("tutorPrompt");
+        params.delete("tutorMode");
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      }, 100);
+    }
+  }, [chatId, status, isLoadingChats, messages.length, searchParams, sendMessage, router, pathname]);
+
   // Track scroll position to show/hide scroll button
   const handleScroll = useCallback(() => {
     if (viewportRef.current) {
@@ -425,7 +454,7 @@ export function AIChat({
   }, [isMobile]);
 
   const handleSend = useCallback(async () => {
-    if (!input.trim() || status !== "ready") return;
+    if (!input.trim() || (status !== "ready" && status !== "error")) return;
 
     const userMessage = input;
     
@@ -1330,6 +1359,42 @@ export function AIChat({
             )}
 
             {/* Depleted Credits Error */}
+            {/* Generic Error Display */}
+            {error && !creditError && (
+              <div className="flex justify-center">
+                <Alert variant="destructive" className="max-w-md">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Something went wrong</AlertTitle>
+                  <AlertDescription className="space-y-3">
+                    <p>{error.message || "An unexpected error occurred. Please try again."}</p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => regenerate()}
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Retry
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const last = messages[messages.length - 1];
+                          if (last?.role === "user") {
+                            setMessages(messages.slice(0, -1));
+                          }
+                        }}
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+
             {creditError && (
               <div className="flex justify-center">
                 <Alert variant="destructive" className="max-w-md">
@@ -1459,7 +1524,7 @@ export function AIChat({
                     ? "Ask anything..."
                     : "Ask anything... (Shift+Enter for new line)"
               }
-              disabled={status !== "ready"}
+              disabled={status !== "ready" && status !== "error"}
               rows={textareaRows}
               className="min-h-[52px] max-h-[160px] resize-none border-0 shadow-none focus-visible:ring-0 bg-transparent px-4 pt-3 pb-2 text-sm w-full"
             />
@@ -1652,7 +1717,7 @@ export function AIChat({
                 )}
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                {status !== "ready" ? (
+                {status === "submitted" || status === "streaming" ? (
                   <Button
                     type="button"
                     size="icon"

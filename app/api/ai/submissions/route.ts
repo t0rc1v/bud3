@@ -1,10 +1,21 @@
 import { auth } from "@clerk/nextjs/server";
 import { getUserByClerkId } from "@/lib/actions/auth";
-import { submitAnswers } from "@/lib/actions/grading";
+import { submitAnswers, getSubmissionsByUser } from "@/lib/actions/grading";
 import { gradeSubmissionWithAI } from "@/lib/actions/grading";
 import { NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createNotification } from "@/lib/actions/notifications";
+
+export async function GET() {
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return new Response("Unauthorized", { status: 401 });
+
+  const user = await getUserByClerkId(clerkId);
+  if (!user) return new Response("User not found", { status: 404 });
+
+  const submissions = await getSubmissionsByUser(user.id);
+  return NextResponse.json({ submissions });
+}
 
 export async function POST(req: Request) {
   const { userId: clerkId } = await auth();
@@ -57,5 +68,8 @@ export async function POST(req: Request) {
     console.error("Auto-grading failed:", error);
   }
 
-  return NextResponse.json({ submission, grade });
+  return NextResponse.json({ submission, grade: grade ? {
+    ...grade,
+    perQuestionFeedback: grade.perQuestionFeedback,
+  } : null });
 }

@@ -124,6 +124,9 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
   const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
 
+  // Topic progress cache
+  const [topicProgress, setTopicProgress] = useState<Record<string, { total: number; completed: number; started: number }>>({});
+
   // Dialog states
   const [isCreateLevelOpen, setIsCreateLevelOpen] = useState(false);
   const [isCreateSubjectOpen, setIsCreateSubjectOpen] = useState(false);
@@ -284,6 +287,15 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
       newExpanded.delete(topicId);
     } else {
       newExpanded.add(topicId);
+      // Fetch topic progress when expanding
+      if (!topicProgress[topicId]) {
+        fetch(`/api/learner/topic-progress?topicId=${topicId}`)
+          .then((r) => r.ok ? r.json() : null)
+          .then((data) => {
+            if (data) setTopicProgress((prev) => ({ ...prev, [topicId]: data }));
+          })
+          .catch(() => {});
+      }
     }
     setExpandedTopics(newExpanded);
   };
@@ -836,6 +848,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
                   isAdminContent={false}
                   currentUserId={userId}
                   contentType="own"
+                  topicProgress={topicProgress}
                 />
               ))}
             </div>
@@ -912,6 +925,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
                   isAdminContent={true}
                   currentUserId={userId}
                   contentType="institution"
+                  topicProgress={topicProgress}
                 />
               ))}
             </div>
@@ -986,6 +1000,7 @@ export function RegularDashboardClient({ initialLevels, userId, adminIds }: Regu
                   isAdminContent={true}
                   currentUserId={userId}
                   contentType="institution"
+                  topicProgress={topicProgress}
                 />
               ))}
             </div>
@@ -1160,6 +1175,7 @@ interface LevelCardProps {
   isAdminContent: boolean;
   currentUserId: string;
   contentType?: "own" | "institution";
+  topicProgress?: Record<string, { total: number; completed: number; started: number }>;
 }
 
 function LevelCard({
@@ -1186,6 +1202,7 @@ function LevelCard({
   isAdminContent,
   currentUserId,
   contentType = "own",
+  topicProgress = {},
 }: LevelCardProps) {
   const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false);
   const [addTopicForSubject, setAddTopicForSubject] = useState<string | null>(null);
@@ -1396,6 +1413,19 @@ function LevelCard({
                               <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 inline">
                                 {topic.resources?.length || 0}
                               </span>
+                              {topicProgress[topic.id] && topicProgress[topic.id].total > 0 && (
+                                <span className="flex items-center gap-1.5 flex-shrink-0">
+                                  <span className="h-1.5 w-12 sm:w-16 bg-muted rounded-full overflow-hidden">
+                                    <span
+                                      className="h-full bg-primary block rounded-full transition-all"
+                                      style={{ width: `${Math.round((topicProgress[topic.id].completed / topicProgress[topic.id].total) * 100)}%` }}
+                                    />
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {topicProgress[topic.id].completed}/{topicProgress[topic.id].total}
+                                  </span>
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                               {/* Add Resource button - only for owners */}

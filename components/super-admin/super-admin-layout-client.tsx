@@ -5,7 +5,7 @@ import { SidebarContentTree } from "@/components/content/sidebar-content-tree";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { PanelLeft, PanelRight, MessageSquare, Crown, Gift, Users, LayoutDashboard, BarChart2, ChevronDown, Loader2, Bell, Flame } from "lucide-react";
+import { PanelLeft, PanelRight, MessageSquare, Crown, Gift, Users, LayoutDashboard, BarChart2, BarChart3, ChevronDown, Loader2, Bell, Flame, Upload, FileText, BookCopy, FileCheck } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -59,6 +59,11 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
     "/super-admin/regulars": "Manage Regulars",
     "/super-admin/notifications": "Send Notifications",
     "/super-admin/streaks": "Streak Leaderboard",
+    "/super-admin/ai-analytics": "AI Analytics",
+    "/super-admin/bulk-upload": "Bulk Upload",
+    "/super-admin/reports": "Reports",
+    "/super-admin/curriculum-import": "Curriculum Import",
+    "/super-admin/submissions": "Learner Submissions",
   });
 
   const handleResourceSelect = useCallback((resource: Resource) => {
@@ -127,11 +132,11 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
                   className="h-full"
                 />
               </div>
-              <div className="border-t p-4">
-                <Separator className="mb-3" />
+              <div className="border-t p-4 max-h-[50%] flex flex-col">
+                <Separator className="mb-3 flex-shrink-0" />
                 <button
                   onClick={() => setToolsOpen(!toolsOpen)}
-                  className="mb-2 flex w-full items-center justify-between px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                  className="mb-2 flex-shrink-0 flex w-full items-center justify-between px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <span className="flex items-center gap-2">
                     <Crown className="h-3.5 w-3.5" />
@@ -140,91 +145,35 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
                   <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", toolsOpen && "rotate-180")} />
                 </button>
                 {toolsOpen && (
-                  <nav className="space-y-1">
-                    <Link
-                      href="/super-admin"
-                      className={cn(
-                        "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                        pathname === "/super-admin"
-                          ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                          : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                      )}
-                    >
-                      <LayoutDashboard className="h-4 w-4" />
-                      Dashboard
-                    </Link>
-                    <Link
-                      href="/super-admin/analytics"
-                      className={cn(
-                        "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                        pathname === "/super-admin/analytics"
-                          ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                          : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                      )}
-                    >
-                      <BarChart2 className="h-4 w-4" />
-                      Analytics
-                    </Link>
-                    <Link
-                      href="/super-admin/rewards"
-                      className={cn(
-                        "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                        pathname === "/super-admin/rewards"
-                          ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                          : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                      )}
-                    >
-                      <Gift className="h-4 w-4" />
-                      Gift Credits
-                    </Link>
-                    <Link
-                      href="/super-admin/manage-admins"
-                      className={cn(
-                        "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                        pathname === "/super-admin/manage-admins"
-                          ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                          : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                      )}
-                    >
-                      <Users className="h-4 w-4" />
-                      Manage Admins
-                    </Link>
-                    <Link
-                      href="/super-admin/regulars"
-                      className={cn(
-                        "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                        pathname === "/super-admin/regulars"
-                          ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                          : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                      )}
-                    >
-                      <Users className="h-4 w-4" />
-                      Manage Regulars
-                    </Link>
-                    <Link
-                      href="/super-admin/notifications"
-                      className={cn(
-                        "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                        pathname === "/super-admin/notifications"
-                          ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                          : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                      )}
-                    >
-                      <Bell className="h-4 w-4" />
-                      Notifications
-                    </Link>
-                    <Link
-                      href="/super-admin/streaks"
-                      className={cn(
-                        "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                        pathname === "/super-admin/streaks"
-                          ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                          : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                      )}
-                    >
-                      <Flame className="h-4 w-4" />
-                      Streaks
-                    </Link>
+                  <nav className="space-y-1 overflow-y-auto">
+                    {[
+                      { href: "/super-admin", label: "Dashboard", icon: LayoutDashboard },
+                      { href: "/super-admin/analytics", label: "Analytics", icon: BarChart2 },
+                      { href: "/super-admin/rewards", label: "Gift Credits", icon: Gift },
+                      { href: "/super-admin/manage-admins", label: "Manage Admins", icon: Users },
+                      { href: "/super-admin/regulars", label: "Manage Regulars", icon: Users },
+                      { href: "/super-admin/notifications", label: "Notifications", icon: Bell },
+                      { href: "/super-admin/streaks", label: "Streaks", icon: Flame },
+                      { href: "/super-admin/ai-analytics", label: "AI Analytics", icon: BarChart3 },
+                      { href: "/super-admin/bulk-upload", label: "Bulk Upload", icon: Upload },
+                      { href: "/super-admin/reports", label: "Reports", icon: FileText },
+                      { href: "/super-admin/submissions", label: "Submissions", icon: FileCheck },
+                      { href: "/super-admin/curriculum-import", label: "Curriculum Import", icon: BookCopy },
+                    ].map(({ href, label, icon: Icon }) => (
+                      <Link
+                        key={href}
+                        href={href}
+                        className={cn(
+                          "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                          pathname === href
+                            ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                            : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                        {label}
+                      </Link>
+                    ))}
                   </nav>
                 )}
               </div>
@@ -313,8 +262,8 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
           />
         </div>
         
-        <div className="border-t p-4">
-          <div className={cn("mb-3 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
+        <div className="border-t p-4 max-h-[50%] flex flex-col">
+          <div className={cn("flex-shrink-0 mb-3 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
             <Separator className="mb-3" />
             <button
               onClick={() => setToolsOpen(!toolsOpen)}
@@ -328,91 +277,35 @@ export function SuperAdminLayoutClient({ children, userId, dbUserId, initialLeve
             </button>
           </div>
           {toolsOpen && (
-            <nav className={cn("space-y-1 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
-              <Link
-                href="/super-admin"
-                className={cn(
-                  "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                  pathname === "/super-admin"
-                    ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                )}
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                Dashboard
-              </Link>
-              <Link
-                href="/super-admin/analytics"
-                className={cn(
-                  "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                  pathname === "/super-admin/analytics"
-                    ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                )}
-              >
-                <BarChart2 className="h-4 w-4" />
-                Analytics
-              </Link>
-              <Link
-                href="/super-admin/rewards"
-                className={cn(
-                  "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                  pathname === "/super-admin/rewards"
-                    ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                )}
-              >
-                <Gift className="h-4 w-4" />
-                Gift Credits & Unlocks
-              </Link>
-              <Link
-                href="/super-admin/manage-admins"
-                className={cn(
-                  "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                  pathname === "/super-admin/manage-admins"
-                    ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                )}
-              >
-                <Users className="h-4 w-4" />
-                Manage Admins
-              </Link>
-              <Link
-                href="/super-admin/regulars"
-                className={cn(
-                  "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                  pathname === "/super-admin/regulars"
-                    ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                )}
-              >
-                <Users className="h-4 w-4" />
-                Manage Regulars
-              </Link>
-              <Link
-                href="/super-admin/notifications"
-                className={cn(
-                  "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                  pathname === "/super-admin/notifications"
-                    ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                )}
-              >
-                <Bell className="h-4 w-4" />
-                Notifications
-              </Link>
-              <Link
-                href="/super-admin/streaks"
-                className={cn(
-                  "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                  pathname === "/super-admin/streaks"
-                    ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                )}
-              >
-                <Flame className="h-4 w-4" />
-                Streaks
-              </Link>
+            <nav className={cn("space-y-1 overflow-y-auto transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
+              {[
+                { href: "/super-admin", label: "Dashboard", icon: LayoutDashboard },
+                { href: "/super-admin/analytics", label: "Analytics", icon: BarChart2 },
+                { href: "/super-admin/rewards", label: "Gift Credits & Unlocks", icon: Gift },
+                { href: "/super-admin/manage-admins", label: "Manage Admins", icon: Users },
+                { href: "/super-admin/regulars", label: "Manage Regulars", icon: Users },
+                { href: "/super-admin/notifications", label: "Notifications", icon: Bell },
+                { href: "/super-admin/streaks", label: "Streaks", icon: Flame },
+                { href: "/super-admin/ai-analytics", label: "AI Analytics", icon: BarChart3 },
+                { href: "/super-admin/bulk-upload", label: "Bulk Upload", icon: Upload },
+                { href: "/super-admin/reports", label: "Reports", icon: FileText },
+                { href: "/super-admin/submissions", label: "Submissions", icon: FileCheck },
+                { href: "/super-admin/curriculum-import", label: "Curriculum Import", icon: BookCopy },
+              ].map(({ href, label, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                    pathname === href
+                      ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                      : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </Link>
+              ))}
             </nav>
           )}
         </div>

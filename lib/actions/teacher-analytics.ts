@@ -7,6 +7,7 @@ import {
   aiGrade,
   aiSubmission,
   resourceProgress,
+  resource,
   user,
   adminRegulars,
 } from "@/lib/db/schema";
@@ -47,17 +48,41 @@ export async function getStudentPerformance(studentId: string) {
     .orderBy(desc(aiGrade.createdAt))
     .limit(20);
 
-  // Resource progress
-  const [progressStats] = await db
+  // Resource progress — completed/started from resourceProgress, total from resource table
+  const [progressCounts] = await db
     .select({
       completed: sql<number>`count(*) filter (where ${resourceProgress.status} = 'completed')`,
       started: sql<number>`count(*) filter (where ${resourceProgress.status} = 'started')`,
-      total: sql<number>`count(*)`,
     })
     .from(resourceProgress)
     .where(eq(resourceProgress.userId, studentId));
 
-  return { quizResults, grades, progressStats };
+  const [totalResources] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(resource);
+
+  const progressStats = {
+    completed: Number(progressCounts?.completed) || 0,
+    started: Number(progressCounts?.started) || 0,
+    total: Number(totalResources?.count) || 0,
+  };
+
+  // Coerce SQL aggregate strings to proper numbers for quiz results and grades
+  const normalizedQuizResults = quizResults.map((q) => ({
+    ...q,
+    score: Number(q.score) || 0,
+    totalMarks: Number(q.totalMarks) || 0,
+    percentage: q.percentage != null ? Number(q.percentage) : null,
+  }));
+
+  const normalizedGrades = grades.map((g) => ({
+    ...g,
+    totalScore: Number(g.totalScore) || 0,
+    maxScore: Number(g.maxScore) || 0,
+    percentage: g.percentage != null ? Number(g.percentage) : null,
+  }));
+
+  return { quizResults: normalizedQuizResults, grades: normalizedGrades, progressStats };
 }
 
 /**
@@ -67,7 +92,7 @@ export async function getClassPerformance(adminClerkId: string) {
   // Get admin's regulars
   const { getUserByClerkId } = await import("@/lib/actions/auth");
   const admin = await getUserByClerkId(adminClerkId);
-  if (!admin) return { students: [], averageScore: 0 };
+  if (!admin) return { students: [], averageScore: 0, completionRate: 0 };
 
   const regulars = await db
     .select({ regularId: adminRegulars.regularId, email: adminRegulars.regularEmail })
@@ -75,18 +100,53 @@ export async function getClassPerformance(adminClerkId: string) {
     .where(and(eq(adminRegulars.adminId, admin.id), eq(adminRegulars.isActive, true)));
 
   const studentIds = regulars.map((r) => r.regularId);
-  if (studentIds.length === 0) return { students: [], averageScore: 0 };
+  if (studentIds.length === 0) return { students: [], averageScore: 0, completionRate: 0 };
 
-  // Get average quiz scores per student
+  // Get total available resources for completion rate
+  const [totalResources] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(resource);
+  const totalResourceCount = Number(totalResources?.count) || 0;
+
+  // Get per-student scores (quiz + submission grades) and progress
   const results = await Promise.all(
     studentIds.map(async (sid) => {
-      const [avg] = await db
+      const [quizAvg] = await db
         .select({
           avgPercentage: sql<number>`coalesce(avg(${aiQuizAttempt.percentage}), 0)`,
           attemptCount: sql<number>`count(*)`,
         })
         .from(aiQuizAttempt)
         .where(eq(aiQuizAttempt.userId, sid));
+
+      const [gradeAvg] = await db
+        .select({
+          avgPercentage: sql<number>`coalesce(avg(${aiGrade.percentage}), 0)`,
+          gradeCount: sql<number>`count(*)`,
+        })
+        .from(aiGrade)
+        .innerJoin(aiSubmission, eq(aiGrade.submissionId, aiSubmission.id))
+        .where(eq(aiSubmission.userId, sid));
+
+      const quizCount = Number(quizAvg?.attemptCount) || 0;
+      const gradeCount = Number(gradeAvg?.gradeCount) || 0;
+      const totalAssessments = quizCount + gradeCount;
+
+      // Combined weighted average of quiz and submission scores
+      const quizAvgPct = Number(quizAvg?.avgPercentage) || 0;
+      const gradeAvgPct = Number(gradeAvg?.avgPercentage) || 0;
+      const combinedAvg =
+        totalAssessments > 0
+          ? (quizAvgPct * quizCount + gradeAvgPct * gradeCount) / totalAssessments
+          : 0;
+
+      // Count completed resources for this student
+      const [progressCount] = await db
+        .select({
+          completed: sql<number>`count(*) filter (where ${resourceProgress.status} = 'completed')`,
+        })
+        .from(resourceProgress)
+        .where(eq(resourceProgress.userId, sid));
 
       const studentInfo = await db
         .select({ name: user.name, email: user.email })
@@ -98,18 +158,32 @@ export async function getClassPerformance(adminClerkId: string) {
         studentId: sid,
         name: studentInfo[0]?.name || "Unknown",
         email: studentInfo[0]?.email || "",
-        avgPercentage: avg?.avgPercentage || 0,
-        attemptCount: avg?.attemptCount || 0,
+        avgPercentage: combinedAvg,
+        attemptCount: quizCount,
+        completedResources: Number(progressCount?.completed) || 0,
       };
     })
   );
 
+  // Average score only from students who have at least one quiz attempt or graded submission
+  const participatingStudents = results.filter(
+    (r) => r.attemptCount > 0 || r.avgPercentage > 0
+  );
   const averageScore =
-    results.length > 0
-      ? results.reduce((sum, r) => sum + r.avgPercentage, 0) / results.length
+    participatingStudents.length > 0
+      ? participatingStudents.reduce((sum, r) => sum + r.avgPercentage, 0) /
+        participatingStudents.length
       : 0;
 
-  return { students: results, averageScore };
+  // Completion rate: average of (completedResources / totalResources) across all students
+  const completionRate =
+    totalResourceCount > 0 && results.length > 0
+      ? (results.reduce((sum, r) => sum + r.completedResources, 0) /
+          (results.length * totalResourceCount)) *
+        100
+      : 0;
+
+  return { students: results, averageScore, completionRate };
 }
 
 /**
@@ -128,7 +202,12 @@ export async function getTopicDifficulty() {
     .groupBy(aiQuiz.subject)
     .orderBy(sql`avg(${aiQuizAttempt.percentage}) ASC`);
 
-  return topics;
+  return topics.map((t) => ({
+    ...t,
+    avgPercentage: Number(t.avgPercentage) || 0,
+    attemptCount: Number(t.attemptCount) || 0,
+    passRate: Number(t.passRate) || 0,
+  }));
 }
 
 /**

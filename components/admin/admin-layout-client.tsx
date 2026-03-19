@@ -5,7 +5,7 @@ import { SidebarContentTree } from "@/components/content/sidebar-content-tree";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { PanelLeft, PanelRight, MessageSquare, Shield, Gift, Users, LayoutDashboard, ChevronDown, Loader2 } from "lucide-react";
+import { PanelLeft, PanelRight, MessageSquare, Shield, Gift, Users, LayoutDashboard, ChevronDown, Loader2, BarChart3, Upload, FileText, BookCopy, FileCheck } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -56,6 +56,11 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
     "/admin": "Dashboard",
     "/admin/regulars": "Manage Learners",
     "/admin/rewards": "Rewards & Unlocks",
+    "/admin/analytics": "Analytics",
+    "/admin/bulk-upload": "Bulk Upload",
+    "/admin/reports": "Reports",
+    "/admin/curriculum-import": "Curriculum Import",
+    "/admin/submissions": "Learner Submissions",
   });
 
   const handleResourceSelect = useCallback((resource: Resource) => {
@@ -127,11 +132,11 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
                 )}
               </div>
               {userRole === "admin" && (
-                <div className="border-t p-4">
-                  <Separator className="mb-3" />
+                <div className="border-t p-4 max-h-[50%] flex flex-col">
+                  <Separator className="mb-3 flex-shrink-0" />
                   <button
                     onClick={() => setToolsOpen(!toolsOpen)}
-                    className="mb-2 flex w-full items-center justify-between px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                    className="mb-2 flex-shrink-0 flex w-full items-center justify-between px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <span className="flex items-center gap-2">
                       <Shield className="h-3.5 w-3.5" />
@@ -140,43 +145,31 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
                     <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", toolsOpen && "rotate-180")} />
                   </button>
                   {toolsOpen && (
-                    <nav className="space-y-1">
-                      <Link
-                        href="/admin"
-                        className={cn(
-                          "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                          pathname === "/admin"
-                            ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                            : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                        )}
-                      >
-                        <LayoutDashboard className="h-4 w-4" />
-                        Dashboard
-                      </Link>
-                      <Link
-                        href="/admin/regulars"
-                        className={cn(
-                          "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                          pathname === "/admin/regulars"
-                            ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                            : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                        )}
-                      >
-                        <Users className="h-4 w-4" />
-                        Manage Learners
-                      </Link>
-                      <Link
-                        href="/admin/rewards"
-                        className={cn(
-                          "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                          pathname === "/admin/rewards"
-                            ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                            : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                        )}
-                      >
-                        <Gift className="h-4 w-4" />
-                        Rewards & Unlocks
-                      </Link>
+                    <nav className="space-y-1 overflow-y-auto">
+                      {[
+                        { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+                        { href: "/admin/regulars", label: "Manage Learners", icon: Users },
+                        { href: "/admin/rewards", label: "Rewards & Unlocks", icon: Gift },
+                        { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+                        { href: "/admin/bulk-upload", label: "Bulk Upload", icon: Upload },
+                        { href: "/admin/reports", label: "Reports", icon: FileText },
+                        { href: "/admin/submissions", label: "Submissions", icon: FileCheck },
+                        { href: "/admin/curriculum-import", label: "Curriculum Import", icon: BookCopy },
+                      ].map(({ href, label, icon: Icon }) => (
+                        <Link
+                          key={href}
+                          href={href}
+                          className={cn(
+                            "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                            pathname === href
+                              ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                              : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                          )}
+                        >
+                          <Icon className="h-4 w-4" />
+                          {label}
+                        </Link>
+                      ))}
                     </nav>
                   )}
                 </div>
@@ -271,8 +264,8 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
         </div>
         
         {userRole === "admin" && (
-          <div className="border-t p-4">
-            <div className={cn("mb-3 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
+          <div className="border-t p-4 max-h-[50%] flex flex-col">
+            <div className={cn("flex-shrink-0 mb-3 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
               <Separator className="mb-3" />
               <button
                 onClick={() => setToolsOpen(!toolsOpen)}
@@ -286,43 +279,31 @@ export function AdminLayoutClient({ children, userId, dbUserId, userRole, initia
               </button>
             </div>
             {toolsOpen && (
-              <nav className={cn("space-y-1 transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
-                <Link
-                  href="/admin"
-                  className={cn(
-                    "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                    pathname === "/admin"
-                      ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                      : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                  )}
-                >
-                  <LayoutDashboard className="h-4 w-4" />
-                  Dashboard
-                </Link>
-                <Link
-                  href="/admin/regulars"
-                  className={cn(
-                    "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                    pathname === "/admin/regulars"
-                      ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                      : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                  )}
-                >
-                  <Users className="h-4 w-4" />
-                  Manage Learners
-                </Link>
-                <Link
-                  href="/admin/rewards"
-                  className={cn(
-                    "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
-                    pathname === "/admin/rewards"
-                      ? "border-primary bg-primary/15 text-foreground pl-[10px]"
-                      : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
-                  )}
-                >
-                  <Gift className="h-4 w-4" />
-                  Rewards & Unlocks
-                </Link>
+              <nav className={cn("space-y-1 overflow-y-auto transition-opacity", leftSidebarOpen ? "opacity-100" : "opacity-0")}>
+                {[
+                  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+                  { href: "/admin/regulars", label: "Manage Learners", icon: Users },
+                  { href: "/admin/rewards", label: "Rewards & Unlocks", icon: Gift },
+                  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+                  { href: "/admin/bulk-upload", label: "Bulk Upload", icon: Upload },
+                  { href: "/admin/reports", label: "Reports", icon: FileText },
+                  { href: "/admin/submissions", label: "Submissions", icon: FileCheck },
+                  { href: "/admin/curriculum-import", label: "Curriculum Import", icon: BookCopy },
+                ].map(({ href, label, icon: Icon }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={cn(
+                      "flex items-center gap-2 pr-3 py-2 text-sm rounded-r-md transition-all duration-150 border-l-2",
+                      pathname === href
+                        ? "border-primary bg-primary/15 text-foreground pl-[10px]"
+                        : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground pl-[10px]"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </Link>
+                ))}
               </nav>
             )}
           </div>

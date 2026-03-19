@@ -14,5 +14,8 @@ export async function POST(
 
   const { id } = await params;
   const result = await sendParentReportEmail(id);
+  if (!result.success) {
+    return NextResponse.json(result, { status: 500 });
+  }
   return NextResponse.json(result);
 }

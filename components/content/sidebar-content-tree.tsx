@@ -188,6 +188,31 @@ export function SidebarContentTree({
   // Search
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const [apiSearchResults, setApiSearchResults] = useState<{ id: string; title: string; type: string; topicTitle: string; subjectName: string; levelTitle: string }[] | null>(null);
+  const [apiSearchLoading, setApiSearchLoading] = useState(false);
+
+  // Debounced API search for 3+ character queries
+  useEffect(() => {
+    if (searchQuery.length < 3) {
+      setApiSearchResults(null);
+      return;
+    }
+    setApiSearchLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/content/search?q=${encodeURIComponent(searchQuery)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setApiSearchResults(data.results ?? []);
+        }
+      } catch {
+        // Fall back to client-side filter silently
+      } finally {
+        setApiSearchLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Dialog states
   const [isCreateLevelOpen, setIsCreateLevelOpen] = useState(false);
@@ -624,6 +649,33 @@ export function SidebarContentTree({
                 className="pl-7 h-7 text-xs"
               />
             </div>
+          </div>
+        )}
+
+        {/* API Search Results */}
+        {searchQuery.length >= 3 && apiSearchResults !== null && (
+          <div className="border-b">
+            {apiSearchLoading ? (
+              <p className="text-xs text-muted-foreground text-center py-2">Searching...</p>
+            ) : apiSearchResults.length > 0 ? (
+              <div className="p-1 space-y-0.5 max-h-48 overflow-y-auto">
+                <p className="text-[10px] font-medium text-muted-foreground px-2 py-0.5">Search Results</p>
+                {apiSearchResults.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => handleViewResource({ id: r.id, title: r.title } as Parameters<typeof handleViewResource>[0])}
+                    className="w-full text-left px-2 py-1.5 rounded text-xs hover:bg-muted/60 transition-colors"
+                  >
+                    <p className="font-medium truncate">{r.title}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {r.levelTitle} &rsaquo; {r.subjectName} &rsaquo; {r.topicTitle}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground text-center py-2">No search results</p>
+            )}
           </div>
         )}
 

@@ -140,14 +140,15 @@ export async function gradeSubmissionWithAI(submissionId: string) {
       perQuestionFeedback,
       overallFeedback: `You scored ${totalScore}/${maxScore} (${percentage}%). ${passed ? "Well done!" : "Keep practicing!"}`,
       aiConfidence: 95, // High for MCQ exact match
-      status: "draft",
+      status: "published",
+      publishedAt: new Date(),
     })
     .returning();
 
   // Update submission status
   await db
     .update(aiSubmission)
-    .set({ status: "graded" })
+    .set({ status: "published" })
     .where(eq(aiSubmission.id, submissionId));
 
   return grade;

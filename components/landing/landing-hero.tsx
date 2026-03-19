@@ -25,14 +25,14 @@ import {
   Star,
   BarChart3,
   Shield,
+  Building2,
   PlayCircle,
   Coins,
-  Lock,
+  Upload,
   CreditCard,
   Smartphone,
   Check,
   HelpCircle,
-  Wallet,
   ArrowRight,
   Sun,
 } from "lucide-react";
@@ -86,15 +86,15 @@ const features = [
     icon: Coins,
     title: "Credit System",
     description:
-      "Flexible credit-based access to premium content. Pay only for what you use with transparent pricing.",
+      "Upload content and use AI features with volume discounts. Pay only for what you use.",
   },
 ];
 
 const stats = [
-  { value: "10K+", label: "Active Learners" },
-  { value: "500+", label: "Expert Teachers" },
-  { value: "5K+", label: "Learning Resources" },
-  { value: "98%", label: "Satisfaction Rate" },
+  { value: "24/7", label: "AI Tutor Access" },
+  { value: "Free", label: "Content Access" },
+  { value: "Instant", label: "M-Pesa Payments" },
+  { value: "All Levels", label: "Curriculum Coverage" },
 ];
 
 const testimonials = [
@@ -118,16 +118,7 @@ const testimonials = [
   },
 ];
 
-const creditPackages = [
-  { name: "Starter", credits: 50, kes: 100, popular: false },
-  { name: "Standard", credits: 150, kes: 300, popular: true },
-  { name: "Premium", credits: 500, kes: 1000, popular: false },
-  { name: "Ultimate", credits: 1000, kes: 2000, popular: false },
-];
-
 function PricingModal() {
-  const [activeTab, setActiveTab] = useState<"credits" | "unlock">("credits");
-
   return (
     <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
       <DialogHeader>
@@ -138,277 +129,147 @@ function PricingModal() {
         </DialogTitle>
       </DialogHeader>
 
-      <div className="mt-6">
-        {/* Tab Navigation */}
-        <div className="flex p-1 bg-muted rounded-lg mb-8">
-          <button
-            onClick={() => setActiveTab("credits")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-all ${
-              activeTab === "credits"
-                ? "bg-background shadow-sm text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Coins className="h-4 w-4" />
-            Credit System
-          </button>
-          <button
-            onClick={() => setActiveTab("unlock")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-all ${
-              activeTab === "unlock"
-                ? "bg-background shadow-sm text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Lock className="h-4 w-4" />
-            Unlock System
-          </button>
+      <div className="mt-6 space-y-8">
+        {/* How Credits Work */}
+        <div className="bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/15 dark:to-primary/8 rounded-xl p-6 border border-primary/40 dark:border-primary/50">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-700 to-amber-500 shrink-0">
+              <Coins className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg mb-2">How Credits Work</h3>
+              <p className="text-muted-foreground text-sm">
+                Credits power your BudLM experience. Use them to upload resources and
+                interact with the AI tutor. <span className="font-semibold text-primary">Ksh 100 = 50 credits</span> — purchase any custom amount starting from Ksh 100.
+              </p>
+            </div>
+          </div>
         </div>
 
-        {activeTab === "credits" ? (
-          <div className="space-y-8">
-            {/* Credit Explanation */}
-            <div className="bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/15 dark:to-primary/8 rounded-xl p-6 border border-primary/40 dark:border-primary/50">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-700 to-amber-500 shrink-0">
-                  <Coins className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg mb-2">How Credits Work</h3>
-                  <p className="text-muted-foreground text-sm">
-                    Credits are the currency of BudLM. Use them to unlock premium content and 
-                    get AI responses. <span className="font-semibold text-primary">Ksh 100 = 50 credits</span> - use credits to unlock content at custom prices.
-                  </p>
-                </div>
+        {/* Flexible Credit Purchases */}
+        <div>
+          <h3 className="font-semibold text-lg mb-4">Flexible Credit Purchases</h3>
+          <div className="rounded-xl border-2 border-primary/70 bg-primary/10 dark:bg-primary/15 p-6">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-semibold text-lg">Custom Amount</span>
+              <div className="flex items-center gap-1 text-primary">
+                <Coins className="h-5 w-5" />
+                <span className="font-bold">Any amount</span>
               </div>
             </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Choose exactly how many credits you need. No fixed packages — pay for what you want.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2 text-sm">
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>Minimum purchase: <span className="font-semibold">Ksh 100 (50 credits)</span></span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>Rate: Ksh 100 = 50 credits</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>Pay via M-Pesa</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>Instant credit delivery</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-            {/* Credit Packages */}
+        {/* Upload Fees & Volume Discounts */}
+        <div>
+          <h3 className="font-semibold text-lg mb-2">Upload Fees & Volume Discounts</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Each resource upload costs <span className="font-semibold">10 credits</span> at the base rate. Upload more to save more:
+          </p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              { tier: "10+ uploads", discount: "10% off", rate: "9 credits/upload", color: "primary" },
+              { tier: "50+ uploads", discount: "25% off", rate: "7.5 credits/upload", color: "primary" },
+              { tier: "100+ uploads", discount: "50% off", rate: "5 credits/upload", color: "primary" },
+            ].map((tier) => (
+              <div
+                key={tier.tier}
+                className="rounded-xl border-2 border-primary/40 dark:border-primary/50 p-4 bg-primary/5 dark:bg-primary/8 text-center"
+              >
+                <Upload className="h-6 w-6 text-primary mx-auto mb-2" />
+                <div className="font-semibold text-sm mb-1">{tier.tier}</div>
+                <div className="text-2xl font-bold text-primary mb-1">{tier.discount}</div>
+                <div className="text-xs text-muted-foreground">{tier.rate}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* AI Tutor Usage */}
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-xl p-5 border border-blue-200 dark:border-blue-800">
+          <div className="flex items-start gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/20 dark:bg-blue-500/15 shrink-0">
+              <MessageSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
             <div>
-              <h3 className="font-semibold text-lg mb-4">Credit Packages</h3>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {creditPackages.map((pkg) => (
-                  <div
-                    key={pkg.name}
-                    className={`relative rounded-xl border-2 p-4 transition-all ${
-                      pkg.popular
-                        ? "border-primary/70 bg-primary/10 dark:bg-primary/15"
-                        : "border-border hover:border-primary/40"
-                    }`}
-                  >
-                    {pkg.popular && (
-                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-700 text-white text-xs font-medium px-3 py-1 rounded-full">
-                        Most Popular
-                      </span>
-                    )}
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold">{pkg.name}</span>
-                      <div className="flex items-center gap-1 text-primary">
-                        <Coins className="h-4 w-4" />
-                        <span className="font-bold">{pkg.credits}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-baseline gap-1 mb-3">
-                      <span className="text-2xl font-bold">Ksh {pkg.kes}</span>
-                      <span className="text-sm text-muted-foreground">
-                        ({pkg.credits} credits)
-                      </span>
-                    </div>
-                    <div className="text-sm text-muted-foreground mb-4">
-                      ~Varies by content price
-                    </div>
-                    <Button
-                      className={`w-full ${
-                        pkg.popular
-                          ? "bg-gradient-to-r from-orange-700 to-amber-500 hover:from-orange-800 hover:to-amber-600"
-                          : ""
-                      }`}
-                      variant={pkg.popular ? "default" : "outline"}
-                    >
-                      Purchase
-                    </Button>
-                  </div>
-                ))}
+              <h3 className="font-semibold mb-1">AI Tutor Usage</h3>
+              <div className="flex flex-wrap gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-blue-500" />
+                  <span><span className="font-semibold">1 credit</span> per standard model message</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-blue-500" />
+                  <span><span className="font-semibold">5 credits</span> per powerful model message</span>
+                </div>
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* Payment Method */}
-            <div className="bg-muted rounded-xl p-6">
-              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                <Smartphone className="h-5 w-5 text-primary" />
-                Pay with M-Pesa
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                We use M-Pesa for all transactions. Simply enter your phone number and 
-                approve the payment request on your phone. Secure, fast, and convenient.
+        {/* FAQ Section */}
+        <div className="bg-muted rounded-xl p-6">
+          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+            <HelpCircle className="h-5 w-5 text-primary" />
+            Frequently Asked Questions
+          </h3>
+          <div className="space-y-4 text-sm">
+            <div>
+              <h4 className="font-medium mb-1">How do I purchase credits?</h4>
+              <p className="text-muted-foreground">
+                Enter any custom amount (minimum Ksh 100) and pay via M-Pesa. Credits are delivered instantly to your account.
               </p>
-              <div className="flex items-center gap-3 text-sm">
-                <div className="flex items-center gap-1 text-green-600">
-                  <Check className="h-4 w-4" />
-                  <span>Instant credits</span>
-                </div>
-                <div className="flex items-center gap-1 text-green-600">
-                  <Check className="h-4 w-4" />
-                  <span>Secure payment</span>
-                </div>
-                <div className="flex items-center gap-1 text-green-600">
-                  <Check className="h-4 w-4" />
-                  <span>No hidden fees</span>
-                </div>
-              </div>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-8">
-            {/* Unlock Explanation */}
-            <div className="bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950/20 dark:to-yellow-950/20 rounded-xl p-6 border border-amber-200 dark:border-amber-800">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-yellow-500 shrink-0">
-                  <Lock className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg mb-2">Content Unlock System</h3>
-                  <p className="text-muted-foreground text-sm">
-                    Premium educational content is locked until you unlock it. Once unlocked, 
-                    the content is yours forever. Use credits or pay directly via M-Pesa to unlock.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* How Unlocking Works */}
             <div>
-              <h3 className="font-semibold text-lg mb-4">How Content Unlocking Works</h3>
-              <div className="space-y-4">
-                {[
-                  {
-                    icon: BookOpen,
-                    title: "Browse Content",
-                    description: "Explore subjects, topics, and resources organized by level",
-                  },
-                  {
-                    icon: Lock,
-                    title: "Find Locked Resources",
-                    description: "Premium content is marked with a lock icon and shows the unlock fee",
-                  },
-                  {
-                    icon: Wallet,
-                    title: "Choose Payment Method",
-                    description: "Use your credits or pay directly via M-Pesa - prices vary by content",
-                  },
-                  {
-                    icon: Check,
-                    title: "Access Forever",
-                    description: "Once unlocked, the resource is permanently available in your library",
-                  },
-                ].map((step, index) => (
-                  <div key={index} className="flex items-start gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20 dark:bg-primary/15 shrink-0">
-                      <step.icon className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium">{step.title}</h4>
-                      <p className="text-sm text-muted-foreground">{step.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <h4 className="font-medium mb-1">What are upload fees?</h4>
+              <p className="text-muted-foreground">
+                Users pay 10 credits per resource upload at the base rate. Volume discounts apply automatically as you upload more content.
+              </p>
             </div>
-
-            {/* Unlock Pricing */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-xl border-2 border-primary/40 dark:border-primary/50 p-6 bg-primary/10 dark:bg-primary/8">
-                <div className="flex items-center gap-2 mb-3">
-                  <Coins className="h-5 w-5 text-primary" />
-                  <h4 className="font-semibold">Pay with Credits</h4>
-                </div>
-                <div className="text-3xl font-bold text-primary mb-1">Custom Pricing</div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Price varies per content (e.g., 30-100 credits)
-                </p>
-                <ul className="space-y-2 text-sm">
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-green-500" />
-                    Instant unlock
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-green-500" />
-                    <span className="font-semibold">Ksh 100 = 50 credits</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-green-500" />
-                    Best for frequent users
-                  </li>
-                </ul>
-              </div>
-
-              <div className="rounded-xl border-2 border-amber-200 dark:border-amber-800 p-6 bg-amber-50/30 dark:bg-amber-950/10">
-                <div className="flex items-center gap-2 mb-3">
-                  <Smartphone className="h-5 w-5 text-amber-600" />
-                  <h4 className="font-semibold">Pay with M-Pesa</h4>
-                </div>
-                <div className="text-3xl font-bold text-amber-600 mb-1">Custom Pricing</div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Price varies per content (e.g., Ksh 60-200)
-                </p>
-                <ul className="space-y-2 text-sm">
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-green-500" />
-                    Direct payment
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-green-500" />
-                    No credit purchase needed
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-green-500" />
-                    Perfect for one-time access
-                  </li>
-                </ul>
-              </div>
+            <div>
+              <h4 className="font-medium mb-1">Is content free to access?</h4>
+              <p className="text-muted-foreground">
+                Yes! All resources are free to view and learn from. Credits are only needed for uploading content and using the AI tutor.
+              </p>
             </div>
-
-            {/* FAQ Section */}
-            <div className="bg-muted rounded-xl p-6">
-              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                <HelpCircle className="h-5 w-5 text-primary" />
-                Frequently Asked Questions
-              </h3>
-              <div className="space-y-4 text-sm">
-                <div>
-                  <h4 className="font-medium mb-1">What happens after I unlock content?</h4>
-                  <p className="text-muted-foreground">
-                    The content becomes permanently available in your library. You can access it 
-                    anytime without additional payment.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium mb-1">Do teachers also need to pay to unlock content?</h4>
-                  <p className="text-muted-foreground">
-                    Yes, the unlock system applies to all users including teachers. This ensures 
-                    fair compensation for content creators.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium mb-1">Can I get a refund?</h4>
-                  <p className="text-muted-foreground">
-                    Credits are non-refundable once used. However, if you encounter technical issues, 
-                    please contact our support team.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium mb-1">Is there a minimum credit purchase?</h4>
-                  <p className="text-muted-foreground">
-                    Yes, the minimum purchase is Ksh 100 which gives you 50 credits. Content unlock prices vary based on the specific resource.
-                  </p>
-                </div>
-              </div>
+            <div>
+              <h4 className="font-medium mb-1">Do credits expire?</h4>
+              <p className="text-muted-foreground">
+                Credits expire after 30 days from purchase. Use them for uploads or AI tutor interactions before they expire.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-medium mb-1">How much does the AI tutor cost?</h4>
+              <p className="text-muted-foreground">
+                Standard messages cost 1 credit each. Powerful model messages cost 5 credits for more advanced reasoning and analysis.
+              </p>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Bottom CTA */}
-        <div className="mt-8 pt-6 border-t flex items-center justify-between">
+        <div className="pt-6 border-t flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
             Questions? Contact our support team
           </div>
@@ -716,6 +577,94 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* Ownership Benefits Section */}
+      <section className="py-24 bg-muted/50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="mx-auto max-w-4xl"
+          >
+            <div className="grid gap-12 md:grid-cols-2 items-center">
+              {/* Left: Headline + Description */}
+              <div>
+                <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">
+                  Institutions That{" "}
+                  <span className="bg-gradient-to-r from-orange-700 to-amber-500 bg-clip-text text-transparent">
+                    Add You, Fund You
+                  </span>
+                </h2>
+                <p className="text-lg text-muted-foreground mb-6">
+                  When an institution adds you as a member, you get full access
+                  to all their resources at no extra cost. You still use credits
+                  for AI tutor chats and personal uploads — but your institution
+                  can gift you credits to cover those too.
+                </p>
+                <Link href="/sign-up">
+                  <Button className="bg-gradient-to-r from-orange-700 to-amber-500 hover:from-orange-800 hover:to-amber-600">
+                    Get Started
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+
+              {/* Right: Benefits Checklist Card */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/15">
+                  <CardHeader>
+                    <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-700 to-amber-500 shadow-lg shadow-orange-700/20">
+                      <Building2 className="h-6 w-6 text-white" />
+                    </div>
+                    <CardTitle>Institution Membership Perks</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-4">
+                      {[
+                        {
+                          icon: BookOpen,
+                          text: "Full access to all institution resources",
+                        },
+                        {
+                          icon: Coins,
+                          text: "Institution can gift you credits for AI & uploads",
+                        },
+                        {
+                          icon: Brain,
+                          text: "AI tutor powered by your credits",
+                        },
+                        {
+                          icon: BarChart3,
+                          text: "Progress tracking and analytics",
+                        },
+                      ].map((benefit, index) => (
+                        <li key={index} className="flex items-start gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-500/15 dark:bg-green-500/10">
+                            <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          </div>
+                          <div className="flex items-center gap-2 pt-1">
+                            <benefit.icon className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">
+                              {benefit.text}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Pricing Section */}
       <section id="pricing" className="py-24 bg-muted/50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -745,63 +694,67 @@ export function LandingPage() {
             className="mx-auto max-w-4xl"
           >
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {/* Credit Card */}
+              {/* Credits & Uploads Card */}
               <Card className="border-2 border-primary/40 dark:border-primary/50 bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/15 dark:to-primary/8">
                 <CardHeader>
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-700 to-amber-500">
                     <Coins className="h-6 w-6 text-white" />
                   </div>
-                  <CardTitle>Credit System</CardTitle>
+                  <CardTitle>Credits & Uploads</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground mb-4">
-                    1 credit = 1 AI response or content unlock
+                    Buy credits to upload resources and use AI features
                   </p>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
                       <Check className="h-4 w-4 text-primary" />
-                      <span>50 credits for Ksh 100</span>
+                      <span>Custom amounts from Ksh 100</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-primary" />
+                      <span>10 credits per upload (base rate)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-primary" />
+                      <span>Volume discounts up to 50% off</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Check className="h-4 w-4 text-primary" />
                       <span>Pay with M-Pesa</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-primary" />
-                      <span>Credits expire after 30 days</span>
-                    </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Unlock Card */}
-              <Card className="border-2 border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-50/50 to-yellow-50/50 dark:from-amber-950/20 dark:to-yellow-950/20">
+              {/* Free Learning Card */}
+              <Card className="border-2 border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-green-950/20 dark:to-emerald-950/20">
                 <CardHeader>
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-yellow-500">
-                    <Lock className="h-6 w-6 text-white" />
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-emerald-500">
+                    <BookOpen className="h-6 w-6 text-white" />
                   </div>
-                  <CardTitle>Content Unlock</CardTitle>
+                  <CardTitle>Free Learning</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Access premium content with custom pricing
+                    Access all educational content at no cost
                   </p>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-amber-600" />
-                      <span>Custom pricing per content</span>
+                      <Check className="h-4 w-4 text-green-600" />
+                      <span>All resources free to access</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-amber-600" />
-                      <span>Pay with credits or M-Pesa</span>
+                      <Check className="h-4 w-4 text-green-600" />
+                      <span>AI tutor from 1 credit/message</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-amber-600" />
-                      <span>Permanent access after unlock</span>
+                      <Check className="h-4 w-4 text-green-600" />
+                      <span>Notes, videos, audio & quizzes</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-amber-600" />
-                      <span>All subjects & topics</span>
+                      <Check className="h-4 w-4 text-green-600" />
+                      <span>Track your progress</span>
                     </div>
                   </div>
                 </CardContent>
@@ -926,7 +879,7 @@ export function LandingPage() {
                     </li>
                     <li className="flex items-center gap-2">
                       <Star className="h-4 w-4 text-yellow-600" />
-                      Gift credits rewards & contnet unlocks
+                      Gift credits & manage upload budgets
                     </li>
                   </ul>
                   <Link href="/sign-up" className="mt-6 block">

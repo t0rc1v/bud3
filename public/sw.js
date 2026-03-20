@@ -1,5 +1,12 @@
-const CACHE_NAME = "budlm-v4";
-const STATIC_ASSETS = ["/", "/manifest.webmanifest"];
+const CACHE_NAME = "budlm-v5";
+const STATIC_ASSETS = [
+  "/",
+  "/manifest.webmanifest",
+  "/icons/icon-192x192.png",
+  "/icons/icon-512x512.png",
+  "/icons/icon-maskable-512x512.png",
+  "/apple-touch-icon.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

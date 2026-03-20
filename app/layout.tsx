@@ -24,12 +24,21 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Bud3',
   description: 'AI-powered educational platform',
+  icons: {
+    apple: '/apple-touch-icon.png',
+  },
+  appleWebApp: {
+    capable: true,
+    title: 'BudLM',
+    statusBarStyle: 'black-translucent',
+  },
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   interactiveWidget: 'resizes-content',
+  themeColor: '#c2410c',
 }
 
 export default function RootLayout({
